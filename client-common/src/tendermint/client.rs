@@ -17,4 +17,7 @@ pub trait Client: Send + Sync {
 
     /// Makes `broadcast_tx_sync` call to tendermint
     fn broadcast_transaction(&self, transaction: &[u8]) -> Result<()>;
+
+    /// Get nonce from the staked stake address
+    fn get_nonce(&self, staked_state_address: &[u8]) -> Result<u64>;
 }

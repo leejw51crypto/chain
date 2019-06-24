@@ -65,4 +65,8 @@ impl Client for RpcClient {
         self.call::<serde_json::Value>("broadcast_tx_sync", &params)
             .map(|_| ())
     }
+
+    fn get_nonce(&self, staked_state_address: &[u8]) -> Result<u64> {
+        return Ok(0);
+    }
 }

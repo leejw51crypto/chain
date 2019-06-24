@@ -1,5 +1,6 @@
 use crate::NetworkOpsClient;
 use chain_core::init::coin::Coin;
+use chain_core::state::account::Nonce;
 use chain_core::state::account::{DepositBondTx, UnbondTx};
 use chain_core::state::account::{StakedStateAddress, StakedStateOpAttributes};
 use chain_core::state::account::{StakedStateOpWitness, WithdrawUnbondedTx};
@@ -8,6 +9,7 @@ use chain_core::tx::data::attribute::TxAttributes;
 use chain_core::tx::data::input::TxoPointer;
 use chain_core::tx::data::output::TxOut;
 use chain_core::tx::{TransactionId, TxAux};
+use client_common::tendermint::{Client, RpcClient};
 use client_common::{Error, ErrorKind, Result};
 use client_core::signer::Signer;
 use client_core::UnspentTransactions;
@@ -15,33 +17,38 @@ use client_core::WalletClient;
 use secstr::SecUtf8;
 
 /// Default implementation of `NetworkOpsClient`
-pub struct DefaultNetworkOpsClient<'a, W, S>
+pub struct DefaultNetworkOpsClient<'a, W, S, C>
 where
     W: WalletClient,
     S: Signer,
+    C: Client,
 {
     wallet_client: &'a W,
     signer: &'a S,
+    client: &'a C,
 }
 
-impl<'a, W, S> DefaultNetworkOpsClient<'a, W, S>
+impl<'a, W, S, C> DefaultNetworkOpsClient<'a, W, S, C>
 where
     W: WalletClient,
     S: Signer,
+    C: Client,
 {
     /// Creates a new instance of `DefaultNetworkOpsClient`
-    pub fn new(wallet_client: &'a W, signer: &'a S) -> Self {
+    pub fn new(wallet_client: &'a W, signer: &'a S, client: &'a C) -> Self {
         Self {
             wallet_client,
             signer,
+            client,
         }
     }
 }
 
-impl<'a, W, S> NetworkOpsClient for DefaultNetworkOpsClient<'a, W, S>
+impl<'a, W, S, C> NetworkOpsClient for DefaultNetworkOpsClient<'a, W, S, C>
 where
     W: WalletClient,
     S: Signer,
+    C: Client,
 {
     fn create_deposit_bonded_stake_transaction(
         &self,
@@ -78,10 +85,11 @@ where
         from_address: &ExtendedAddr,
         value: Coin,
         attributes: StakedStateOpAttributes,
+        nonce: Nonce,
     ) -> Result<TxAux> {
         match from_address {
             ExtendedAddr::BasicRedeem(ref redeem_address) => {
-                let transaction = UnbondTx::new(value, 0, attributes);
+                let transaction = UnbondTx::new(value, nonce, attributes);
                 let public_key = self
                     .wallet_client
                     .find_public_key(name, passphrase, redeem_address)?
@@ -107,10 +115,11 @@ where
         from_address: &ExtendedAddr,
         outputs: Vec<TxOut>,
         attributes: TxAttributes,
+        nonce: Nonce,
     ) -> Result<TxAux> {
         match from_address {
             ExtendedAddr::BasicRedeem(ref redeem_address) => {
-                let transaction = WithdrawUnbondedTx::new(0, outputs, attributes);
+                let transaction = WithdrawUnbondedTx::new(nonce, outputs, attributes);
                 let public_key = self
                     .wallet_client
                     .find_public_key(name, passphrase, redeem_address)?
@@ -147,6 +156,7 @@ mod tests {
     fn check_create_deposit_bonded_stake_transaction() {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
+        let tendermint_url = "http://localhost:26657/";
 
         let storage = MemoryStorage::default();
         let signer = DefaultSigner::new(storage.clone());
@@ -155,8 +165,9 @@ mod tests {
             .with_wallet(storage)
             .build()
             .unwrap();
-
-        let network_ops_client = DefaultNetworkOpsClient::new(&wallet_client, &signer);
+        let tendermint_client = RpcClient::new(&tendermint_url);
+        let network_ops_client =
+            DefaultNetworkOpsClient::new(&wallet_client, &signer, &tendermint_client);
 
         let inputs: Vec<TxoPointer> = vec![];
         let to_staked_account =
@@ -178,6 +189,7 @@ mod tests {
     fn check_create_unbond_stake_transaction() {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
+        let tendermint_url = "http://localhost:26657/";
 
         let storage = MemoryStorage::default();
         let signer = DefaultSigner::new(storage.clone());
@@ -187,10 +199,14 @@ mod tests {
             .build()
             .unwrap();
 
-        let network_ops_client = DefaultNetworkOpsClient::new(&wallet_client, &signer);
+        let tendermint_client = RpcClient::new(&tendermint_url);
+
+        let network_ops_client =
+            DefaultNetworkOpsClient::new(&wallet_client, &signer, &tendermint_client);
 
         let value = Coin::new(0).unwrap();
         let attributes = StakedStateOpAttributes::new(0);
+        let nonce = 0;
         assert_eq!(
             ErrorKind::InvalidInput,
             network_ops_client
@@ -200,6 +216,7 @@ mod tests {
                     &ExtendedAddr::OrTree([0; 32]),
                     value,
                     attributes,
+                    nonce,
                 )
                 .unwrap_err()
                 .kind()
@@ -210,7 +227,7 @@ mod tests {
     fn check_withdraw_unbonded_stake_transaction() {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
-
+        let tendermint_url = "http://localhost:26657/";
         let storage = MemoryStorage::default();
         let signer = DefaultSigner::new(storage.clone());
 
@@ -218,13 +235,15 @@ mod tests {
             .with_wallet(storage)
             .build()
             .unwrap();
+        let tendermint_client = RpcClient::new(&tendermint_url);
 
-        let network_ops_client = DefaultNetworkOpsClient::new(&wallet_client, &signer);
+        let network_ops_client =
+            DefaultNetworkOpsClient::new(&wallet_client, &signer, &tendermint_client);
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
         let from_address = wallet_client.new_redeem_address(name, passphrase).unwrap();
-
+        let nonce = 0;
         let transaction = network_ops_client
             .create_withdraw_unbonded_stake_transaction(
                 name,
@@ -232,6 +251,7 @@ mod tests {
                 &from_address,
                 Vec::new(),
                 TxAttributes::new(171),
+                nonce,
             )
             .unwrap();
 
@@ -253,6 +273,7 @@ mod tests {
     fn check_withdraw_unbonded_stake_transaction_address_not_found() {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
+        let tendermint_url = "http://localhost:26657/";
 
         let storage = MemoryStorage::default();
         let signer = DefaultSigner::new(storage.clone());
@@ -262,8 +283,11 @@ mod tests {
             .build()
             .unwrap();
 
-        let network_ops_client = DefaultNetworkOpsClient::new(&wallet_client, &signer);
+        let tendermint_client = RpcClient::new(&tendermint_url);
 
+        let network_ops_client =
+            DefaultNetworkOpsClient::new(&wallet_client, &signer, &tendermint_client);
+        let nonce = 0;
         wallet_client.new_wallet(name, passphrase).unwrap();
 
         assert_eq!(
@@ -277,6 +301,7 @@ mod tests {
                     ))),
                     Vec::new(),
                     TxAttributes::new(171),
+                    nonce,
                 )
                 .unwrap_err()
                 .kind()
@@ -287,7 +312,7 @@ mod tests {
     fn check_withdraw_unbonded_stake_transaction_wallet_not_found() {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
-
+        let tendermint_url = "http://localhost:26657/";
         let storage = MemoryStorage::default();
         let signer = DefaultSigner::new(storage.clone());
 
@@ -295,9 +320,11 @@ mod tests {
             .with_wallet(storage)
             .build()
             .unwrap();
+        let tendermint_client = RpcClient::new(&tendermint_url);
 
-        let network_ops_client = DefaultNetworkOpsClient::new(&wallet_client, &signer);
-
+        let network_ops_client =
+            DefaultNetworkOpsClient::new(&wallet_client, &signer, &tendermint_client);
+        let nonce = 0;
         assert_eq!(
             ErrorKind::WalletNotFound,
             network_ops_client
@@ -309,6 +336,7 @@ mod tests {
                     ))),
                     Vec::new(),
                     TxAttributes::new(171),
+                    nonce,
                 )
                 .unwrap_err()
                 .kind()
@@ -319,6 +347,7 @@ mod tests {
     fn check_withdraw_unbonded_stake_transaction_invalid_address_type() {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
+        let tendermint_url = "http://localhost:26657/";
 
         let storage = MemoryStorage::default();
         let signer = DefaultSigner::new(storage.clone());
@@ -327,9 +356,11 @@ mod tests {
             .with_wallet(storage)
             .build()
             .unwrap();
+        let tendermint_client = RpcClient::new(&tendermint_url);
 
-        let network_ops_client = DefaultNetworkOpsClient::new(&wallet_client, &signer);
-
+        let network_ops_client =
+            DefaultNetworkOpsClient::new(&wallet_client, &signer, &tendermint_client);
+        let nonce = 0;
         assert_eq!(
             ErrorKind::InvalidInput,
             network_ops_client
@@ -339,6 +370,7 @@ mod tests {
                     &ExtendedAddr::OrTree([0; 32]),
                     Vec::new(),
                     TxAttributes::new(171),
+                    nonce,
                 )
                 .unwrap_err()
                 .kind()

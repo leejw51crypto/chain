@@ -469,6 +469,10 @@ mod tests {
         fn broadcast_transaction(&self, _: &[u8]) -> Result<()> {
             Ok(())
         }
+
+        fn get_nonce(&self, staked_state_address: &[u8]) -> Result<u64> {
+            Ok(0)
+        }
     }
 
     #[test]

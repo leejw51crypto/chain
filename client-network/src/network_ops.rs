@@ -17,9 +17,7 @@ use secstr::SecUtf8;
 /// Interface for performing network operations on Crypto.com Chain
 pub trait NetworkOpsClient {
     /// fetch current StakedState nonce
-    fn get_staked_state_nonce(&self, to_staked_account: StakedStateAddress) -> Nonce {
-        return 0;
-    }
+    fn get_staked_state_nonce(&self, to_staked_account: StakedStateAddress) -> Result<Nonce>;
 
     /// creates a new transaction for bonding stake transaction with utxos
     fn create_deposit_bonded_stake_transaction(

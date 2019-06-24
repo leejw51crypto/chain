@@ -50,6 +50,12 @@ where
     S: Signer,
     C: Client,
 {
+    fn get_staked_state_nonce(&self, to_staked_account: StakedStateAddress) -> Result<Nonce> {
+        match to_staked_account {
+            StakedStateAddress::BasicRedeem(a) => self.client.get_nonce(&a.0),
+        }
+    }
+
     fn create_deposit_bonded_stake_transaction(
         &self,
         name: &str,

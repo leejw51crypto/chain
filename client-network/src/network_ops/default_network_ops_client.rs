@@ -9,7 +9,7 @@ use chain_core::tx::data::attribute::TxAttributes;
 use chain_core::tx::data::input::TxoPointer;
 use chain_core::tx::data::output::TxOut;
 use chain_core::tx::{TransactionId, TxAux};
-use client_common::tendermint::{Client, RpcClient};
+use client_common::tendermint::{Client};
 use client_common::{Error, ErrorKind, Result};
 use client_core::signer::Signer;
 use client_core::UnspentTransactions;
@@ -52,7 +52,14 @@ where
 {
     fn get_staked_state_nonce(&self, to_staked_account: StakedStateAddress) -> Result<Nonce> {
         match to_staked_account {
-            StakedStateAddress::BasicRedeem(a) => self.client.get_nonce(&a.0),
+            StakedStateAddress::BasicRedeem(a) => {
+                // it's encoded in scale codec
+                let _a = self.client.get_account(&a.0);
+                // decode
+                // pick nonce
+                let nonce = 0;
+                Ok(nonce)
+            }
         }
     }
 

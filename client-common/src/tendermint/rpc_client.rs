@@ -66,7 +66,12 @@ impl Client for RpcClient {
             .map(|_| ())
     }
 
-    fn get_nonce(&self, staked_state_address: &[u8]) -> Result<u64> {
-        return Ok(0);
+    fn get_account(&self, staked_state_address: &[u8]) -> Result<Account> {
+        let params = [
+            json!({"path":"account"}),
+            json!({ "data": hex::encode(staked_state_address) }),
+        ];
+
+        self.call("abci_query", &params)
     }
 }

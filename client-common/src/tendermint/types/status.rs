@@ -11,8 +11,18 @@ pub struct Status {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct Account {
+    pub response: AccountInfo,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct SyncInfo {
     pub latest_block_height: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AccountInfo {
+    pub value: String,
 }
 
 impl Status {

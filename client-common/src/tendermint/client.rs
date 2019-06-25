@@ -19,5 +19,5 @@ pub trait Client: Send + Sync {
     fn broadcast_transaction(&self, transaction: &[u8]) -> Result<()>;
 
     /// Get nonce from the staked stake address
-    fn get_nonce(&self, staked_state_address: &[u8]) -> Result<u64>;
+    fn get_account(&self, staked_state_address: &[u8]) -> Result<Account>;
 }

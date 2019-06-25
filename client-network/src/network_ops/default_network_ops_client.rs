@@ -15,7 +15,8 @@ use client_core::signer::Signer;
 use client_core::UnspentTransactions;
 use client_core::WalletClient;
 use secstr::SecUtf8;
-
+use chain_core::state::account::StakedState;
+use parity_codec::{Decode, Encode};
 /// Default implementation of `NetworkOpsClient`
 pub struct DefaultNetworkOpsClient<'a, W, S, C>
 where
@@ -54,10 +55,14 @@ where
         match to_staked_account {
             StakedStateAddress::BasicRedeem(a) => {
                 // it's encoded in scale codec
-                let _a = self.client.get_account(&a.0);
+                let account = self.client.get_account(&a.0).unwrap();
+                let mut value = account.response.value.into_bytes();
+                // StakedState
+                let stakeState = StakedState::decode(&mut value.as_slice()).unwrap();
+            
                 // decode
                 // pick nonce
-                let nonce = 0;
+                let nonce = stakeState.nonce;
                 Ok(nonce)
             }
         }

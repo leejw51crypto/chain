@@ -12,3 +12,4 @@ chain-tx-validation = { path = "../chain-tx-validation" }
 client-common = { path = "../client-common" }
 client-core = { path = "../client-core" }
 secstr = "0.3.2"
+parity-codec = { features = ["derive"], version = "4.0.0" }

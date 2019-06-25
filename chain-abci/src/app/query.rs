@@ -116,7 +116,8 @@ impl ChainNodeApp {
                 );
             }
             "account" => {
-                let account_address = StakedStateAddress::try_from(_req.data.as_slice());
+                let decoded = hex::decode(_req.data.as_slice()).expect("Decoding failed");
+                let account_address = StakedStateAddress::try_from(decoded.as_slice());
                 if let (Some(state), Ok(address)) = (&self.last_state, account_address) {
                     let account =
                         get_account(&address, &state.last_account_root_hash, &self.accounts);

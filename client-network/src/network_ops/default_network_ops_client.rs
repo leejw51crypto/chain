@@ -1,6 +1,7 @@
 use crate::NetworkOpsClient;
 use chain_core::init::coin::Coin;
 use chain_core::state::account::Nonce;
+use chain_core::state::account::StakedState;
 use chain_core::state::account::{DepositBondTx, UnbondTx};
 use chain_core::state::account::{StakedStateAddress, StakedStateOpAttributes};
 use chain_core::state::account::{StakedStateOpWitness, WithdrawUnbondedTx};
@@ -9,14 +10,13 @@ use chain_core::tx::data::attribute::TxAttributes;
 use chain_core::tx::data::input::TxoPointer;
 use chain_core::tx::data::output::TxOut;
 use chain_core::tx::{TransactionId, TxAux};
-use client_common::tendermint::{Client};
+use client_common::tendermint::Client;
 use client_common::{Error, ErrorKind, Result};
 use client_core::signer::Signer;
 use client_core::UnspentTransactions;
 use client_core::WalletClient;
-use secstr::SecUtf8;
-use chain_core::state::account::StakedState;
 use parity_codec::{Decode, Encode};
+use secstr::SecUtf8;
 /// Default implementation of `NetworkOpsClient`
 pub struct DefaultNetworkOpsClient<'a, W, S, C>
 where
@@ -59,7 +59,7 @@ where
                 let mut value = account.response.value.into_bytes();
                 // StakedState
                 let stakeState = StakedState::decode(&mut value.as_slice()).unwrap();
-            
+
                 // decode
                 // pick nonce
                 let nonce = stakeState.nonce;

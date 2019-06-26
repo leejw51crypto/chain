@@ -8,7 +8,7 @@ use chain_core::tx::data::{txid_hash, TXID_HASH_ID};
 use integer_encoding::VarInt;
 use parity_codec::{Decode, Encode};
 use std::convert::TryFrom;
-
+use std::str;
 impl ChainNodeApp {
     /// Helper to find a key under a column in KV DB, or log an error (both stored in the response).
     fn lookup(&self, resp: &mut ResponseQuery, column: Option<u32>, key: &[u8], log_message: &str) {
@@ -115,8 +115,17 @@ impl ChainNodeApp {
                     "app state not found",
                 );
             }
-            "account" => {
-                let decoded = hex::decode(_req.data.as_slice()).expect("Decoding failed");
+            // account
+            "0x6163636f756e74" => {
+                let original = _req.data.as_slice();;
+                let hex = &original[2..];
+                if hex.len() % 2 != 0 {
+                    resp.log += "Incorrect account address";
+                    resp.code = 1;
+                    return resp;
+                }
+                assert!(hex.len() % 2 == 0);
+                let decoded = hex::decode(hex).expect("Read account decoding failed");
                 let account_address = StakedStateAddress::try_from(decoded.as_slice());
                 if let (Some(state), Ok(address)) = (&self.last_state, account_address) {
                     let account =

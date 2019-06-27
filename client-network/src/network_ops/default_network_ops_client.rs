@@ -51,7 +51,7 @@ where
     S: Signer,
     C: Client,
 {
-    fn get_staked_state_nonce(&self, to_staked_account: StakedStateAddress) -> Result<Nonce> {
+     fn get_staked_state_account(&self, to_staked_account: StakedStateAddress) -> Result<StakedState> {
         match to_staked_account {
             StakedStateAddress::BasicRedeem(a) => {
                 // it's encoded in scale codec
@@ -59,9 +59,16 @@ where
                 let mut data = base64::decode(account.response.value.as_bytes()).unwrap();
                 let account= StakedState::decode(&mut data.as_slice()).unwrap();
                 println!("StakedState {:?}", account);
-                let nonce = account.nonce;
-                Ok(nonce)
+                Ok(account)
             }
+        }
+    }
+
+    fn get_staked_state_nonce(&self, to_staked_account: StakedStateAddress) -> Result<Nonce> {
+        let state = self.get_staked_state_account(to_staked_account);
+        match state {
+            Ok(a) => Ok(a.nonce),
+            Err(b)=> Err(b),
         }
     }
 

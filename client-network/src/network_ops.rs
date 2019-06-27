@@ -13,9 +13,13 @@ use chain_core::tx::data::output::TxOut;
 use chain_core::tx::TxAux;
 use client_common::Result;
 use secstr::SecUtf8;
+use chain_core::state::account::StakedState;
 
 /// Interface for performing network operations on Crypto.com Chain
 pub trait NetworkOpsClient {
+    /// fetch current StakedState
+    fn get_staked_state_account(&self, to_staked_account: StakedStateAddress) -> Result<StakedState> ;
+     
     /// fetch current StakedState nonce
     fn get_staked_state_nonce(&self, to_staked_account: StakedStateAddress) -> Result<Nonce>;
 

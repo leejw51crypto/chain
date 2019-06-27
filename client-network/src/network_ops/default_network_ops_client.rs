@@ -51,16 +51,28 @@ where
     S: Signer,
     C: Client,
 {
-     fn get_staked_state_account(&self, to_staked_account: StakedStateAddress) -> Result<StakedState> {
+    fn get_staked_state_account(
+        &self,
+        to_staked_account: StakedStateAddress,
+    ) -> Result<StakedState> {
         match to_staked_account {
-            StakedStateAddress::BasicRedeem(a) => {
-                // it's encoded in scale codec
-                let account = self.client.get_account(&a.0).unwrap();
-                let mut data = base64::decode(account.response.value.as_bytes()).unwrap();
-                let account= StakedState::decode(&mut data.as_slice()).unwrap();
-                println!("StakedState {:?}", account);
-                Ok(account)
-            }
+            StakedStateAddress::BasicRedeem(a) => self
+                .client
+                .get_account(&a.0)
+                .and_then(
+                    |account| match base64::decode(account.response.value.as_bytes()) {
+                        Ok(a) => Ok(a),
+                        Err(b) => Err(Error::from(ErrorKind::RpcError)),
+                    },
+                )
+                .and_then(|data| match StakedState::decode(&mut data.as_slice()) {
+                    Some(a) => Ok(a),
+                    None => Err(Error::from(ErrorKind::RpcError)),
+                })
+                .and_then(|account| {
+                    println!("StakedState {:?}", account);
+                    Ok(account)
+                }), 
         }
     }
 
@@ -68,7 +80,7 @@ where
         let state = self.get_staked_state_account(to_staked_account);
         match state {
             Ok(a) => Ok(a.nonce),
-            Err(b)=> Err(b),
+            Err(b) => Err(b),
         }
     }
 

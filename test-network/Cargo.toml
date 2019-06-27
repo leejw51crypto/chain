@@ -5,3 +5,13 @@ authors = ["Jongwhan Lee <jonghwan@crypto.com>"]
 edition = "2018"
 
 [dependencies]
+client-network = {path="../client-network"}
+chain-core = { path = "../chain-core" }
+chain-tx-validation = { path = "../chain-tx-validation" }
+client-common = { path = "../client-common" }
+client-core = { path = "../client-core" }
+hex= ""
+jsonrpc= ""
+serde_json=""
+parity-codec = { features = ["derive"], version = "4.0.0" }
+base64 = "0.10"

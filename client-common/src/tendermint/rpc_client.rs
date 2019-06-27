@@ -30,13 +30,12 @@ impl RpcClient {
         // jsonrpc does not handle Hyper connection reset properly. The current
         // inefficient workaround is to create a new client on every call.
         // https://github.com/apoelstra/rust-jsonrpc/issues/26
+        // let url2 = "http://localhost:26657/abci_query";
+        //let client = JsonRpcClient::new(url2.to_owned(), None, None);
         let client = JsonRpcClient::new(self.url.to_owned(), None, None);
         let request = client.build_request(name, params);
-
         let response = client.send_request(&request).context(ErrorKind::RpcError)?;
-
         let result = response.result::<T>().context(ErrorKind::RpcError)?;
-
         Ok(result)
     }
 }
@@ -67,11 +66,18 @@ impl Client for RpcClient {
     }
 
     fn get_account(&self, staked_state_address: &[u8]) -> Result<Account> {
+        /*   let params = [
+            json!({"path":"0x6163636f756e74"}),
+            json!({ "data": format!("0x{}",hex::encode(staked_state_address)) }),
+            json!({"heght":"0x6163636f756e74"}),
+             json!({"prove":"0x6163636f756e74"}),
+        ];*/
         let params = [
-            json!({"path":"account"}),
-            json!({ "data": hex::encode(staked_state_address) }),
+            json!("account"),
+            json!(hex::encode(staked_state_address)),
+            json!(null),
+            json!(null),
         ];
-
         self.call("abci_query", &params)
     }
 }

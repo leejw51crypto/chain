@@ -56,13 +56,10 @@ where
             StakedStateAddress::BasicRedeem(a) => {
                 // it's encoded in scale codec
                 let account = self.client.get_account(&a.0).unwrap();
-                let mut value = account.response.value.into_bytes();
-                // StakedState
-                let stakeState = StakedState::decode(&mut value.as_slice()).unwrap();
-
-                // decode
-                // pick nonce
-                let nonce = stakeState.nonce;
+                let mut data = base64::decode(account.response.value.as_bytes()).unwrap();
+                let account= StakedState::decode(&mut data.as_slice()).unwrap();
+                println!("StakedState {:?}", account);
+                let nonce = account.nonce;
                 Ok(nonce)
             }
         }

@@ -3,6 +3,7 @@ use crate::storage::tx::get_account;
 use crate::storage::*;
 use abci::*;
 use chain_core::common::{MerkleTree, Proof as MerkleProof, H256, HASH_SIZE_256};
+use chain_core::state::account::StakedState;
 use chain_core::state::account::StakedStateAddress;
 use chain_core::tx::data::{txid_hash, TXID_HASH_ID};
 use integer_encoding::VarInt;
@@ -116,24 +117,35 @@ impl ChainNodeApp {
                 );
             }
             // account
-            "0x6163636f756e74" => {
-                let original = _req.data.as_slice();;
-                let hex = &original[2..];
-                if hex.len() % 2 != 0 {
+            "account" => {
+                println!("debug data received={:?}", _req.data);
+                println!("data received={}", hex::encode(_req.data.as_slice()));
+                // let original = _req.data.as_slice();;
+                // let hex = &original[2..];
+                /*if hex.len() % 2 != 0 {
                     resp.log += "Incorrect account address";
                     resp.code = 1;
                     return resp;
                 }
                 assert!(hex.len() % 2 == 0);
                 let decoded = hex::decode(hex).expect("Read account decoding failed");
-                let account_address = StakedStateAddress::try_from(decoded.as_slice());
+                */
+                // let decoded = vec![1,0];
+                let account_address = StakedStateAddress::try_from(_req.data.as_slice());
                 if let (Some(state), Ok(address)) = (&self.last_state, account_address) {
                     let account =
                         get_account(&address, &state.last_account_root_hash, &self.accounts);
+                    println!("account info={:?}", account);
                     match account {
                         Ok(a) => {
                             resp.value = a.encode();
                             // TODO: inclusion proof
+                            {
+                                let mut data = resp.value.as_slice();
+                                println!("encoded data={:?}", data);
+                                let account =
+                                    StakedState::decode(&mut data).expect("verify account");
+                            }
                         }
                         Err(e) => {
                             resp.log += format!("account lookup failed: {}", e).as_ref();

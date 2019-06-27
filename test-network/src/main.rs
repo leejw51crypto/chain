@@ -47,14 +47,11 @@ fn test2() {
         Ok(res)
     });
 }
-fn main() {
+fn test3() {
     let height = 0;
-    let params = [
-        json!("account"),
-        json!("0db221c4f57d5d38b968139c06e9132aaf84e8df"),
-        json!(null),
-        json!(null),
-    ];
+    let b = hex::decode("0db221c4f57d5d38b968139c06e9132aaf84e8df").unwrap();
+    let c = hex::encode(b);
+    let params = [json!("account"), json!(c), json!(null), json!(null)];
     let params2 = [json!(null)];
     /*
         {
@@ -94,4 +91,22 @@ fn main() {
         println!("{:?}", res);
         Ok(res)
     });*/
+}
+fn main() {
+    let tendermint_url = "http://localhost:26657/";
+    let storage = MemoryStorage::default();
+    let signer = DefaultSigner::new(storage.clone());
+
+    let wallet_client = DefaultWalletClient::builder()
+        .with_wallet(storage)
+        .build()
+        .unwrap();
+    let tendermint_client = RpcClient::new(&tendermint_url);
+    let network_ops_client =
+        DefaultNetworkOpsClient::new(&wallet_client, &signer, &tendermint_client);
+    let e = hex::decode("0db221c4f57d5d38b968139c06e9132aaf84e8df").unwrap();
+    let g = StakedStateAddress::try_from(e.as_slice()).unwrap();
+    println!("StakeStateAddress {:?}", g);
+    let nonce = network_ops_client.get_staked_state_nonce(g).unwrap();
+    println!("Nonce={}", nonce);
 }

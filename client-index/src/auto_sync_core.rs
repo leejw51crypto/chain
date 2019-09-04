@@ -159,11 +159,14 @@ where
             data.wallet = self.get_current_wallet().name;
             if data.max_height > 0 {
                 data.progress = (data.current_height as f64) / (data.max_height as f64);
+                if data.progress > 1.0 {
+                    data.progress = 1.0;
+                }
             } else {
                 data.progress = 0.0;
             }
             log::info!(
-                "save block kind={} wallet={} height={}/{}  progress={:.4}%",
+                "save block kind={} wallet={} height={}/{}  progress={:.2}%",
                 kind,
                 data.wallet,
                 data.current_height,

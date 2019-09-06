@@ -82,6 +82,7 @@ impl AutoSynchronizer {
 
     /// activate tokio websocket
     pub fn run_network(&mut self) -> Result<()> {
+        let mut retry_interval = 1000;
         loop {
             let channel = futures::sync::mpsc::channel(0);
             // tx, rx
@@ -125,10 +126,16 @@ impl AutoSynchronizer {
                         .forward(sink)
                 });
             match runtime.block_on(runner) {
-                Ok(_a) => {}
+                Ok(_a) => {
+                    retry_interval = 1000; // initial interval
+                }
                 Err(b) => {
                     log::warn!("connection fail {}", b);
-                    std::thread::sleep(std::time::Duration::from_millis(1000));
+                    std::thread::sleep(std::time::Duration::from_millis(retry_interval));
+                    retry_interval += 500;
+                    if retry_interval > 10000 {
+                        retry_interval = 10000; // maximum interval
+                    }
                 }
             }
         }

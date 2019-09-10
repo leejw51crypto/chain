@@ -78,6 +78,11 @@ pub(crate) struct Options {
 
 pub fn main() {
     env_logger::init();
-    let options = Options::from_str("");
+    let options = Options::from_args();
     Server::new(options).unwrap().start().unwrap();
+}
+
+pub fn run() {
+    env_logger::init();
+    println!("client rpc run");
 }

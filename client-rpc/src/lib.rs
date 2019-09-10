@@ -4,7 +4,6 @@ mod server;
 use structopt::StructOpt;
 
 use server::Server;
-use std::str::FromStr;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -84,5 +83,9 @@ pub fn main() {
 
 pub fn run() {
     env_logger::init();
+    let mut options = Options::from_iter(vec![""].iter());
+    options.network_id = "ab".into();
+    options.network_type = "test".into();
+    Server::new(options).unwrap().start().unwrap();
     println!("client rpc run");
 }

@@ -97,14 +97,14 @@ impl AutoSynchronizer {
     fn process_text(&self, a: &str) -> std::result::Result<(), ()> {
         let j: serde_json::Value = serde_json::from_str(&a).map_err(|_e| {})?;
         if j["error"].is_null() {
-            self.close_connection();
             if let Some(core) = self.core.as_ref() {
                 core.send(OwnedMessage::Text(a.into())).map_err(|_e| {})?;
             }
+            Ok(())
+        } else {
+            Err(())
         }
-        Ok(())
     }
-
     /// activate tokio websocket
     pub fn run_network(&mut self) -> Result<()> {
         loop {

@@ -1,6 +1,7 @@
 mod rpc;
 mod server;
 
+use std::env;
 use structopt::StructOpt;
 
 use server::Server;
@@ -81,11 +82,40 @@ pub fn main() {
     Server::new(options).unwrap().start().unwrap();
 }
 
+pub fn find_string(args: &Vec<String>, target: &str) -> Option<usize> {
+    for i in 0..args.len() {
+        if args[i] == target && i < args.len() - 1 {
+            return Some(i);
+        }
+    }
+    return None;
+}
 pub fn run() {
     env_logger::init();
+    // "~/Electron", ".", "--network-id", "ab", "--network-type", "test"]
+    let args: Vec<String> = env::args().collect();
+    log::info!("args={:?}", args);
     let mut options = Options::from_iter(vec![""].iter());
-    options.network_id = "ab".into();
-    options.network_type = "test".into();
+    match find_string(&args, "--network-id") {
+        Some(a) => options.network_id = args[a + 1].clone(),
+        None => {}
+    }
+    match find_string(&args, "--network-type") {
+        Some(a) => options.network_type = args[a + 1].clone(),
+        None => {}
+    }
+    match find_string(&args, "--storage-dir") {
+        Some(a) => options.storage_dir = args[a + 1].clone(),
+        None => {}
+    }
+    match find_string(&args, "--tendermint-url") {
+        Some(a) => options.tendermint_url = args[a + 1].clone(),
+        None => {}
+    }
+    match find_string(&args, "--websocket-url") {
+        Some(a) => options.websocket_url = args[a + 1].clone(),
+        None => {}
+    }
+    log::info!("Options={:?}", options);
     Server::new(options).unwrap().start().unwrap();
-    println!("client rpc run");
 }

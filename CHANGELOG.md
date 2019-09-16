@@ -1,9 +1,41 @@
 # Changelog
 
+*September 12, 2019*
+
+A quick bug fix on top of 0.0.2
+
+## v0.0.3
+
+### Bug fixes
+* [373](https://github.com/crypto-com/chain/pull/373) client-index auto-sync didn't work correctly
+
+*September 11, 2019*
+
+A small patches (mainly dependency bumps) to the released version
+
+## v0.0.2
+
+### Features
+* [360](https://github.com/crypto-com/chain/pull/360) command to remove a wallet from client-rpc auto-sync
+
+### Bug fixes
+* [368](https://github.com/crypto-com/chain/pull/368) client-cli can select the network via an environment variable for address display
+
+### Improvements
+* [364](https://github.com/crypto-com/chain/pull/364) fewer logs in client-rpc
+
+
 *September 6, 2019*
 
 The release is an incomplete alpha version meant to be deployed on the first iteration of the public testnet.
 There are no guarantees on future API and binary compatibility at this stage.
+
+## v0.1.0 (Unreleased)
+
+### Features
+
+### Bug Fixes
+* [365](https://github.com/crypto-com/chain/pull/365) Creating a transfer address also creates a staking address
 
 ## v0.0.1
 

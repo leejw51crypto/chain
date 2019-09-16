@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 
@@ -58,8 +60,20 @@ where
         let (view_key, private_key, staking_addresses) =
             self.prepare_synchronized_parameters(&request)?;
 
+        let transfer_addresses = self
+            .client
+            .transfer_addresses(&request.name, &request.passphrase)
+            .map_err(to_rpc_error)?;
+
         self.synchronizer
-            .sync_all(&staking_addresses, &view_key, &private_key, None, None)
+            .sync_all(
+                &staking_addresses,
+                &transfer_addresses,
+                &view_key,
+                &private_key,
+                None,
+                None,
+            )
             .map_err(to_rpc_error)
     }
 
@@ -106,7 +120,7 @@ where
     fn prepare_synchronized_parameters(
         &self,
         request: &WalletRequest,
-    ) -> Result<(PublicKey, PrivateKey, Vec<StakedStateAddress>)> {
+    ) -> Result<(PublicKey, PrivateKey, BTreeSet<StakedStateAddress>)> {
         let view_key = self
             .client
             .view_key(&request.name, &request.passphrase)

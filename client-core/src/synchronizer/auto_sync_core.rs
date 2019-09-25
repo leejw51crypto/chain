@@ -387,6 +387,7 @@ where
             self.change_wallet();
         }
     }
+
     /// request status to fetch max height
     pub fn check_status(&mut self) -> Result<()> {
         let sendqueue: Option<futures::sync::mpsc::Sender<OwnedMessage>>;
@@ -406,6 +407,7 @@ where
                 )
             })?;
         self.state = WebsocketState::GetStatus;
+        self.state_time = SystemTime::now();
         Ok(())
     }
 
@@ -447,7 +449,15 @@ where
             return Ok(());
         }
         self.old_blocktime = now;
-        self.send_request_block()
+
+        if self.get_current_height() < self.max_height {
+            self.send_request_block()
+        } else {
+            log::info!("polling_get_blocks, sync is complete, go to next wallet");
+            self.change_to_wait();
+            self.change_wallet();
+            Ok(())
+        }
     }
 
     /** fetching blocks is handled indivisually

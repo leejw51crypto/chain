@@ -1,6 +1,9 @@
 //! Management services
+mod basic_key_service;
 mod global_state_service;
+mod hdkey_service;
 mod key_service;
+mod key_service_data;
 mod multi_sig_session_service;
 mod root_hash_service;
 mod wallet_service;

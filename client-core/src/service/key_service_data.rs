@@ -2,6 +2,28 @@ use secstr::SecUtf8;
 use zeroize::Zeroize;
 
 use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
+use std::sync::Once;
+static INIT_WALLET: Once = Once::new();
+
+/// Wallet kinds
+/// Basic: default wallet
+/// HD: HD wallet
+/// Hardware: hardware based wallets
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum WalletKinds {
+    /// Basic Wallet
+    Basic,
+    /// HD Wallet
+    HD,
+    /// Hardware Wallet
+    Hardware,
+}
+
+impl Default for WalletKinds {
+    fn default() -> Self {
+        WalletKinds::Basic
+    }
+}
 
 /// key service interface
 pub trait KeyServiceInterface {

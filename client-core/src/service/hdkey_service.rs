@@ -7,11 +7,86 @@ use std::str::FromStr;
 use tiny_hderive::bip32::ExtendedPrivKey;
 use tiny_hderive::bip44::ChildNumber;
 const KEYSPACE: &str = "core_hdkey";
+use super::key_service::KeyServiceInterface;
 
 /// Maintains mapping `public-key -> private-key`
 #[derive(Debug, Default, Clone)]
 pub struct HDKeyService<T: Storage> {
     storage: T,
+}
+
+impl<T> KeyServiceInterface for HDKeyService<T>
+where
+    T: Storage,
+{
+    /// m / purpose' / coin_type' / account' / change / address_index
+    /// account: donation, savings, common expense
+    /// change: 0: external, 1: internal
+    /// Generates a new public-private keypair
+    fn generate_keypair(
+        &self,
+        name: &str,           // wallet name
+        passphrase: &SecUtf8, // wallet pass phrase
+        is_staking: bool,     // kind of address
+    ) -> Result<(PublicKey, PrivateKey)> {
+        let seed_bytes = self.storage.get_secure(KEYSPACE, name, passphrase)?;
+        let mut index = 0;
+        if is_staking {
+            index = self.read_number(passphrase, "staking".as_bytes(), 0);
+        } else {
+            index = self.read_number(passphrase, "transfer".as_bytes(), 0);
+        }
+        println!("index={}", index);
+        let account = if is_staking { 1 } else { 0 };
+        let extended = ExtendedPrivKey::derive(
+            &seed_bytes.clone().unwrap(),
+            format!("m/44'/394'/{}'/0/{}", account, index).as_str(),
+        )
+        .unwrap();
+        let secret_key_bytes = extended.secret();
+        println!("save index={}", index);
+        let private_key = PrivateKey::deserialize_from(&secret_key_bytes.clone()).unwrap();
+        let public_key = PublicKey::from(&private_key);
+        self.storage.set_secure(
+            KEYSPACE,
+            public_key.serialize(),
+            private_key.serialize(),
+            passphrase,
+        )?;
+        // done
+        index += 1;
+        if is_staking {
+            self.write_number(passphrase, "staking".as_bytes(), index);
+        } else {
+            self.write_number(passphrase, "transfer".as_bytes(), index);
+        }
+
+        Ok((public_key, private_key))
+    }
+
+    /// Retrieves private key corresponding to given public key
+    fn private_key(
+        &self,
+        public_key: &PublicKey,
+        passphrase: &SecUtf8,
+    ) -> Result<Option<PrivateKey>> {
+        let private_key_bytes =
+            self.storage
+                .get_secure(KEYSPACE, public_key.serialize(), passphrase)?;
+
+        private_key_bytes
+            .map(|mut private_key_bytes| {
+                let private_key = PrivateKey::deserialize_from(&private_key_bytes)?;
+                private_key_bytes.zeroize();
+                Ok(private_key)
+            })
+            .transpose()
+    }
+
+    /// Clears all storage
+    fn clear(&self) -> Result<()> {
+        self.storage.clear(KEYSPACE)
+    }
 }
 
 impl<T> HDKeyService<T>
@@ -111,74 +186,5 @@ where
         self.storage
             .set_secure(KEYSPACE, key, b.to_vec(), passphrase)
             .unwrap();
-    }
-
-    /// m / purpose' / coin_type' / account' / change / address_index
-    /// account: donation, savings, common expense
-    /// change: 0: external, 1: internal
-    /// Generates a new public-private keypair
-    pub fn generate_keypair(
-        &self,
-        name: &str,           // wallet name
-        passphrase: &SecUtf8, // wallet pass phrase
-        is_staking: bool,     // kind of address
-    ) -> Result<(PublicKey, PrivateKey)> {
-        let seed_bytes = self.storage.get_secure(KEYSPACE, name, passphrase)?;
-        let mut index = 0;
-        if is_staking {
-            index = self.read_number(passphrase, "staking".as_bytes(), 0);
-        } else {
-            index = self.read_number(passphrase, "transfer".as_bytes(), 0);
-        }
-        println!("index={}", index);
-        let account = if is_staking { 1 } else { 0 };
-        let extended = ExtendedPrivKey::derive(
-            &seed_bytes.clone().unwrap(),
-            format!("m/44'/394'/{}'/0/{}", account, index).as_str(),
-        )
-        .unwrap();
-        let secret_key_bytes = extended.secret();
-        println!("save index={}", index);
-        let private_key = PrivateKey::deserialize_from(&secret_key_bytes.clone()).unwrap();
-        let public_key = PublicKey::from(&private_key);
-        self.storage.set_secure(
-            KEYSPACE,
-            public_key.serialize(),
-            private_key.serialize(),
-            passphrase,
-        )?;
-        // done
-        index += 1;
-        if is_staking {
-            self.write_number(passphrase, "staking".as_bytes(), index);
-        } else {
-            self.write_number(passphrase, "transfer".as_bytes(), index);
-        }
-
-        Ok((public_key, private_key))
-    }
-
-    /// Retrieves private key corresponding to given public key
-    pub fn private_key(
-        &self,
-        public_key: &PublicKey,
-        passphrase: &SecUtf8,
-    ) -> Result<Option<PrivateKey>> {
-        let private_key_bytes =
-            self.storage
-                .get_secure(KEYSPACE, public_key.serialize(), passphrase)?;
-
-        private_key_bytes
-            .map(|mut private_key_bytes| {
-                let private_key = PrivateKey::deserialize_from(&private_key_bytes)?;
-                private_key_bytes.zeroize();
-                Ok(private_key)
-            })
-            .transpose()
-    }
-
-    /// Clears all storage
-    pub fn clear(&self) -> Result<()> {
-        self.storage.clear(KEYSPACE)
     }
 }

@@ -5,23 +5,42 @@ use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
 
 const KEYSPACE: &str = "core_key";
 
+/// key service interface
+pub trait KeyServiceInterface {
+    /// Generates a new public-private keypair
+    fn generate_keypair(
+        &self,
+        name: &str,
+        passphrase: &SecUtf8,
+        is_staking: bool,
+    ) -> Result<(PublicKey, PrivateKey)>;
+    /// Retrieves private key corresponding to given public key
+    fn private_key(
+        &self,
+        public_key: &PublicKey,
+        passphrase: &SecUtf8,
+    ) -> Result<Option<PrivateKey>>;
+    /// Clears all storage
+    fn clear(&self) -> Result<()>;
+}
+
 /// Maintains mapping `public-key -> private-key`
 #[derive(Debug, Default, Clone)]
 pub struct KeyService<T: Storage> {
     storage: T,
 }
 
-impl<T> KeyService<T>
+impl<T> KeyServiceInterface for KeyService<T>
 where
     T: Storage,
 {
-    /// Creates a new instance of key service
-    pub fn new(storage: T) -> Self {
-        KeyService { storage }
-    }
-
     /// Generates a new public-private keypair
-    pub fn generate_keypair(&self, passphrase: &SecUtf8) -> Result<(PublicKey, PrivateKey)> {
+    fn generate_keypair(
+        &self,
+        _name: &str,
+        passphrase: &SecUtf8,
+        _is_staking: bool,
+    ) -> Result<(PublicKey, PrivateKey)> {
         let private_key = PrivateKey::new()?;
         let public_key = PublicKey::from(&private_key);
 
@@ -36,7 +55,7 @@ where
     }
 
     /// Retrieves private key corresponding to given public key
-    pub fn private_key(
+    fn private_key(
         &self,
         public_key: &PublicKey,
         passphrase: &SecUtf8,
@@ -55,8 +74,18 @@ where
     }
 
     /// Clears all storage
-    pub fn clear(&self) -> Result<()> {
+    fn clear(&self) -> Result<()> {
         self.storage.clear(KEYSPACE)
+    }
+}
+
+impl<T> KeyService<T>
+where
+    T: Storage,
+{
+    /// Creates a new instance of key service
+    pub fn new(storage: T) -> Self {
+        KeyService { storage }
     }
 }
 

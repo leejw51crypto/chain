@@ -5,24 +5,7 @@ use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
 
 const KEYSPACE: &str = "core_key";
 
-/// key service interface
-pub trait KeyServiceInterface {
-    /// Generates a new public-private keypair
-    fn generate_keypair(
-        &self,
-        name: &str,
-        passphrase: &SecUtf8,
-        is_staking: bool,
-    ) -> Result<(PublicKey, PrivateKey)>;
-    /// Retrieves private key corresponding to given public key
-    fn private_key(
-        &self,
-        public_key: &PublicKey,
-        passphrase: &SecUtf8,
-    ) -> Result<Option<PrivateKey>>;
-    /// Clears all storage
-    fn clear(&self) -> Result<()>;
-}
+use super::key_service_data::KeyServiceInterface;
 
 /// Maintains mapping `public-key -> private-key`
 #[derive(Debug, Default, Clone)]

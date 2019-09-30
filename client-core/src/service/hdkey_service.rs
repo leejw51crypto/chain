@@ -7,7 +7,7 @@ use std::str::FromStr;
 use tiny_hderive::bip32::ExtendedPrivKey;
 use tiny_hderive::bip44::ChildNumber;
 const KEYSPACE: &str = "core_hdkey";
-use super::key_service::KeyServiceInterface;
+use super::key_service_data::KeyServiceInterface;
 
 /// Maintains mapping `public-key -> private-key`
 #[derive(Debug, Default, Clone)]

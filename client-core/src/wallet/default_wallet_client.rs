@@ -54,9 +54,9 @@ where
     T: TransactionBuilder,
 {
     /// Creates a new instance of `DefaultWalletClient`
-    pub fn new(storage: S, tendermint_client: C, transaction_builder: T) -> Self {
+    pub fn new(storage: S, tendermint_client: C, transaction_builder: T, walletkind: WalletKinds) -> Self {
         Self {
-            key_service: KeyService::new(storage.clone()),
+            key_service: KeyService::new(storage.clone(), walletkind),
             wallet_service: WalletService::new(storage.clone()),
             wallet_state_service: WalletStateService::new(storage.clone()),
             root_hash_service: RootHashService::new(storage.clone()),
@@ -72,8 +72,8 @@ where
     S: Storage + Clone,
 {
     /// Creates a new read-only instance of `DefaultWalletClient`
-    pub fn new_read_only(storage: S) -> Self {
-        Self::new(storage, UnauthorizedClient, UnauthorizedTransactionBuilder)
+    pub fn new_read_only(storage: S, walletkind: WalletKinds) -> Self {
+        Self::new(storage, UnauthorizedClient, UnauthorizedTransactionBuilder, walletkind)
     }
 }
 
@@ -89,11 +89,26 @@ where
     }
 
     fn new_wallet(&self, name: &str, passphrase: &SecUtf8) -> Result<()> {
+        println!("DefaultWalletClient new_wallet");
         let view_key = self
             .key_service
             .generate_keypair(name, passphrase, false)?
             .0;
         self.wallet_service.create(name, passphrase, view_key)
+    }
+
+/// Creates mnemonics
+    fn new_mnemonics(&self) -> Result<String>
+    {
+        Ok(self.key_service.get_random_mnemonic())
+    }
+
+     /// Creates a new hd-wallet with given name and passphrase
+    fn new_hdwallet(&self, name: &str, passphrase: &SecUtf8, mnemonics: String) -> Result<()>
+    {
+        // load seed
+        self.key_service.generate_seed(&mnemonics, name, passphrase)
+        //self.new_wallet(name, passphrase)
     }
 
     #[inline]

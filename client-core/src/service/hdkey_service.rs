@@ -101,10 +101,14 @@ where
 
     /// generate seed from mnemonic
     pub fn generate_seed(&self, mnemonic: &str, name: &str, passphrase: &SecUtf8) -> Result<()> {
+        println!("generate seed={}", mnemonic);
         let mnemonic = Mnemonic::from_phrase(&mnemonic.to_string(), Language::English).unwrap();
+        println!("ok");
         let seed = Seed::new(&mnemonic, "");
+        println!("write seed");
         self.storage
             .set_secure(KEYSPACE, name, seed.as_bytes().into(), passphrase)?;
+        println!("write seed ok");
         Ok(())
     }
 

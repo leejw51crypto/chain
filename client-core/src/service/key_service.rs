@@ -20,11 +20,8 @@ where
     T: Storage,
 {
     /// Creates a new instance of key service
-    pub fn new(storage: T) -> Self {
-        //let service = Box::new(BasicKeyService::new(storage));
-        let kind = WalletKinds::HD;
-
-        match kind {
+    pub fn new(storage: T, kind: WalletKinds) -> Self {
+          match kind {
             WalletKinds::Basic => {
                  KeyService {
             kind,
@@ -43,6 +40,25 @@ where
        
     }
 
+    /// get random mnemonic
+     pub fn get_random_mnemonic(&self) -> String {
+         if self.hd.is_some() {
+            self.hd.as_ref().unwrap().get_random_mnemonic()
+                    }
+         else {
+            "".into()
+         }
+     }
+
+    /// restore from mnemonic
+    pub fn generate_seed(&self, mnemonic: &str, name: &str, passphrase: &SecUtf8) -> Result<()> {
+        if self.hd.is_some() {
+            self.hd.as_ref().unwrap().generate_seed(mnemonic, name, passphrase)
+        }
+        else {
+            Ok(())
+        }
+     }
     /// Generates a new public-private keypair
     pub fn generate_keypair(
         &self,
@@ -51,9 +67,9 @@ where
         is_staking: bool,
     ) -> Result<(PublicKey, PrivateKey)> {
         //let mut m = self.hd.as_ref().unwrap().get_random_mnemonic();
-        let m = "quiz poem kit attend bless grid mad top drip mutual sock ice liar property rent cable grant load patrol settle jar just repair used";
-        self.hd.as_ref().unwrap().generate_seed(m, name, passphrase);
-        println!("mnemonics= {}", m);
+        //let m = "quiz poem kit attend bless grid mad top drip mutual sock ice liar property rent cable grant load patrol settle jar just repair used";
+        //self.hd.as_ref().unwrap().generate_seed(m, name, passphrase);
+        //println!("mnemonics= {}", m);
         if self.hd.is_some() {
 self.hd
             .as_ref()
@@ -112,7 +128,7 @@ mod tests {
 
     #[test]
     fn check_flow() {
-        let key_service = KeyService::new(MemoryStorage::default());
+        let key_service = KeyService::new(MemoryStorage::default(), WalletKinds::Basic);
         let passphrase = SecUtf8::from("passphrase");
 
         let (public_key, private_key) = key_service

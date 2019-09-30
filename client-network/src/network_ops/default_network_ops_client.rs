@@ -427,7 +427,7 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone());
+        let signer = DefaultSigner::new(storage.clone(),WalletKinds::HD);
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
@@ -468,7 +468,7 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone());
+        let signer = DefaultSigner::new(storage.clone(),WalletKinds::HD);
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
@@ -503,7 +503,7 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone());
+        let signer = DefaultSigner::new(storage.clone(),WalletKinds::HD);
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
@@ -561,7 +561,7 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone());
+        let signer = DefaultSigner::new(storage.clone(),WalletKinds::HD);
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
@@ -629,7 +629,7 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone());
+        let signer = DefaultSigner::new(storage.clone(),WalletKinds::HD);
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
@@ -672,7 +672,7 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone());
+        let signer = DefaultSigner::new(storage.clone(),WalletKinds::HD);
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 

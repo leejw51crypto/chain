@@ -35,7 +35,8 @@ use crate::{ask_passphrase, storage_path, tendermint_url};
 
 // BASIC : normal wallet
 // HD: hd wallet
-fn get_wallet_kind() -> WalletKinds {
+/// get wallet kind from env
+pub fn get_wallet_kind() -> WalletKinds {
     let walletkind = std::env::var("CRYPTO_WALLET_KIND")
         .map(Some)
         .unwrap_or(None);

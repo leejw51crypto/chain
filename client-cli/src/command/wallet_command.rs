@@ -5,7 +5,8 @@ use client_common::{Error, ErrorKind, Result};
 use client_core::WalletClient;
 
 use crate::ask_passphrase;
-
+use super::super::command::get_wallet_kind;
+use client_core::service::WalletKinds;
 #[derive(Debug, StructOpt)]
 pub enum WalletCommand {
     #[structopt(name = "new", about = "New wallet")]
@@ -25,18 +26,9 @@ impl WalletCommand {
         }
     }
 
-    fn new_wallet<T: WalletClient>(wallet_client: T, name: &str) -> Result<()> {
-        let passphrase = ask_passphrase(None)?;
-        let confirmed_passphrase = ask_passphrase(Some("Confirm passphrase: "))?;
-        let mut mnemonics = "".to_string();
 
-        if passphrase != confirmed_passphrase {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                "Passphrases do not match",
-            ));
-        }
-
+    fn get_mnemonics<T:WalletClient>(wallet_client:&T ) -> String {
+           let mut mnemonics = "".to_string();
         loop {
             println!("== hd wallet setup==");
             println!("1. create new mnemonics");
@@ -63,8 +55,33 @@ impl WalletCommand {
                 }
             }
         }
+        mnemonics
+    }
+
+    fn new_wallet<T: WalletClient>(wallet_client: T, name: &str) -> Result<()> {
+        let passphrase = ask_passphrase(None)?;
+        let confirmed_passphrase = ask_passphrase(Some("Confirm passphrase: "))?;
+        let mut mnemonics = "".to_string();
+
+        if passphrase != confirmed_passphrase {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                "Passphrases do not match",
+            ));
+        }
+
+        let walletkind= get_wallet_kind();
+        match walletkind {
+            WalletKinds::HD => {
+                mnemonics= WalletCommand::get_mnemonics(&wallet_client);
         println!("ok keep mnemonics safely={}", mnemonics);
         wallet_client.new_hdwallet(name, &passphrase, mnemonics)?;
+        
+            },
+            _ => {
+
+            }
+        }
         println!("--------------------------------------------");
         wallet_client.new_wallet(name, &passphrase)?;
         success(&format!("Wallet created with name: {}", name));

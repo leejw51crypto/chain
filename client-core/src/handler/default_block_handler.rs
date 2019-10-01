@@ -3,7 +3,7 @@ use secstr::SecUtf8;
 use chain_core::tx::TransactionId;
 use client_common::{BlockHeader, ErrorKind, Result, ResultExt, Storage};
 
-use crate::service::{GlobalStateService, KeyService, WalletService};
+use crate::service::{GlobalStateService, KeyService, WalletKinds, WalletService};
 use crate::{BlockHandler, TransactionHandler, TransactionObfuscation};
 
 /// Default implementation of `BlockHandler`
@@ -29,11 +29,16 @@ where
 {
     /// Creates a new instance of `DefaultBlockHandler`
     #[inline]
-    pub fn new(transaction_obfuscation: O, transaction_handler: H, storage: S) -> Self {
+    pub fn new(
+        transaction_obfuscation: O,
+        transaction_handler: H,
+        storage: S,
+        walletkind: WalletKinds,
+    ) -> Self {
         Self {
             transaction_obfuscation,
             transaction_handler,
-            key_service: KeyService::new(storage.clone()),
+            key_service: KeyService::new(storage.clone(), storage.clone(), walletkind),
             wallet_service: WalletService::new(storage.clone()),
             global_state_service: GlobalStateService::new(storage),
         }
@@ -219,6 +224,7 @@ mod tests {
             MockTransactionCipher,
             MockTransactionHandler,
             storage.clone(),
+            WalletKinds::HD,
         );
 
         let global_state_service = GlobalStateService::new(storage);

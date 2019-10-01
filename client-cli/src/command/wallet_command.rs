@@ -28,6 +28,7 @@ impl WalletCommand {
     fn new_wallet<T: WalletClient>(wallet_client: T, name: &str) -> Result<()> {
         let passphrase = ask_passphrase(None)?;
         let confirmed_passphrase = ask_passphrase(Some("Confirm passphrase: "))?;
+        let mut mnemonics = "".to_string();
 
         if passphrase != confirmed_passphrase {
             return Err(Error::new(
@@ -36,8 +37,36 @@ impl WalletCommand {
             ));
         }
 
-        wallet_client.new_wallet(name, &passphrase)?;
+        loop {
+            println!("== hd wallet setup==");
+            println!("1. create new mnemonics");
+            println!("2. restore from mnemonics");
+            println!("enter command=");
 
+            let a = quest::text().unwrap();
+            if a == "1" {
+                mnemonics = wallet_client.new_mnemonics().unwrap();
+            } else if a == "2" {
+                println!("enter mnemonics=");
+                mnemonics = quest::text().unwrap().to_string();
+            } else {
+                continue;
+            }
+            println!("mnemonics={}", mnemonics);
+            println!("enter y to conitnue");
+            let r = quest::yesno(false);
+            if r.is_ok() {
+                if r.as_ref().unwrap().is_some() {
+                    if r.as_ref().unwrap().unwrap() {
+                        break;
+                    }
+                }
+            }
+        }
+        println!("ok keep mnemonics safely={}", mnemonics);
+        wallet_client.new_hdwallet(name, &passphrase, mnemonics)?;
+        println!("--------------------------------------------");
+        wallet_client.new_wallet(name, &passphrase)?;
         success(&format!("Wallet created with name: {}", name));
         Ok(())
     }

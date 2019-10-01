@@ -32,9 +32,9 @@ where
         let seed_bytes = self.storage.get_secure(KEYSPACE, name, passphrase)?;
         let mut index = 0;
         if is_staking {
-            index = self.read_number(passphrase, format!("staking_{}",name).as_bytes(), 0);
+            index = self.read_number(passphrase, format!("staking_{}", name).as_bytes(), 0);
         } else {
-            index = self.read_number(passphrase, format!("transfer_{}",name).as_bytes(), 0);
+            index = self.read_number(passphrase, format!("transfer_{}", name).as_bytes(), 0);
         }
         println!("index={}", index);
         let account = if is_staking { 1 } else { 0 };
@@ -56,9 +56,9 @@ where
         // done
         index += 1;
         if is_staking {
-            self.write_number(passphrase, format!("staking_{}",name).as_bytes(), index);
+            self.write_number(passphrase, format!("staking_{}", name).as_bytes(), index);
         } else {
-            self.write_number(passphrase,format!("transfer_{}",name).as_bytes(), index);
+            self.write_number(passphrase, format!("transfer_{}", name).as_bytes(), index);
         }
 
         Ok((public_key, private_key))
@@ -101,10 +101,14 @@ where
 
     /// generate seed from mnemonic
     pub fn generate_seed(&self, mnemonic: &str, name: &str, passphrase: &SecUtf8) -> Result<()> {
+        println!("generate seed={}", mnemonic);
         let mnemonic = Mnemonic::from_phrase(&mnemonic.to_string(), Language::English).unwrap();
+        println!("ok");
         let seed = Seed::new(&mnemonic, "");
+        println!("write seed");
         self.storage
             .set_secure(KEYSPACE, name, seed.as_bytes().into(), passphrase)?;
+        println!("write seed ok");
         Ok(())
     }
 

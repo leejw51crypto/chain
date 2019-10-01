@@ -307,7 +307,7 @@ mod tests {
     fn check_transfer_transaction_flow() {
         let storage = MemoryStorage::default();
         let transaction_handler = DefaultTransactionHandler::new(storage.clone());
-        let wallet = DefaultWalletClient::new_read_only(storage);
+        let wallet = DefaultWalletClient::new_read_only(storage, WalletKinds::HD);
 
         let name1 = "name1";
         let passphrase1 = &SecUtf8::from("passphrase1");

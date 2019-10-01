@@ -5,7 +5,7 @@ use chain_core::tx::data::output::TxOut;
 use chain_core::tx::witness::{TxInWitness, TxWitness};
 use client_common::{Error, ErrorKind, Result, ResultExt, Storage};
 
-use crate::service::{KeyService, RootHashService, WalletService};
+use crate::service::{KeyService, RootHashService, WalletKinds, WalletService};
 use crate::{SelectedUnspentTransactions, Signer};
 
 /// Default implementation of `Signer`
@@ -21,9 +21,9 @@ where
     S: Storage + Clone,
 {
     /// Creates a new instance of default signer
-    pub fn new(storage: S) -> Self {
+    pub fn new(storage: S, walletkind: WalletKinds) -> Self {
         Self {
-            key_service: KeyService::new(storage.clone()),
+            key_service: KeyService::new(storage.clone(), storage.clone(), walletkind),
             root_hash_service: RootHashService::new(storage.clone()),
             wallet_service: WalletService::new(storage),
         }

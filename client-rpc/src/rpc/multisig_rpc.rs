@@ -362,7 +362,7 @@ mod test {
     }
 
     fn make_test_wallet_client(storage: MemoryStorage) -> TestWalletClient {
-        let signer = DefaultSigner::new(storage.clone());
+        let signer = DefaultSigner::new(storage.clone(), WalletKinds::HD);
         let transaction_builder = DefaultTransactionBuilder::new(
             signer,
             ZeroFeeAlgorithm::default(),

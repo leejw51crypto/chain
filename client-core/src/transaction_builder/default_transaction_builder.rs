@@ -167,10 +167,10 @@ mod tests {
     use client_common::storage::MemoryStorage;
     use client_common::{PrivateKey, Transaction};
 
+    use crate::service::get_wallet_kind;
     use crate::signer::DefaultSigner;
     use crate::unspent_transactions::{Operation, Sorter};
     use crate::wallet::{DefaultWalletClient, WalletClient};
-
     #[derive(Debug)]
     struct MockTransactionCipher;
 
@@ -208,7 +208,7 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
@@ -264,7 +264,7 @@ mod tests {
             .new_transfer_address(name, passphrase)
             .unwrap();
 
-        let signer = DefaultSigner::new(storage);
+        let signer = DefaultSigner::new(storage, get_wallet_kind());
         let fee_algorithm = LinearFee::new(Milli::new(1, 1), Milli::new(1, 1));
 
         let transaction_builder =
@@ -348,7 +348,7 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
@@ -390,7 +390,7 @@ mod tests {
             .new_transfer_address(name, passphrase)
             .unwrap();
 
-        let signer = DefaultSigner::new(storage);
+        let signer = DefaultSigner::new(storage, get_wallet_kind());
         let fee_algorithm = LinearFee::new(Milli::new(1, 1), Milli::new(1, 1));
 
         let transaction_builder =

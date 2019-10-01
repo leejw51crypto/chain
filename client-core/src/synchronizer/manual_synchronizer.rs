@@ -288,6 +288,8 @@ mod tests {
     use parity_scale_codec::Encode;
     use secp256k1::recovery::{RecoverableSignature, RecoveryId};
 
+    use crate::service::get_wallet_kind;
+    use crate::wallet::{DefaultWalletClient, WalletClient};
     use chain_core::common::TendermintEventType;
     use chain_core::init::coin::Coin;
     use chain_core::state::account::{StakedStateOpAttributes, StakedStateOpWitness, UnbondTx};
@@ -295,8 +297,6 @@ mod tests {
     use client_common::storage::MemoryStorage;
     use client_common::tendermint::types::*;
     use client_common::ErrorKind;
-
-    use crate::wallet::{DefaultWalletClient, WalletClient};
 
     fn unbond_transaction() -> TxAux {
         TxAux::UnbondStakeTx(
@@ -464,7 +464,7 @@ mod tests {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
 
-        let wallet = DefaultWalletClient::new_read_only(storage.clone());
+        let wallet = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
 
         assert!(wallet.new_wallet(name, passphrase).is_ok());
 

@@ -3,7 +3,7 @@ use secstr::SecUtf8;
 use chain_core::tx::TransactionId;
 use client_common::{BlockHeader, ErrorKind, Result, ResultExt, Storage};
 
-use crate::service::{GlobalStateService, KeyService, WalletService};
+use crate::service::{GlobalStateService, KeyService, WalletKinds, WalletService};
 use crate::{BlockHandler, TransactionHandler, TransactionObfuscation};
 
 /// Default implementation of `BlockHandler`
@@ -29,11 +29,16 @@ where
 {
     /// Creates a new instance of `DefaultBlockHandler`
     #[inline]
-    pub fn new(transaction_obfuscation: O, transaction_handler: H, storage: S) -> Self {
+    pub fn new(
+        transaction_obfuscation: O,
+        transaction_handler: H,
+        storage: S,
+        walletkind: WalletKinds,
+    ) -> Self {
         Self {
             transaction_obfuscation,
             transaction_handler,
-            key_service: KeyService::new(storage.clone()),
+            key_service: KeyService::new(storage.clone(), storage.clone(), walletkind),
             wallet_service: WalletService::new(storage.clone()),
             global_state_service: GlobalStateService::new(storage),
         }
@@ -110,6 +115,8 @@ mod tests {
 
     use chrono::{DateTime, Utc};
 
+    use crate::service::get_wallet_kind;
+    use crate::wallet::{DefaultWalletClient, WalletClient};
     use chain_core::init::coin::Coin;
     use chain_core::state::account::{StakedStateOpAttributes, UnbondTx};
     use chain_core::tx::data::address::ExtendedAddr;
@@ -120,8 +127,6 @@ mod tests {
     use chain_tx_filter::BlockFilter;
     use client_common::storage::MemoryStorage;
     use client_common::{PrivateKey, PublicKey, SignedTransaction, Transaction};
-
-    use crate::wallet::{DefaultWalletClient, WalletClient};
 
     struct MockTransactionCipher;
 
@@ -209,7 +214,7 @@ mod tests {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
 
-        let wallet = DefaultWalletClient::new_read_only(storage.clone());
+        let wallet = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
 
         assert!(wallet.new_wallet(name, passphrase).is_ok());
 
@@ -219,6 +224,7 @@ mod tests {
             MockTransactionCipher,
             MockTransactionHandler,
             storage.clone(),
+            get_wallet_kind(),
         );
 
         let global_state_service = GlobalStateService::new(storage);

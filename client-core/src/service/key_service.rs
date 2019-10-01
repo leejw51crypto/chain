@@ -1,11 +1,9 @@
 use secstr::SecUtf8;
-use zeroize::Zeroize;
 
 use super::basic_key_service::BasicKeyService;
 use super::hdkey_service::HDKeyService;
 use super::key_service_data::{KeyServiceInterface, WalletKinds};
-use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
-const KEYSPACE: &str = "core_key";
+use client_common::{PrivateKey, PublicKey, Result, Storage};
 
 /// Maintains mapping `public-key -> private-key`
 #[derive(Debug, Default, Clone)]
@@ -20,29 +18,33 @@ where
     T: Storage,
 {
     /// Creates a new instance of key service
-    pub fn new(storage: T) -> Self {
-        //let service = Box::new(BasicKeyService::new(storage));
-        let kind = WalletKinds::HD;
-
-        match kind {
-            WalletKinds::Basic => {
-                 KeyService {
+    pub fn new(storage: T, stroage2: T, kind: WalletKinds) -> Self {
+        KeyService {
             kind,
             basic: Some(BasicKeyService::new(storage)),
-            hd: None,
+            hd: Some(HDKeyService::new(stroage2)),
         }
-            },
-            WalletKinds::HD => {
-                 KeyService {
-            kind,
-            basic: None,
-            hd:  Some(HDKeyService::new(storage)),
-        }
-            },
-        }
-       
     }
 
+    /// get random mnemonic
+    pub fn get_random_mnemonic(&self) -> String {
+        match self.kind {
+            WalletKinds::Basic => String::new(),
+            WalletKinds::HD => self.hd.as_ref().unwrap().get_random_mnemonic(),
+        }
+    }
+
+    /// restore from mnemonic
+    pub fn generate_seed(&self, mnemonic: &str, name: &str, passphrase: &SecUtf8) -> Result<()> {
+        match self.kind {
+            WalletKinds::Basic => Ok(()),
+            WalletKinds::HD => self
+                .hd
+                .as_ref()
+                .unwrap()
+                .generate_seed(mnemonic, name, passphrase),
+        }
+    }
     /// Generates a new public-private keypair
     pub fn generate_keypair(
         &self,
@@ -50,23 +52,19 @@ where
         passphrase: &SecUtf8,
         is_staking: bool,
     ) -> Result<(PublicKey, PrivateKey)> {
-        //let mut m = self.hd.as_ref().unwrap().get_random_mnemonic();
-        let m = "quiz poem kit attend bless grid mad top drip mutual sock ice liar property rent cable grant load patrol settle jar just repair used";
-        self.hd.as_ref().unwrap().generate_seed(m, name, passphrase);
-        println!("mnemonics= {}", m);
-        if self.hd.is_some() {
-self.hd
-            .as_ref()
-            .unwrap()
-            .generate_keypair(name, passphrase, is_staking)
+        match self.kind {
+            WalletKinds::Basic => self
+                .basic
+                .as_ref()
+                .unwrap()
+                .generate_keypair(name, passphrase, is_staking),
+
+            WalletKinds::HD => self
+                .hd
+                .as_ref()
+                .unwrap()
+                .generate_keypair(name, passphrase, is_staking),
         }
-        else {
-            self.basic
-            .as_ref()
-            .unwrap()
-            .generate_keypair(name, passphrase, is_staking)
-        }
-        
     }
 
     /// Retrieves private key corresponding to given public key
@@ -75,31 +73,26 @@ self.hd
         public_key: &PublicKey,
         passphrase: &SecUtf8,
     ) -> Result<Option<PrivateKey>> {
-        if self.hd.is_some() {
-    self.hd
-            .as_ref()
-            .unwrap()
-            .private_key(public_key, passphrase)
-
+        match self.kind {
+            WalletKinds::Basic => self
+                .basic
+                .as_ref()
+                .unwrap()
+                .private_key(public_key, passphrase),
+            WalletKinds::HD => self
+                .hd
+                .as_ref()
+                .unwrap()
+                .private_key(public_key, passphrase),
         }
-        else {
-    self.basic
-            .as_ref()
-            .unwrap()
-            .private_key(public_key, passphrase)
-        }
-    
     }
 
     /// Clears all storage
     pub fn clear(&self) -> Result<()> {
-        if self.hd.is_some() {
- self.hd.as_ref().unwrap().clear()
+        match self.kind {
+            WalletKinds::Basic => self.basic.as_ref().unwrap().clear(),
+            WalletKinds::HD => self.hd.as_ref().unwrap().clear(),
         }
-        else {
- self.basic.as_ref().unwrap().clear()
-        }
-        
     }
 }
 
@@ -112,7 +105,11 @@ mod tests {
 
     #[test]
     fn check_flow() {
-        let key_service = KeyService::new(MemoryStorage::default());
+        let key_service = KeyService::new(
+            MemoryStorage::default(),
+            MemoryStorage::default(),
+            WalletKinds::Basic,
+        );
         let passphrase = SecUtf8::from("passphrase");
 
         let (public_key, private_key) = key_service

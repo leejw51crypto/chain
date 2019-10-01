@@ -18,9 +18,9 @@ where
     /// Generates a new public-private keypair
     fn generate_keypair(
         &self,
-        name: &str,
+        _name: &str,
         passphrase: &SecUtf8,
-        is_staking: bool,
+        _is_staking: bool,
     ) -> Result<(PublicKey, PrivateKey)> {
         let private_key = PrivateKey::new()?;
         let public_key = PublicKey::from(&private_key);

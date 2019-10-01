@@ -1,8 +1,6 @@
 use secstr::SecUtf8;
 
-
 use client_common::{PrivateKey, PublicKey, Result};
-
 
 /// Wallet kinds
 /// Basic: default wallet

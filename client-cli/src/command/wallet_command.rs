@@ -45,12 +45,8 @@ impl WalletCommand {
             println!("mnemonics={}", mnemonics);
             println!("enter y to conitnue");
             let r = quest::yesno(false);
-            if r.is_ok() {
-                if r.as_ref().unwrap().is_some() {
-                    if r.as_ref().unwrap().unwrap() {
-                        break;
-                    }
-                }
+            if r.is_ok() && r.as_ref().unwrap().is_some() && r.as_ref().unwrap().unwrap() {
+                break;
             }
         }
         mnemonics
@@ -68,13 +64,10 @@ impl WalletCommand {
         }
 
         let walletkind = get_wallet_kind();
-        match walletkind {
-            WalletKinds::HD => {
-                let mnemonics = WalletCommand::get_mnemonics(&wallet_client);
-                println!("ok keep mnemonics safely={}", mnemonics);
-                wallet_client.new_hdwallet(name, &passphrase, mnemonics)?;
-            }
-            _ => {}
+        if WalletKinds::HD == walletkind {
+            let mnemonics = WalletCommand::get_mnemonics(&wallet_client);
+            println!("ok keep mnemonics safely={}", mnemonics);
+            wallet_client.new_hdwallet(name, &passphrase, mnemonics)?;
         }
         println!("--------------------------------------------");
         wallet_client.new_wallet(name, &passphrase)?;

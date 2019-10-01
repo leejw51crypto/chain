@@ -13,7 +13,6 @@ use client_common::{Error, ErrorKind, Result, ResultExt};
 
 use crate::command::Command;
 
-
 fn main() {
     env_logger::init();
     if let Err(err) = execute() {

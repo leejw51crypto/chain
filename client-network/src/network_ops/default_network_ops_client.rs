@@ -292,8 +292,8 @@ where
 mod tests {
     use super::*;
 
-    use parity_scale_codec::Encode;
     use client_core::service::get_wallet_kind;
+    use parity_scale_codec::Encode;
 
     use chain_core::init::address::RedeemAddress;
     use chain_core::init::coin::CoinError;

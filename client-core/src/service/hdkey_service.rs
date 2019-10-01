@@ -29,12 +29,11 @@ where
         is_staking: bool,     // kind of address
     ) -> Result<(PublicKey, PrivateKey)> {
         let seed_bytes = self.storage.get_secure(KEYSPACE, name, passphrase)?;
-        let mut index ;
-        if is_staking {
-            index = self.read_number(passphrase, format!("staking_{}", name).as_bytes(), 0);
+        let mut index = if is_staking {
+            self.read_number(passphrase, format!("staking_{}", name).as_bytes(), 0)
         } else {
-            index = self.read_number(passphrase, format!("transfer_{}", name).as_bytes(), 0);
-        }
+            self.read_number(passphrase, format!("transfer_{}", name).as_bytes(), 0)
+        };
         debug!("hdwallet index={}", index);
         let account = if is_staking { 1 } else { 0 };
         let extended = ExtendedPrivKey::derive(
@@ -44,7 +43,7 @@ where
         .unwrap();
         let secret_key_bytes = extended.secret();
         debug!("hdwallet save index={}", index);
-        let private_key = PrivateKey::deserialize_from(&secret_key_bytes.clone()).unwrap();
+        let private_key = PrivateKey::deserialize_from(&secret_key_bytes).unwrap();
         let public_key = PublicKey::from(&private_key);
         self.storage.set_secure(
             KEYSPACE,
@@ -119,7 +118,8 @@ where
         passphrase: &SecUtf8,
         count: i32,
     ) -> Result<()> {
-        self.generate_seed(mnemonic, name, passphrase).expect("auto restore");
+        self.generate_seed(mnemonic, name, passphrase)
+            .expect("auto restore");
         for index in 0..count {
             let seed_bytes = self.storage.get_secure(KEYSPACE, name, passphrase)?;
             for account in 0..2 {
@@ -130,7 +130,7 @@ where
                 .unwrap();
                 let secret_key_bytes = extended.secret();
 
-                let private_key = PrivateKey::deserialize_from(&secret_key_bytes.clone()).unwrap();
+                let private_key = PrivateKey::deserialize_from(&secret_key_bytes).unwrap();
                 let public_key = PublicKey::from(&private_key);
 
                 self.storage.set_secure(
@@ -152,14 +152,10 @@ where
     /// read value from db
     #[allow(dead_code)]
     pub fn read_value(&self, passphrase: &SecUtf8, key: &[u8], default: &[u8]) -> Vec<u8> {
-        match self.storage.get_secure(KEYSPACE, key, passphrase) {
-            Ok(connected) => match connected {
-                Some(value) => {
-                    return value.clone();
-                }
-                _ => {}
-            },
-            _ => {}
+        if let Ok(connected) = self.storage.get_secure(KEYSPACE, key, passphrase) {
+            if let Some(value) = connected {
+                return value.clone();
+            }
         }
         default.to_vec()
     }

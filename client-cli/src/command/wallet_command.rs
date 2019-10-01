@@ -5,7 +5,7 @@ use client_common::{Error, ErrorKind, Result};
 use client_core::WalletClient;
 
 use crate::ask_passphrase;
-
+use client_core::service::{get_wallet_kind, WalletKinds};
 #[derive(Debug, StructOpt)]
 pub enum WalletCommand {
     #[structopt(name = "new", about = "New wallet")]
@@ -25,6 +25,33 @@ impl WalletCommand {
         }
     }
 
+    fn get_mnemonics<T: WalletClient>(wallet_client: &T) -> String {
+        let mut mnemonics: String;
+        loop {
+            println!("== hd wallet setup==");
+            println!("1. create new mnemonics");
+            println!("2. restore from mnemonics");
+            println!("enter command=");
+
+            let a = quest::text().unwrap();
+            if a == "1" {
+                mnemonics = wallet_client.new_mnemonics().unwrap();
+            } else if a == "2" {
+                println!("enter mnemonics=");
+                mnemonics = quest::text().unwrap().to_string();
+            } else {
+                continue;
+            }
+            println!("mnemonics={}", mnemonics);
+            println!("enter y to conitnue");
+            let r = quest::yesno(false);
+            if r.is_ok() && r.as_ref().unwrap().is_some() && r.as_ref().unwrap().unwrap() {
+                break;
+            }
+        }
+        mnemonics
+    }
+
     fn new_wallet<T: WalletClient>(wallet_client: T, name: &str) -> Result<()> {
         let passphrase = ask_passphrase(None)?;
         let confirmed_passphrase = ask_passphrase(Some("Confirm passphrase: "))?;
@@ -36,8 +63,14 @@ impl WalletCommand {
             ));
         }
 
+        let walletkind = get_wallet_kind();
+        if WalletKinds::HD == walletkind {
+            let mnemonics = WalletCommand::get_mnemonics(&wallet_client);
+            println!("ok keep mnemonics safely={}", mnemonics);
+            wallet_client.new_hdwallet(name, &passphrase, mnemonics)?;
+        }
+        println!("--------------------------------------------");
         wallet_client.new_wallet(name, &passphrase)?;
-
         success(&format!("Wallet created with name: {}", name));
         Ok(())
     }

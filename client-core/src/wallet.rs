@@ -33,6 +33,12 @@ pub trait WalletClient: Send + Sync {
     /// Creates a new wallet with given name and passphrase
     fn new_wallet(&self, name: &str, passphrase: &SecUtf8) -> Result<()>;
 
+    /// Creates mnemonics
+    fn new_mnemonics(&self) -> Result<String>;
+
+    /// Creates a new hd-wallet with given name and passphrase
+    fn new_hdwallet(&self, name: &str, passphrase: &SecUtf8, mnemonics: String) -> Result<()>;
+
     /// Retrieves view key corresponding to a given wallet
     fn view_key(&self, name: &str, passphrase: &SecUtf8) -> Result<PublicKey>;
 

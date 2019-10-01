@@ -12,6 +12,9 @@ use prettytable::{cell, format, row, Cell, Row, Table};
 use quest::success;
 use structopt::StructOpt;
 
+use self::address_command::AddressCommand;
+use self::transaction_command::TransactionCommand;
+use self::wallet_command::WalletCommand;
 use chain_core::init::coin::Coin;
 use chain_core::state::account::StakedStateAddress;
 use client_common::storage::SledStorage;
@@ -19,6 +22,7 @@ use client_common::tendermint::{Client, WebsocketRpcClient};
 use client_common::{Result, Storage};
 use client_core::cipher::MockAbciTransactionObfuscation;
 use client_core::handler::{DefaultBlockHandler, DefaultTransactionHandler};
+use client_core::service::get_wallet_kind;
 use client_core::signer::DefaultSigner;
 use client_core::synchronizer::{ManualSynchronizer, ProgressReport};
 use client_core::transaction_builder::DefaultTransactionBuilder;
@@ -26,10 +30,6 @@ use client_core::types::BalanceChange;
 use client_core::wallet::{DefaultWalletClient, WalletClient};
 use client_core::BlockHandler;
 use client_network::network_ops::{DefaultNetworkOpsClient, NetworkOpsClient};
-
-use self::address_command::AddressCommand;
-use self::transaction_command::TransactionCommand;
-use self::wallet_command::WalletCommand;
 
 use crate::{ask_passphrase, storage_path, tendermint_url};
 
@@ -102,28 +102,28 @@ impl Command {
         match self {
             Command::Wallet { wallet_command } => {
                 let storage = SledStorage::new(storage_path())?;
-                let wallet_client = DefaultWalletClient::new_read_only(storage);
+                let wallet_client = DefaultWalletClient::new_read_only(storage, get_wallet_kind());
                 wallet_command.execute(wallet_client)
             }
             Command::Address { address_command } => {
                 let storage = SledStorage::new(storage_path())?;
-                let wallet_client = DefaultWalletClient::new_read_only(storage);
+                let wallet_client = DefaultWalletClient::new_read_only(storage, get_wallet_kind());
                 address_command.execute(wallet_client)
             }
             Command::ViewKey { name } => {
                 let storage = SledStorage::new(storage_path())?;
-                let wallet_client = DefaultWalletClient::new_read_only(storage);
+                let wallet_client = DefaultWalletClient::new_read_only(storage, get_wallet_kind());
 
                 Self::get_view_key(wallet_client, name)
             }
             Command::Balance { name } => {
                 let storage = SledStorage::new(storage_path())?;
-                let wallet_client = DefaultWalletClient::new_read_only(storage);
+                let wallet_client = DefaultWalletClient::new_read_only(storage, get_wallet_kind());
                 Self::get_balance(wallet_client, name)
             }
             Command::History { name } => {
                 let storage = SledStorage::new(storage_path())?;
-                let wallet_client = DefaultWalletClient::new_read_only(storage);
+                let wallet_client = DefaultWalletClient::new_read_only(storage, get_wallet_kind());
                 Self::get_history(wallet_client, name)
             }
             Command::Transaction {
@@ -131,7 +131,7 @@ impl Command {
             } => {
                 let storage = SledStorage::new(storage_path())?;
                 let tendermint_client = WebsocketRpcClient::new(&tendermint_url())?;
-                let signer = DefaultSigner::new(storage.clone());
+                let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
                 let fee_algorithm = tendermint_client.genesis()?.fee_policy();
                 let transaction_obfuscation =
                     MockAbciTransactionObfuscation::new(tendermint_client.clone());
@@ -145,6 +145,7 @@ impl Command {
                     storage,
                     tendermint_client.clone(),
                     transaction_builder,
+                    get_wallet_kind(),
                 );
                 let network_ops_client = DefaultNetworkOpsClient::new(
                     wallet_client,
@@ -158,7 +159,7 @@ impl Command {
             Command::StakedState { name, address } => {
                 let storage = SledStorage::new(storage_path())?;
                 let tendermint_client = WebsocketRpcClient::new(&tendermint_url())?;
-                let signer = DefaultSigner::new(storage.clone());
+                let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
                 let fee_algorithm = tendermint_client.genesis()?.fee_policy();
                 let transaction_obfuscation =
                     MockAbciTransactionObfuscation::new(tendermint_client.clone());
@@ -171,6 +172,7 @@ impl Command {
                     storage,
                     tendermint_client.clone(),
                     transaction_builder,
+                    get_wallet_kind(),
                 );
 
                 let network_ops_client = DefaultNetworkOpsClient::new(
@@ -197,6 +199,7 @@ impl Command {
                     transaction_obfuscation,
                     transaction_handler,
                     storage.clone(),
+                    get_wallet_kind(),
                 );
 
                 let synchronizer =

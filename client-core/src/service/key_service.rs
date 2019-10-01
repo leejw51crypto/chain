@@ -1,14 +1,16 @@
 use secstr::SecUtf8;
-use zeroize::Zeroize;
 
-use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
-
-const KEYSPACE: &str = "core_key";
+use super::basic_key_service::BasicKeyService;
+use super::hdkey_service::HDKeyService;
+use super::key_service_data::{KeyServiceInterface, WalletKinds};
+use client_common::{PrivateKey, PublicKey, Result, Storage};
 
 /// Maintains mapping `public-key -> private-key`
 #[derive(Debug, Default, Clone)]
 pub struct KeyService<T: Storage> {
-    storage: T,
+    kind: WalletKinds,
+    basic: Option<BasicKeyService<T>>,
+    hd: Option<HDKeyService<T>>,
 }
 
 impl<T> KeyService<T>
@@ -16,23 +18,53 @@ where
     T: Storage,
 {
     /// Creates a new instance of key service
-    pub fn new(storage: T) -> Self {
-        KeyService { storage }
+    pub fn new(storage: T, stroage2: T, kind: WalletKinds) -> Self {
+        KeyService {
+            kind,
+            basic: Some(BasicKeyService::new(storage)),
+            hd: Some(HDKeyService::new(stroage2)),
+        }
     }
 
+    /// get random mnemonic
+    pub fn get_random_mnemonic(&self) -> String {
+        match self.kind {
+            WalletKinds::Basic => String::new(),
+            WalletKinds::HD => self.hd.as_ref().unwrap().get_random_mnemonic(),
+        }
+    }
+
+    /// restore from mnemonic
+    pub fn generate_seed(&self, mnemonic: &str, name: &str, passphrase: &SecUtf8) -> Result<()> {
+        match self.kind {
+            WalletKinds::Basic => Ok(()),
+            WalletKinds::HD => self
+                .hd
+                .as_ref()
+                .unwrap()
+                .generate_seed(mnemonic, name, passphrase),
+        }
+    }
     /// Generates a new public-private keypair
-    pub fn generate_keypair(&self, passphrase: &SecUtf8) -> Result<(PublicKey, PrivateKey)> {
-        let private_key = PrivateKey::new()?;
-        let public_key = PublicKey::from(&private_key);
+    pub fn generate_keypair(
+        &self,
+        name: &str,
+        passphrase: &SecUtf8,
+        is_staking: bool,
+    ) -> Result<(PublicKey, PrivateKey)> {
+        match self.kind {
+            WalletKinds::Basic => self
+                .basic
+                .as_ref()
+                .unwrap()
+                .generate_keypair(name, passphrase, is_staking),
 
-        self.storage.set_secure(
-            KEYSPACE,
-            public_key.serialize(),
-            private_key.serialize(),
-            passphrase,
-        )?;
-
-        Ok((public_key, private_key))
+            WalletKinds::HD => self
+                .hd
+                .as_ref()
+                .unwrap()
+                .generate_keypair(name, passphrase, is_staking),
+        }
     }
 
     /// Retrieves private key corresponding to given public key
@@ -41,22 +73,26 @@ where
         public_key: &PublicKey,
         passphrase: &SecUtf8,
     ) -> Result<Option<PrivateKey>> {
-        let private_key_bytes =
-            self.storage
-                .get_secure(KEYSPACE, public_key.serialize(), passphrase)?;
-
-        private_key_bytes
-            .map(|mut private_key_bytes| {
-                let private_key = PrivateKey::deserialize_from(&private_key_bytes)?;
-                private_key_bytes.zeroize();
-                Ok(private_key)
-            })
-            .transpose()
+        match self.kind {
+            WalletKinds::Basic => self
+                .basic
+                .as_ref()
+                .unwrap()
+                .private_key(public_key, passphrase),
+            WalletKinds::HD => self
+                .hd
+                .as_ref()
+                .unwrap()
+                .private_key(public_key, passphrase),
+        }
     }
 
     /// Clears all storage
     pub fn clear(&self) -> Result<()> {
-        self.storage.clear(KEYSPACE)
+        match self.kind {
+            WalletKinds::Basic => self.basic.as_ref().unwrap().clear(),
+            WalletKinds::HD => self.hd.as_ref().unwrap().clear(),
+        }
     }
 }
 
@@ -69,11 +105,15 @@ mod tests {
 
     #[test]
     fn check_flow() {
-        let key_service = KeyService::new(MemoryStorage::default());
+        let key_service = KeyService::new(
+            MemoryStorage::default(),
+            MemoryStorage::default(),
+            WalletKinds::Basic,
+        );
         let passphrase = SecUtf8::from("passphrase");
 
         let (public_key, private_key) = key_service
-            .generate_keypair(&passphrase)
+            .generate_keypair("", &passphrase, false)
             .expect("Unable to generate private key");
 
         let retrieved_private_key = key_service

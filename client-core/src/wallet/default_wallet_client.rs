@@ -4,6 +4,13 @@ use parity_scale_codec::Encode;
 use secp256k1::schnorrsig::SchnorrSignature;
 use secstr::SecUtf8;
 
+use crate::service::*;
+use crate::transaction_builder::UnauthorizedTransactionBuilder;
+use crate::types::{BalanceChange, TransactionChange};
+use crate::{
+    InputSelectionStrategy, MultiSigWalletClient, TransactionBuilder, UnspentTransactions,
+    WalletClient,
+};
 use chain_core::common::{Proof, H256};
 use chain_core::init::address::RedeemAddress;
 use chain_core::init::coin::Coin;
@@ -20,14 +27,6 @@ use client_common::tendermint::types::BroadcastTxResult;
 use client_common::tendermint::{Client, UnauthorizedClient};
 use client_common::{
     Error, ErrorKind, PrivateKey, PublicKey, Result, ResultExt, SignedTransaction, Storage,
-};
-
-use crate::service::*;
-use crate::transaction_builder::UnauthorizedTransactionBuilder;
-use crate::types::{BalanceChange, TransactionChange};
-use crate::{
-    InputSelectionStrategy, MultiSigWalletClient, TransactionBuilder, UnspentTransactions,
-    WalletClient,
 };
 
 /// Default implementation of `WalletClient` based on `Storage` and `Index`
@@ -55,9 +54,14 @@ where
     T: TransactionBuilder,
 {
     /// Creates a new instance of `DefaultWalletClient`
-    pub fn new(storage: S, tendermint_client: C, transaction_builder: T) -> Self {
+    pub fn new(
+        storage: S,
+        tendermint_client: C,
+        transaction_builder: T,
+        walletkind: WalletKinds,
+    ) -> Self {
         Self {
-            key_service: KeyService::new(storage.clone()),
+            key_service: KeyService::new(storage.clone(), storage.clone(), walletkind),
             wallet_service: WalletService::new(storage.clone()),
             wallet_state_service: WalletStateService::new(storage.clone()),
             root_hash_service: RootHashService::new(storage.clone()),
@@ -73,8 +77,13 @@ where
     S: Storage + Clone,
 {
     /// Creates a new read-only instance of `DefaultWalletClient`
-    pub fn new_read_only(storage: S) -> Self {
-        Self::new(storage, UnauthorizedClient, UnauthorizedTransactionBuilder)
+    pub fn new_read_only(storage: S, walletkind: WalletKinds) -> Self {
+        Self::new(
+            storage,
+            UnauthorizedClient,
+            UnauthorizedTransactionBuilder,
+            walletkind,
+        )
     }
 }
 
@@ -90,8 +99,24 @@ where
     }
 
     fn new_wallet(&self, name: &str, passphrase: &SecUtf8) -> Result<()> {
-        let view_key = self.key_service.generate_keypair(passphrase)?.0;
+        println!("DefaultWalletClient new_wallet");
+        let view_key = self
+            .key_service
+            .generate_keypair(name, passphrase, false)?
+            .0;
         self.wallet_service.create(name, passphrase, view_key)
+    }
+
+    /// Creates mnemonics
+    fn new_mnemonics(&self) -> Result<String> {
+        Ok(self.key_service.get_random_mnemonic())
+    }
+
+    /// Creates a new hd-wallet with given name and passphrase
+    fn new_hdwallet(&self, name: &str, passphrase: &SecUtf8, mnemonics: String) -> Result<()> {
+        // load seed
+        self.key_service.generate_seed(&mnemonics, name, passphrase)
+        //self.new_wallet(name, passphrase)
     }
 
     #[inline]
@@ -164,7 +189,7 @@ where
     }
 
     fn new_public_key(&self, name: &str, passphrase: &SecUtf8) -> Result<PublicKey> {
-        let (public_key, _) = self.key_service.generate_keypair(passphrase)?;
+        let (public_key, _) = self.key_service.generate_keypair(name, passphrase, false)?;
         self.wallet_service
             .add_public_key(name, passphrase, &public_key)?;
 
@@ -172,7 +197,7 @@ where
     }
 
     fn new_staking_address(&self, name: &str, passphrase: &SecUtf8) -> Result<StakedStateAddress> {
-        let (staking_key, _) = self.key_service.generate_keypair(passphrase)?;
+        let (staking_key, _) = self.key_service.generate_keypair(name, passphrase, true)?;
         self.wallet_service
             .add_staking_key(name, passphrase, &staking_key)?;
 
@@ -182,7 +207,7 @@ where
     }
 
     fn new_transfer_address(&self, name: &str, passphrase: &SecUtf8) -> Result<ExtendedAddr> {
-        let (public_key, _) = self.key_service.generate_keypair(passphrase)?;
+        let (public_key, _) = self.key_service.generate_keypair(name, passphrase, false)?;
         self.new_multisig_transfer_address(
             name,
             passphrase,

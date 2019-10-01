@@ -233,24 +233,24 @@ pub mod tests {
 
     use secstr::SecUtf8;
 
-    use chrono::DateTime;
-    use parity_scale_codec::Encode;
-
     use chain_core::init::coin::CoinError;
     use chain_core::tx::data::input::TxoIndex;
     use chain_core::tx::data::TxId;
     use chain_core::tx::fee::{Fee, FeeAlgorithm};
     use chain_core::tx::{PlainTxAux, TransactionId, TxAux, TxObfuscated};
+    use chrono::DateTime;
     use client_common::storage::MemoryStorage;
     use client_common::tendermint::types::*;
     use client_common::tendermint::Client;
     use client_common::{
         Error, ErrorKind, PrivateKey, Result as CommonResult, SignedTransaction, Transaction,
     };
+    use client_core::service::get_wallet_kind;
     use client_core::signer::DefaultSigner;
     use client_core::transaction_builder::DefaultTransactionBuilder;
     use client_core::wallet::DefaultWalletClient;
     use client_core::TransactionObfuscation;
+    use parity_scale_codec::Encode;
 
     #[derive(Default)]
     pub struct ZeroFeeAlgorithm;
@@ -594,13 +594,18 @@ pub mod tests {
     }
 
     fn make_test_wallet_client(storage: MemoryStorage) -> TestWalletClient {
-        let signer = DefaultSigner::new(storage.clone());
+        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
         let transaction_builder = DefaultTransactionBuilder::new(
             signer,
             ZeroFeeAlgorithm::default(),
             MockTransactionCipher,
         );
-        DefaultWalletClient::new(storage, MockRpcClient, transaction_builder)
+        DefaultWalletClient::new(
+            storage,
+            MockRpcClient,
+            transaction_builder,
+            get_wallet_kind(),
+        )
     }
 
     fn setup_wallet_rpc() -> WalletRpcImpl<TestWalletClient> {

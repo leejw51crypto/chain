@@ -1,9 +1,8 @@
 use secstr::SecUtf8;
-use zeroize::Zeroize;
 
-use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
-use std::sync::Once;
-static INIT_WALLET: Once = Once::new();
+
+use client_common::{PrivateKey, PublicKey, Result};
+
 
 /// Wallet kinds
 /// Basic: default wallet

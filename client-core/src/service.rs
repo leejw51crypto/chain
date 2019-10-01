@@ -19,3 +19,22 @@ pub use self::multi_sig_session_service::MultiSigSessionService;
 pub use self::root_hash_service::RootHashService;
 pub use self::wallet_service::WalletService;
 pub use self::wallet_state_service::WalletStateService;
+
+// BASIC : normal wallet
+// HD: hd wallet
+/// get wallet kind from env
+pub fn get_wallet_kind() -> WalletKinds {
+    let walletkind = std::env::var("CRYPTO_WALLET_KIND")
+        .map(Some)
+        .unwrap_or(None);
+    let r = if let Some(a) = walletkind {
+        match a.as_str() {
+            "HD" => WalletKinds::HD,
+            _ => WalletKinds::Basic,
+        }
+    } else {
+        WalletKinds::Basic
+    };
+    println!("founded wallet {:?}", r);
+    r
+}

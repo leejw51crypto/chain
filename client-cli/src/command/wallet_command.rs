@@ -4,9 +4,8 @@ use structopt::StructOpt;
 use client_common::{Error, ErrorKind, Result};
 use client_core::WalletClient;
 
-use super::super::command::get_wallet_kind;
 use crate::ask_passphrase;
-use client_core::service::WalletKinds;
+use client_core::service::{get_wallet_kind, WalletKinds};
 #[derive(Debug, StructOpt)]
 pub enum WalletCommand {
     #[structopt(name = "new", about = "New wallet")]
@@ -27,7 +26,7 @@ impl WalletCommand {
     }
 
     fn get_mnemonics<T: WalletClient>(wallet_client: &T) -> String {
-        let mut mnemonics = "".to_string();
+        let mut mnemonics: String;
         loop {
             println!("== hd wallet setup==");
             println!("1. create new mnemonics");
@@ -60,7 +59,6 @@ impl WalletCommand {
     fn new_wallet<T: WalletClient>(wallet_client: T, name: &str) -> Result<()> {
         let passphrase = ask_passphrase(None)?;
         let confirmed_passphrase = ask_passphrase(Some("Confirm passphrase: "))?;
-        let mut mnemonics = "".to_string();
 
         if passphrase != confirmed_passphrase {
             return Err(Error::new(
@@ -72,7 +70,7 @@ impl WalletCommand {
         let walletkind = get_wallet_kind();
         match walletkind {
             WalletKinds::HD => {
-                mnemonics = WalletCommand::get_mnemonics(&wallet_client);
+                let mnemonics = WalletCommand::get_mnemonics(&wallet_client);
                 println!("ok keep mnemonics safely={}", mnemonics);
                 wallet_client.new_hdwallet(name, &passphrase, mnemonics)?;
             }

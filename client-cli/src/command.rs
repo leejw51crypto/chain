@@ -22,7 +22,7 @@ use client_common::tendermint::{Client, WebsocketRpcClient};
 use client_common::{Result, Storage};
 use client_core::cipher::MockAbciTransactionObfuscation;
 use client_core::handler::{DefaultBlockHandler, DefaultTransactionHandler};
-use client_core::service::WalletKinds;
+use client_core::service::get_wallet_kind;
 use client_core::signer::DefaultSigner;
 use client_core::synchronizer::{ManualSynchronizer, ProgressReport};
 use client_core::transaction_builder::DefaultTransactionBuilder;
@@ -32,25 +32,6 @@ use client_core::BlockHandler;
 use client_network::network_ops::{DefaultNetworkOpsClient, NetworkOpsClient};
 
 use crate::{ask_passphrase, storage_path, tendermint_url};
-
-// BASIC : normal wallet
-// HD: hd wallet
-/// get wallet kind from env
-pub fn get_wallet_kind() -> WalletKinds {
-    let walletkind = std::env::var("CRYPTO_WALLET_KIND")
-        .map(Some)
-        .unwrap_or(None);
-    let r = if let Some(a) = walletkind {
-        match a.as_str() {
-            "HD" => WalletKinds::HD,
-            _ => WalletKinds::Basic,
-        }
-    } else {
-        WalletKinds::Basic
-    };
-    println!("founded wallet {:?}", r);
-    r
-}
 
 #[derive(Debug, StructOpt)]
 #[structopt(

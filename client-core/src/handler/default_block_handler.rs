@@ -115,6 +115,8 @@ mod tests {
 
     use chrono::{DateTime, Utc};
 
+    use crate::service::get_wallet_kind;
+    use crate::wallet::{DefaultWalletClient, WalletClient};
     use chain_core::init::coin::Coin;
     use chain_core::state::account::{StakedStateOpAttributes, UnbondTx};
     use chain_core::tx::data::address::ExtendedAddr;
@@ -125,8 +127,6 @@ mod tests {
     use chain_tx_filter::BlockFilter;
     use client_common::storage::MemoryStorage;
     use client_common::{PrivateKey, PublicKey, SignedTransaction, Transaction};
-
-    use crate::wallet::{DefaultWalletClient, WalletClient};
 
     struct MockTransactionCipher;
 
@@ -214,7 +214,7 @@ mod tests {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
 
-        let wallet = DefaultWalletClient::new_read_only(storage.clone());
+        let wallet = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
 
         assert!(wallet.new_wallet(name, passphrase).is_ok());
 
@@ -224,7 +224,7 @@ mod tests {
             MockTransactionCipher,
             MockTransactionHandler,
             storage.clone(),
-            WalletKinds::HD,
+            get_wallet_kind(),
         );
 
         let global_state_service = GlobalStateService::new(storage);

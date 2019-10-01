@@ -4,9 +4,7 @@ use zeroize::Zeroize;
 
 use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
 use log::debug;
-use std::str::FromStr;
 use tiny_hderive::bip32::ExtendedPrivKey;
-use tiny_hderive::bip44::ChildNumber;
 const KEYSPACE: &str = "core_hdkey";
 use super::key_service_data::KeyServiceInterface;
 
@@ -31,7 +29,7 @@ where
         is_staking: bool,     // kind of address
     ) -> Result<(PublicKey, PrivateKey)> {
         let seed_bytes = self.storage.get_secure(KEYSPACE, name, passphrase)?;
-        let mut index = 0;
+        let mut index ;
         if is_staking {
             index = self.read_number(passphrase, format!("staking_{}", name).as_bytes(), 0);
         } else {
@@ -113,6 +111,7 @@ where
 
     /// auto-matically generate staking, transfer addresses
     /// with just one api call
+    #[allow(dead_code)]
     pub fn auto_restore(
         &self,
         mnemonic: &str,
@@ -120,7 +119,7 @@ where
         passphrase: &SecUtf8,
         count: i32,
     ) -> Result<()> {
-        self.generate_seed(mnemonic, name, passphrase);
+        self.generate_seed(mnemonic, name, passphrase).expect("auto restore");
         for index in 0..count {
             let seed_bytes = self.storage.get_secure(KEYSPACE, name, passphrase)?;
             for account in 0..2 {
@@ -151,6 +150,7 @@ where
     }
 
     /// read value from db
+    #[allow(dead_code)]
     pub fn read_value(&self, passphrase: &SecUtf8, key: &[u8], default: &[u8]) -> Vec<u8> {
         match self.storage.get_secure(KEYSPACE, key, passphrase) {
             Ok(connected) => match connected {

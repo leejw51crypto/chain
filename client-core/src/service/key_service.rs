@@ -1,11 +1,11 @@
 use secstr::SecUtf8;
-use zeroize::Zeroize;
+
 
 use super::basic_key_service::BasicKeyService;
 use super::hdkey_service::HDKeyService;
 use super::key_service_data::{KeyServiceInterface, WalletKinds};
-use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
-const KEYSPACE: &str = "core_key";
+use client_common::{PrivateKey, PublicKey, Result,  Storage};
+
 
 /// Maintains mapping `public-key -> private-key`
 #[derive(Debug, Default, Clone)]

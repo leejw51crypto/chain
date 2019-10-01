@@ -12,7 +12,7 @@ use chain_core::init::{coin::Coin, network::init_chain_id};
 use client_common::{Error, ErrorKind, Result, ResultExt};
 
 use crate::command::Command;
-use log::Level;
+
 
 fn main() {
     env_logger::init();

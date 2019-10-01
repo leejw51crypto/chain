@@ -3,12 +3,11 @@ use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use secstr::SecUtf8;
 
+use crate::server::{to_rpc_error, WalletRequest};
 use chain_core::common::{H256, HASH_SIZE_256};
 use chain_core::tx::data::Tx;
 use client_common::{Error, ErrorKind, PublicKey, Result as CommonResult, ResultExt};
 use client_core::{MultiSigWalletClient, WalletClient};
-
-use crate::server::{to_rpc_error, WalletRequest};
 
 #[rpc]
 pub trait MultiSigRpc: Send + Sync {
@@ -308,6 +307,7 @@ fn parse_public_key(public_key: String) -> CommonResult<PublicKey> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use client_core::service::get_wallet_kind;
     use secstr::SecUtf8;
 
     use chain_core::init::coin::CoinError;
@@ -362,13 +362,18 @@ mod test {
     }
 
     fn make_test_wallet_client(storage: MemoryStorage) -> TestWalletClient {
-        let signer = DefaultSigner::new(storage.clone(), WalletKinds::HD);
+        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
         let transaction_builder = DefaultTransactionBuilder::new(
             signer,
             ZeroFeeAlgorithm::default(),
             MockTransactionCipher,
         );
-        DefaultWalletClient::new(storage, MockRpcClient, transaction_builder)
+        DefaultWalletClient::new(
+            storage,
+            MockRpcClient,
+            transaction_builder,
+            get_wallet_kind(),
+        )
     }
 
     fn setup_multisig_rpc() -> MultiSigRpcImpl<TestWalletClient> {

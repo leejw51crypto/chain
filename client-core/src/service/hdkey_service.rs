@@ -3,6 +3,7 @@ use secstr::SecUtf8;
 use zeroize::Zeroize;
 
 use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
+use log::debug;
 use std::str::FromStr;
 use tiny_hderive::bip32::ExtendedPrivKey;
 use tiny_hderive::bip44::ChildNumber;
@@ -36,7 +37,7 @@ where
         } else {
             index = self.read_number(passphrase, format!("transfer_{}", name).as_bytes(), 0);
         }
-        println!("index={}", index);
+        debug!("hdwallet index={}", index);
         let account = if is_staking { 1 } else { 0 };
         let extended = ExtendedPrivKey::derive(
             &seed_bytes.clone().unwrap(),
@@ -44,7 +45,7 @@ where
         )
         .unwrap();
         let secret_key_bytes = extended.secret();
-        println!("save index={}", index);
+        debug!("hdwallet save index={}", index);
         let private_key = PrivateKey::deserialize_from(&secret_key_bytes.clone()).unwrap();
         let public_key = PublicKey::from(&private_key);
         self.storage.set_secure(
@@ -101,14 +102,12 @@ where
 
     /// generate seed from mnemonic
     pub fn generate_seed(&self, mnemonic: &str, name: &str, passphrase: &SecUtf8) -> Result<()> {
-        println!("generate seed={}", mnemonic);
+        debug!("hdwallet generate seed={}", mnemonic);
         let mnemonic = Mnemonic::from_phrase(&mnemonic.to_string(), Language::English).unwrap();
-        println!("ok");
         let seed = Seed::new(&mnemonic, "");
-        println!("write seed");
         self.storage
             .set_secure(KEYSPACE, name, seed.as_bytes().into(), passphrase)?;
-        println!("write seed ok");
+        debug!("hdwallet write seed success");
         Ok(())
     }
 
@@ -170,7 +169,6 @@ where
         match self.storage.get_secure(KEYSPACE, key, passphrase) {
             Ok(connected) => match connected {
                 Some(value) => {
-                    println!("read ok={:?}", value);
                     return std::str::from_utf8(&value[..])
                         .unwrap()
                         .parse::<u32>()

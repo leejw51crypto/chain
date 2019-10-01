@@ -4,8 +4,8 @@ use structopt::StructOpt;
 use client_common::{Error, ErrorKind, Result};
 use client_core::WalletClient;
 
-use crate::ask_passphrase;
 use super::super::command::get_wallet_kind;
+use crate::ask_passphrase;
 use client_core::service::WalletKinds;
 #[derive(Debug, StructOpt)]
 pub enum WalletCommand {
@@ -26,9 +26,8 @@ impl WalletCommand {
         }
     }
 
-
-    fn get_mnemonics<T:WalletClient>(wallet_client:&T ) -> String {
-           let mut mnemonics = "".to_string();
+    fn get_mnemonics<T: WalletClient>(wallet_client: &T) -> String {
+        let mut mnemonics = "".to_string();
         loop {
             println!("== hd wallet setup==");
             println!("1. create new mnemonics");
@@ -70,17 +69,14 @@ impl WalletCommand {
             ));
         }
 
-        let walletkind= get_wallet_kind();
+        let walletkind = get_wallet_kind();
         match walletkind {
             WalletKinds::HD => {
-                mnemonics= WalletCommand::get_mnemonics(&wallet_client);
-        println!("ok keep mnemonics safely={}", mnemonics);
-        wallet_client.new_hdwallet(name, &passphrase, mnemonics)?;
-        
-            },
-            _ => {
-
+                mnemonics = WalletCommand::get_mnemonics(&wallet_client);
+                println!("ok keep mnemonics safely={}", mnemonics);
+                wallet_client.new_hdwallet(name, &passphrase, mnemonics)?;
             }
+            _ => {}
         }
         println!("--------------------------------------------");
         wallet_client.new_wallet(name, &passphrase)?;

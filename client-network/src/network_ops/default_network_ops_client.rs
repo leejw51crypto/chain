@@ -292,7 +292,6 @@ where
 mod tests {
     use super::*;
 
-    use client_core::service::get_wallet_kind;
     use parity_scale_codec::Encode;
 
     use chain_core::init::address::RedeemAddress;
@@ -428,11 +427,11 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
@@ -469,11 +468,11 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
@@ -504,11 +503,11 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         let tendermint_client = MockClient::default();
         let network_ops_client = DefaultNetworkOpsClient::new(
@@ -562,11 +561,11 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         let tendermint_client = MockClient::default();
         let network_ops_client = DefaultNetworkOpsClient::new(
@@ -630,11 +629,11 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         let tendermint_client = MockClient::default();
         let network_ops_client = DefaultNetworkOpsClient::new(
@@ -673,11 +672,11 @@ mod tests {
         let passphrase = &SecUtf8::from("passphrase");
 
         let storage = MemoryStorage::default();
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
         let tendermint_client = MockClient::default();
 
         let network_ops_client = DefaultNetworkOpsClient::new(

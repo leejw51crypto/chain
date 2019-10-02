@@ -9,15 +9,14 @@ use quest::{password, success};
 use secstr::SecUtf8;
 use serde_json::json;
 
+use super::genesis_command::GenesisCommand;
+use super::genesis_dev_config::GenesisDevConfig;
 use chain_core::init::config::{InitialValidator, ValidatorKeyType};
 use chain_core::init::{address::RedeemAddress, coin::Coin, config::InitConfig};
 use client_common::storage::SledStorage;
 use client_common::{Error, ErrorKind, Result, ResultExt};
-use client_core::service::get_wallet_kind;
-use client_core::wallet::{DefaultWalletClient, WalletClient};
 
-use super::genesis_command::GenesisCommand;
-use super::genesis_dev_config::GenesisDevConfig;
+use client_core::wallet::{DefaultWalletClient, WalletClient};
 
 #[derive(Debug)]
 pub struct InitCommand {
@@ -347,7 +346,7 @@ impl InitCommand {
 
     fn read_staking_address(&mut self) -> Result<()> {
         let storage = SledStorage::new(InitCommand::storage_path())?;
-        let wallet_client = DefaultWalletClient::new_read_only(storage, get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage);
 
         let name = self.ask_string("please enter wallet name=", "my");
 

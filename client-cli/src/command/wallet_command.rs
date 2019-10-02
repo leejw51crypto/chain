@@ -5,7 +5,7 @@ use client_common::{Error, ErrorKind, Result};
 use client_core::WalletClient;
 
 use crate::ask_passphrase;
-use client_core::service::{get_wallet_kind, WalletKinds};
+use client_core::service::WalletKinds;
 #[derive(Debug, StructOpt)]
 pub enum WalletCommand {
     #[structopt(name = "new", about = "New wallet")]
@@ -51,7 +51,23 @@ impl WalletCommand {
         }
         mnemonics
     }
+    fn ask_wallet_kind() -> WalletKinds {
+        loop {
+            println!("== wallet choose==");
+            println!("1. normal wallet");
+            println!("2. hd wallet");
+            println!("enter command=");
 
+            let a = quest::text().unwrap();
+            if a == "1" {
+                return WalletKinds::Basic;
+            } else if a == "2" {
+                return WalletKinds::HD;
+            } else {
+                continue;
+            }
+        }
+    }
     fn new_wallet<T: WalletClient>(wallet_client: T, name: &str) -> Result<()> {
         let passphrase = ask_passphrase(None)?;
         let confirmed_passphrase = ask_passphrase(Some("Confirm passphrase: "))?;
@@ -63,7 +79,7 @@ impl WalletCommand {
             ));
         }
 
-        let walletkind = get_wallet_kind();
+        let walletkind = WalletCommand::ask_wallet_kind();
         if WalletKinds::HD == walletkind {
             let mnemonics = WalletCommand::get_mnemonics(&wallet_client);
             println!("ok keep mnemonics safely={}", mnemonics);

@@ -288,7 +288,6 @@ mod tests {
     use parity_scale_codec::Encode;
     use secp256k1::recovery::{RecoverableSignature, RecoveryId};
 
-    use crate::service::get_wallet_kind;
     use crate::wallet::{DefaultWalletClient, WalletClient};
     use chain_core::common::TendermintEventType;
     use chain_core::init::coin::Coin;
@@ -464,7 +463,7 @@ mod tests {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
 
-        let wallet = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet = DefaultWalletClient::new_read_only(storage.clone());
 
         assert!(wallet.new_wallet(name, passphrase).is_ok());
 

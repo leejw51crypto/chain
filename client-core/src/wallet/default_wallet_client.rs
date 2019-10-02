@@ -54,14 +54,9 @@ where
     T: TransactionBuilder,
 {
     /// Creates a new instance of `DefaultWalletClient`
-    pub fn new(
-        storage: S,
-        tendermint_client: C,
-        transaction_builder: T,
-        walletkind: WalletKinds,
-    ) -> Self {
+    pub fn new(storage: S, tendermint_client: C, transaction_builder: T) -> Self {
         Self {
-            key_service: KeyService::new(storage.clone(), storage.clone(), walletkind),
+            key_service: KeyService::new(storage.clone()),
             wallet_service: WalletService::new(storage.clone()),
             wallet_state_service: WalletStateService::new(storage.clone()),
             root_hash_service: RootHashService::new(storage.clone()),
@@ -77,13 +72,8 @@ where
     S: Storage + Clone,
 {
     /// Creates a new read-only instance of `DefaultWalletClient`
-    pub fn new_read_only(storage: S, walletkind: WalletKinds) -> Self {
-        Self::new(
-            storage,
-            UnauthorizedClient,
-            UnauthorizedTransactionBuilder,
-            walletkind,
-        )
+    pub fn new_read_only(storage: S) -> Self {
+        Self::new(storage, UnauthorizedClient, UnauthorizedTransactionBuilder)
     }
 }
 
@@ -99,11 +89,16 @@ where
     }
 
     fn new_wallet(&self, name: &str, passphrase: &SecUtf8) -> Result<()> {
-        println!("DefaultWalletClient new_wallet");
+        println!("DefaultWalletClient New Wallet");
+        println!(
+            "is hd wallet={}",
+            self.key_service.is_hd_wallet(name, passphrase)
+        );
         let view_key = self
             .key_service
-            .generate_keypair(name, passphrase, false)?
+            .generate_keypair_auto(name, passphrase, false)?
             .0;
+
         self.wallet_service.create(name, passphrase, view_key)
     }
 
@@ -116,7 +111,6 @@ where
     fn new_hdwallet(&self, name: &str, passphrase: &SecUtf8, mnemonics: String) -> Result<()> {
         // load seed
         self.key_service.generate_seed(&mnemonics, name, passphrase)
-        //self.new_wallet(name, passphrase)
     }
 
     #[inline]
@@ -189,7 +183,9 @@ where
     }
 
     fn new_public_key(&self, name: &str, passphrase: &SecUtf8) -> Result<PublicKey> {
-        let (public_key, _) = self.key_service.generate_keypair(name, passphrase, false)?;
+        let (public_key, _) = self
+            .key_service
+            .generate_keypair_auto(name, passphrase, false)?;
         self.wallet_service
             .add_public_key(name, passphrase, &public_key)?;
 
@@ -197,7 +193,9 @@ where
     }
 
     fn new_staking_address(&self, name: &str, passphrase: &SecUtf8) -> Result<StakedStateAddress> {
-        let (staking_key, _) = self.key_service.generate_keypair(name, passphrase, true)?;
+        let (staking_key, _) = self
+            .key_service
+            .generate_keypair_auto(name, passphrase, true)?;
         self.wallet_service
             .add_staking_key(name, passphrase, &staking_key)?;
 
@@ -207,7 +205,9 @@ where
     }
 
     fn new_transfer_address(&self, name: &str, passphrase: &SecUtf8) -> Result<ExtendedAddr> {
-        let (public_key, _) = self.key_service.generate_keypair(name, passphrase, false)?;
+        let (public_key, _) = self
+            .key_service
+            .generate_keypair_auto(name, passphrase, false)?;
         self.new_multisig_transfer_address(
             name,
             passphrase,

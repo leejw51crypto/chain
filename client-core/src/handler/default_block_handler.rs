@@ -3,7 +3,7 @@ use secstr::SecUtf8;
 use chain_core::tx::TransactionId;
 use client_common::{BlockHeader, ErrorKind, Result, ResultExt, Storage};
 
-use crate::service::{GlobalStateService, KeyService, WalletKinds, WalletService};
+use crate::service::{GlobalStateService, KeyService, WalletService};
 use crate::{BlockHandler, TransactionHandler, TransactionObfuscation};
 
 /// Default implementation of `BlockHandler`
@@ -29,16 +29,11 @@ where
 {
     /// Creates a new instance of `DefaultBlockHandler`
     #[inline]
-    pub fn new(
-        transaction_obfuscation: O,
-        transaction_handler: H,
-        storage: S,
-        walletkind: WalletKinds,
-    ) -> Self {
+    pub fn new(transaction_obfuscation: O, transaction_handler: H, storage: S) -> Self {
         Self {
             transaction_obfuscation,
             transaction_handler,
-            key_service: KeyService::new(storage.clone(), storage.clone(), walletkind),
+            key_service: KeyService::new(storage.clone()),
             wallet_service: WalletService::new(storage.clone()),
             global_state_service: GlobalStateService::new(storage),
         }
@@ -115,7 +110,6 @@ mod tests {
 
     use chrono::{DateTime, Utc};
 
-    use crate::service::get_wallet_kind;
     use crate::wallet::{DefaultWalletClient, WalletClient};
     use chain_core::init::coin::Coin;
     use chain_core::state::account::{StakedStateOpAttributes, UnbondTx};
@@ -214,7 +208,7 @@ mod tests {
         let name = "name";
         let passphrase = &SecUtf8::from("passphrase");
 
-        let wallet = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet = DefaultWalletClient::new_read_only(storage.clone());
 
         assert!(wallet.new_wallet(name, passphrase).is_ok());
 
@@ -224,7 +218,6 @@ mod tests {
             MockTransactionCipher,
             MockTransactionHandler,
             storage.clone(),
-            get_wallet_kind(),
         );
 
         let global_state_service = GlobalStateService::new(storage);

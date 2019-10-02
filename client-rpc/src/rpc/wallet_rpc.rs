@@ -4,6 +4,7 @@ use std::str::FromStr;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 
+use crate::server::{rpc_error_from_string, to_rpc_error, WalletRequest};
 use chain_core::init::coin::Coin;
 use chain_core::tx::data::access::{TxAccess, TxAccessPolicy};
 use chain_core::tx::data::address::ExtendedAddr;
@@ -12,10 +13,9 @@ use chain_core::tx::data::output::TxOut;
 use chain_core::tx::TxAux;
 use chain_core::tx::TxObfuscated;
 use client_common::{PublicKey, Result as CommonResult};
+
 use client_core::types::TransactionChange;
 use client_core::{MultiSigWalletClient, WalletClient};
-
-use crate::server::{rpc_error_from_string, to_rpc_error, WalletRequest};
 
 #[rpc]
 pub trait WalletRpc: Send + Sync {
@@ -245,7 +245,7 @@ pub mod tests {
     use client_common::{
         Error, ErrorKind, PrivateKey, Result as CommonResult, SignedTransaction, Transaction,
     };
-    use client_core::service::get_wallet_kind;
+
     use client_core::signer::DefaultSigner;
     use client_core::transaction_builder::DefaultTransactionBuilder;
     use client_core::wallet::DefaultWalletClient;
@@ -594,18 +594,13 @@ pub mod tests {
     }
 
     fn make_test_wallet_client(storage: MemoryStorage) -> TestWalletClient {
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
         let transaction_builder = DefaultTransactionBuilder::new(
             signer,
             ZeroFeeAlgorithm::default(),
             MockTransactionCipher,
         );
-        DefaultWalletClient::new(
-            storage,
-            MockRpcClient,
-            transaction_builder,
-            get_wallet_kind(),
-        )
+        DefaultWalletClient::new(storage, MockRpcClient, transaction_builder)
     }
 
     fn setup_wallet_rpc() -> WalletRpcImpl<TestWalletClient> {

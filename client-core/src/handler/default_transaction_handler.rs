@@ -284,7 +284,6 @@ mod tests {
     use chain_core::tx::data::attribute::TxAttributes;
     use chain_core::tx::data::Tx;
 
-    use crate::service::get_wallet_kind;
     use crate::wallet::{DefaultWalletClient, WalletClient};
     use client_common::storage::MemoryStorage;
 
@@ -308,7 +307,7 @@ mod tests {
     fn check_transfer_transaction_flow() {
         let storage = MemoryStorage::default();
         let transaction_handler = DefaultTransactionHandler::new(storage.clone());
-        let wallet = DefaultWalletClient::new_read_only(storage, get_wallet_kind());
+        let wallet = DefaultWalletClient::new_read_only(storage);
 
         let name1 = "name1";
         let passphrase1 = &SecUtf8::from("passphrase1");

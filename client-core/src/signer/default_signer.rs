@@ -5,7 +5,7 @@ use chain_core::tx::data::output::TxOut;
 use chain_core::tx::witness::{TxInWitness, TxWitness};
 use client_common::{Error, ErrorKind, Result, ResultExt, Storage};
 
-use crate::service::{KeyService, RootHashService, WalletKinds, WalletService};
+use crate::service::{KeyService, RootHashService, WalletService};
 use crate::{SelectedUnspentTransactions, Signer};
 
 /// Default implementation of `Signer`
@@ -21,9 +21,9 @@ where
     S: Storage + Clone,
 {
     /// Creates a new instance of default signer
-    pub fn new(storage: S, walletkind: WalletKinds) -> Self {
+    pub fn new(storage: S) -> Self {
         Self {
-            key_service: KeyService::new(storage.clone(), storage.clone(), walletkind),
+            key_service: KeyService::new(storage.clone()),
             root_hash_service: RootHashService::new(storage.clone()),
             wallet_service: WalletService::new(storage),
         }
@@ -124,7 +124,6 @@ where
 mod tests {
     use super::*;
 
-    use crate::service::get_wallet_kind;
     use crate::wallet::DefaultWalletClient;
     use crate::{UnspentTransactions, WalletClient};
     use chain_core::init::coin::Coin;
@@ -143,7 +142,7 @@ mod tests {
 
         let storage = MemoryStorage::default();
 
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
@@ -170,7 +169,7 @@ mod tests {
         )]);
         let selected_unspent_transactions = unspent_transactions.select_all();
 
-        let signer = DefaultSigner::new(storage, WalletKinds::Basic);
+        let signer = DefaultSigner::new(storage);
 
         let witness = signer
             .sign(name, passphrase, message, selected_unspent_transactions)
@@ -187,7 +186,7 @@ mod tests {
 
         let storage = MemoryStorage::default();
 
-        let wallet_client = DefaultWalletClient::new_read_only(storage.clone(), get_wallet_kind());
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
@@ -214,7 +213,7 @@ mod tests {
         )]);
         let selected_unspent_transactions = unspent_transactions.select_all();
 
-        let signer = DefaultSigner::new(storage, get_wallet_kind());
+        let signer = DefaultSigner::new(storage);
 
         assert_eq!(
             ErrorKind::IllegalInput,

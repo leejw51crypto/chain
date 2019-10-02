@@ -13,7 +13,6 @@ use client_common::tendermint::{Client, WebsocketRpcClient};
 use client_common::{Error, Result};
 use client_core::cipher::MockAbciTransactionObfuscation;
 use client_core::handler::{DefaultBlockHandler, DefaultTransactionHandler};
-use client_core::service::WalletKinds;
 use client_core::signer::DefaultSigner;
 use client_core::synchronizer::{AutoSync, ManualSynchronizer};
 use client_core::transaction_builder::DefaultTransactionBuilder;
@@ -48,25 +47,6 @@ pub(crate) struct Server {
     autosync: AutoSync,
 }
 
-// BASIC : normal wallet
-// HD: hd wallet
-/// get wallet kind from env
-pub fn get_wallet_kind() -> WalletKinds {
-    let walletkind = std::env::var("CRYPTO_WALLET_KIND")
-        .map(Some)
-        .unwrap_or(None);
-    let r = if let Some(a) = walletkind {
-        match a.as_str() {
-            "HD" => WalletKinds::HD,
-            _ => WalletKinds::Basic,
-        }
-    } else {
-        WalletKinds::Basic
-    };
-    println!("founded wallet {:?}", r);
-    r
-}
-
 impl Server {
     pub(crate) fn new(options: Options) -> Result<Server> {
         init_chain_id(&options.chain_id);
@@ -88,7 +68,7 @@ impl Server {
         storage: SledStorage,
         tendermint_client: WebsocketRpcClient,
     ) -> Result<AppWalletClient> {
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
         let transaction_cipher = MockAbciTransactionObfuscation::new(tendermint_client.clone());
         let transaction_builder = DefaultTransactionBuilder::new(
             signer,
@@ -99,7 +79,6 @@ impl Server {
             storage,
             tendermint_client,
             transaction_builder,
-            get_wallet_kind(),
         ))
     }
 
@@ -109,7 +88,7 @@ impl Server {
         tendermint_client: WebsocketRpcClient,
     ) -> Result<AppOpsClient> {
         let transaction_cipher = MockAbciTransactionObfuscation::new(tendermint_client.clone());
-        let signer = DefaultSigner::new(storage.clone(), get_wallet_kind());
+        let signer = DefaultSigner::new(storage.clone());
         let fee_algorithm = tendermint_client.genesis().unwrap().fee_policy();
         let wallet_client = self.make_wallet_client(storage, tendermint_client.clone())?;
         Ok(DefaultNetworkOpsClient::new(
@@ -128,12 +107,8 @@ impl Server {
     ) -> Result<AppSynchronizer> {
         let transaction_cipher = MockAbciTransactionObfuscation::new(tendermint_client.clone());
         let transaction_handler = DefaultTransactionHandler::new(storage.clone());
-        let block_handler = DefaultBlockHandler::new(
-            transaction_cipher,
-            transaction_handler,
-            storage.clone(),
-            get_wallet_kind(),
-        );
+        let block_handler =
+            DefaultBlockHandler::new(transaction_cipher, transaction_handler, storage.clone());
 
         Ok(ManualSynchronizer::new(
             storage,
@@ -152,12 +127,8 @@ impl Server {
 
         let transaction_cipher = MockAbciTransactionObfuscation::new(tendermint_client.clone());
         let transaction_handler = DefaultTransactionHandler::new(storage.clone());
-        let block_handler = DefaultBlockHandler::new(
-            transaction_cipher,
-            transaction_handler,
-            storage.clone(),
-            WalletKinds::Basic,
-        );
+        let block_handler =
+            DefaultBlockHandler::new(transaction_cipher, transaction_handler, storage.clone());
 
         self.autosync
             .run(url, tendermint_client, storage.clone(), block_handler);

@@ -35,12 +35,12 @@ where
         if self.is_hd_wallet(name, passphrase) {
             self.generate_keypair_hd(name, passphrase, is_staking)
         } else {
-            self.generate_keypair(passphrase)
+            self.generate_keypair_basic(passphrase)
         }
     }
 
     /// Generates a new public-private keypair
-    pub fn generate_keypair(&self, passphrase: &SecUtf8) -> Result<(PublicKey, PrivateKey)> {
+    pub fn generate_keypair_basic(&self, passphrase: &SecUtf8) -> Result<(PublicKey, PrivateKey)> {
         let private_key = PrivateKey::new()?;
         let public_key = PublicKey::from(&private_key);
 
@@ -237,7 +237,7 @@ mod tests {
         let passphrase = SecUtf8::from("passphrase");
 
         let (public_key, private_key) = key_service
-            .generate_keypair(&passphrase)
+            .generate_keypair_basic(&passphrase)
             .expect("Unable to generate private key");
 
         let retrieved_private_key = key_service

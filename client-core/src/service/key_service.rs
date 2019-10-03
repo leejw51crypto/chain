@@ -125,7 +125,7 @@ where
             .storage
             .get_secure(KEYSPACE_HD, name, passphrase)
             .as_ref()
-            .unwrap()
+            .expect("generate_seed get seed")
             .is_some());
         self.storage
             .set_secure(KEYSPACE_HD, name, seed.as_bytes().into(), passphrase)?;
@@ -146,11 +146,11 @@ where
             .expect("auto restore");
         let cointype = get_bip44_coin_type();
         println!("coin type={}", cointype);
+        let seed_bytes = self.storage.get_secure(KEYSPACE_HD, name, passphrase)?;
         for index in 0..count {
-            let seed_bytes = self.storage.get_secure(KEYSPACE_HD, name, passphrase)?;
             for account in 0..2 {
                 let extended = ExtendedPrivKey::derive(
-                    &seed_bytes.clone().unwrap()[..],
+                    &seed_bytes.as_ref().expect("hdwallet get extended")[..],
                     format!("m/44'/{}'/{}'/0/{}", cointype, account, index).as_str(),
                 )
                 .map_err(|_e| {
@@ -247,7 +247,8 @@ where
         .map_err(|_e| Error::new(ErrorKind::InvalidInput, "hdwallet derive new address"))?;
         let secret_key_bytes = extended.secret();
         debug!("hdwallet save index={}", index);
-        let private_key = PrivateKey::deserialize_from(&secret_key_bytes).unwrap();
+        let private_key = PrivateKey::deserialize_from(&secret_key_bytes)
+            .map_err(|_e| Error::new(ErrorKind::InvalidInput, "hdwallet privatekey deserialize"))?;
         let public_key = PublicKey::from(&private_key);
         self.storage.set_secure(
             KEYSPACE,
@@ -285,8 +286,8 @@ mod tests {
 
         let retrieved_private_key = key_service
             .private_key(&public_key, &passphrase)
-            .unwrap()
-            .unwrap();
+            .expect("hdwallet check_flow retrieve privatekey")
+            .expect("hdwallet check_flow retrieve privatekey2");
 
         assert_eq!(private_key, retrieved_private_key);
 

@@ -2,8 +2,9 @@ use secstr::SecUtf8;
 use zeroize::Zeroize;
 
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
+use client_common::{Error, ErrorKind, Result};
 
-use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
+use client_common::{PrivateKey, PublicKey, SecureStorage, Storage};
 const KEYSPACE: &str = "core_key";
 const KEYSPACE_HD: &str = "hd_key";
 use crate::types::WalletKind;
@@ -39,7 +40,7 @@ where
         passphrase: &SecUtf8,
         is_staking: bool,
     ) -> Result<(PublicKey, PrivateKey)> {
-        if self.get_wallet_type(name, passphrase) == WalletKind::HD {
+        if self.get_wallet_type(name, passphrase)? == WalletKind::HD {
             self.generate_keypair_hd(name, passphrase, is_staking)
         } else {
             self.generate_keypair_basic(passphrase)
@@ -90,13 +91,13 @@ where
     }
 
     /// get wallet type (hd, basic)
-    pub fn get_wallet_type(&self, name: &str, passphrase: &SecUtf8) -> WalletKind {
+    pub fn get_wallet_type(&self, name: &str, passphrase: &SecUtf8) -> Result<WalletKind> {
         let key = name.as_bytes();
-        let value = self.read_value(passphrase, &key[..]);
+        let value = self.read_value(passphrase, &key[..])?;
         if value.is_some() {
-            WalletKind::HD
+            Ok(WalletKind::HD)
         } else {
-            WalletKind::Basic
+            Ok(WalletKind::Basic)
         }
     }
     /// generate seed from mnemonic
@@ -108,6 +109,24 @@ where
     ) -> Result<()> {
         debug!("hdwallet generate seed={}", mnemonic);
         let seed = Seed::new(&mnemonic, "");
+        if self.read_value(passphrase, &name.as_bytes())?.is_some() {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                "hdwallet seed already exists",
+            ));
+        }
+        // key should not exist
+        assert!(self.read_value(passphrase, &name.as_bytes())?.is_none());
+        assert!(self
+            .storage
+            .get_secure(KEYSPACE_HD, name, passphrase)
+            .is_ok());
+        assert!(!self
+            .storage
+            .get_secure(KEYSPACE_HD, name, passphrase)
+            .as_ref()
+            .unwrap()
+            .is_some());
         self.storage
             .set_secure(KEYSPACE_HD, name, seed.as_bytes().into(), passphrase)?;
         debug!("hdwallet write seed success");
@@ -152,13 +171,11 @@ where
     }
 
     /// read value from db, if it's None, there value doesn't exist
-    pub fn read_value(&self, passphrase: &SecUtf8, key: &[u8]) -> Option<Vec<u8>> {
-        if let Ok(connected) = self.storage.get_secure(KEYSPACE_HD, key, passphrase) {
-            if let Some(value) = connected {
-                return Some(value.clone());
-            }
-        }
-        None
+    pub fn read_value(&self, passphrase: &SecUtf8, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        Ok(self
+            .storage
+            .get_secure(KEYSPACE_HD, key, passphrase)?
+            .clone())
     }
 
     /// read number, if value doesn't exist, it returns default value

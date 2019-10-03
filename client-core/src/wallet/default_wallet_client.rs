@@ -93,7 +93,7 @@ where
         log::debug!("DefaultWalletClient New Wallet");
         log::debug!(
             "is hd wallet={}",
-            self.key_service.get_wallet_type(name, passphrase) == WalletKind::HD
+            self.key_service.get_wallet_type(name, passphrase)? == WalletKind::HD
         );
         let view_key = self
             .key_service

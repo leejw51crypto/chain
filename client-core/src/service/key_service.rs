@@ -105,7 +105,7 @@ where
         let mnemonic = Mnemonic::from_phrase(&mnemonic.to_string(), Language::English).unwrap();
         let seed = Seed::new(&mnemonic, "");
         self.storage
-            .set_secure(KEYSPACE_HD, name, seed.as_bytes().into(), passphrase)?;
+            .set_secure(KEYSPACE_HD, name, seed, passphrase)?;
         debug!("hdwallet write seed success");
         Ok(())
     }

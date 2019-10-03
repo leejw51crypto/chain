@@ -159,12 +159,13 @@ where
                         "hdwallet cannot derive new address",
                     )
                 })?;
-                let secret_key_bytes = extended.secret();
+                let mut secret_key_bytes = extended.secret();
 
                 let private_key =
                     PrivateKey::deserialize_from(&secret_key_bytes).map_err(|_e| {
                         Error::new(ErrorKind::InvalidInput, "hdwallet load private_key")
                     })?;
+                secret_key_bytes.zeroize();
                 let public_key = PublicKey::from(&private_key);
 
                 self.storage.set_secure(
@@ -245,10 +246,11 @@ where
             format!("m/44'/{}'/{}'/0/{}", cointype, account, index).as_str(),
         )
         .map_err(|_e| Error::new(ErrorKind::InvalidInput, "hdwallet derive new address"))?;
-        let secret_key_bytes = extended.secret();
+        let mut secret_key_bytes = extended.secret();
         debug!("hdwallet save index={}", index);
         let private_key = PrivateKey::deserialize_from(&secret_key_bytes)
             .map_err(|_e| Error::new(ErrorKind::InvalidInput, "hdwallet privatekey deserialize"))?;
+        secret_key_bytes.zeroize();
         let public_key = PublicKey::from(&private_key);
         self.storage.set_secure(
             KEYSPACE,

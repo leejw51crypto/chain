@@ -25,7 +25,7 @@ impl WalletCommand {
         }
     }
 
-    fn get_mnemonics<T: WalletClient>(wallet_client: &T) -> SecUtf8 {
+    fn get_mnemonics<T: WalletClient>(wallet_client: &T) -> Result<SecUtf8> {
         let mut mnemonics: String;
         loop {
             println!("== hd wallet setup==");
@@ -33,25 +33,34 @@ impl WalletCommand {
             println!("2. restore from mnemonics");
             println!("enter command=");
 
-            let a = quest::text().unwrap();
+            let a = quest::text()
+                .map_err(|_e| Error::new(ErrorKind::InvalidInput, "get_mnemonics quest text"))?;
             if a == "1" {
-                mnemonics = wallet_client.new_mnemonics().unwrap().to_string();
+                mnemonics = wallet_client
+                    .new_mnemonics()
+                    .map_err(|_e| {
+                        Error::new(ErrorKind::InvalidInput, "get_mnemonics new_mnemonics")
+                    })?
+                    .to_string();
             } else if a == "2" {
                 println!("enter mnemonics=");
-                mnemonics = quest::text().unwrap().to_string();
+                mnemonics = quest::text()
+                    .map_err(|_e| Error::new(ErrorKind::InvalidInput, "get_mnemonics quest text"))?
+                    .to_string();
             } else {
                 continue;
             }
             println!("mnemonics={}", mnemonics);
             println!("enter y to conitnue");
-            let r = quest::yesno(false);
-            if r.is_ok() && r.as_ref().unwrap().is_some() && r.as_ref().unwrap().unwrap() {
+            let r = quest::yesno(false)
+                .map_err(|_e| Error::new(ErrorKind::InvalidInput, "get_mnemonics quest yesno"))?;
+            if r.is_some() && *r.as_ref().unwrap() {
                 break;
             }
         }
-        SecUtf8::from(mnemonics)
+        Ok(SecUtf8::from(mnemonics))
     }
-    fn ask_wallet_kind() -> WalletKind {
+    fn ask_wallet_kind() -> Result<WalletKind> {
         loop {
             println!("== wallet choose==");
             println!("1. normal wallet");
@@ -60,9 +69,9 @@ impl WalletCommand {
 
             let a = quest::text().unwrap();
             if a == "1" {
-                return WalletKind::Basic;
+                return Ok(WalletKind::Basic);
             } else if a == "2" {
-                return WalletKind::HD;
+                return Ok(WalletKind::HD);
             } else {
                 continue;
             }
@@ -79,9 +88,9 @@ impl WalletCommand {
             ));
         }
 
-        let walletkind = WalletCommand::ask_wallet_kind();
+        let walletkind = WalletCommand::ask_wallet_kind()?;
         if WalletKind::HD == walletkind {
-            let mnemonics = WalletCommand::get_mnemonics(&wallet_client);
+            let mnemonics = WalletCommand::get_mnemonics(&wallet_client)?;
             println!("ok keep mnemonics safely={}", mnemonics.unsecure());
             wallet_client.new_hdwallet(name, &passphrase, &mnemonics)?;
         }

@@ -85,7 +85,7 @@ where
     /// get random mnemonic
     pub fn get_random_mnemonic(&self) -> String {
         let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
-        mnemonic.clone().to_string()
+        mnemonic.to_string()
     }
 
     /// is hd

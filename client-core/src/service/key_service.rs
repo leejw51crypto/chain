@@ -112,7 +112,6 @@ where
 
     /// auto-matically generate staking, transfer addresses
     /// with just one api call
-    #[allow(dead_code)]
     pub fn auto_restore(
         &self,
         mnemonic: &str,

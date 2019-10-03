@@ -179,16 +179,26 @@ where
     }
 
     /// read number, if value doesn't exist, it returns default value
-    pub fn read_number(&self, passphrase: &SecUtf8, key: &[u8], default: u32) -> u32 {
-        if let Ok(connected) = self.storage.get_secure(KEYSPACE_HD, key, passphrase) {
-            if let Some(value) = connected {
-                return std::str::from_utf8(&value[..])
-                    .unwrap()
-                    .parse::<u32>()
-                    .unwrap();
-            }
+    pub fn read_number(&self, passphrase: &SecUtf8, key: &[u8], default: u32) -> Result<u32> {
+        let connected = self.storage.get_secure(KEYSPACE_HD, key, passphrase)?;
+
+        if let Some(value) = connected {
+            return Ok(std::str::from_utf8(&value[..])
+                .map_err(|_e| {
+                    Error::new(
+                        ErrorKind::InvalidInput,
+                        "hdwallet read_number cannot convert from string",
+                    )
+                })?
+                .parse::<u32>()
+                .map_err(|_e| {
+                    Error::new(
+                        ErrorKind::InvalidInput,
+                        "hdwallet read_number cannot parse from string",
+                    )
+                })?);
         }
-        default
+        Ok(default)
     }
 
     /// write number to store, write number as string
@@ -214,9 +224,9 @@ where
     ) -> Result<(PublicKey, PrivateKey)> {
         let seed_bytes = self.storage.get_secure(KEYSPACE_HD, name, passphrase)?;
         let mut index = if is_staking {
-            self.read_number(passphrase, format!("staking_{}", name).as_bytes(), 0)
+            self.read_number(passphrase, format!("staking_{}", name).as_bytes(), 0)?
         } else {
-            self.read_number(passphrase, format!("transfer_{}", name).as_bytes(), 0)
+            self.read_number(passphrase, format!("transfer_{}", name).as_bytes(), 0)?
         };
         debug!("hdwallet index={}", index);
         let cointype = get_bip44_coin_type();

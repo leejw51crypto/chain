@@ -6,6 +6,7 @@ use bip39::{Language, Mnemonic, MnemonicType, Seed};
 use client_common::{PrivateKey, PublicKey, Result, SecureStorage, Storage};
 const KEYSPACE: &str = "core_key";
 const KEYSPACE_HD: &str = "hd_key";
+use crate::types::WalletKind;
 use chain_core::init::network::get_bip44_coin_type;
 use log::debug;
 use tiny_hderive::bip32::ExtendedPrivKey;
@@ -32,7 +33,7 @@ where
         passphrase: &SecUtf8,
         is_staking: bool,
     ) -> Result<(PublicKey, PrivateKey)> {
-        if self.is_hd_wallet(name, passphrase) {
+        if self.get_wallet_type(name, passphrase) == WalletKind::HD {
             self.generate_keypair_hd(name, passphrase, is_staking)
         } else {
             self.generate_keypair_basic(passphrase)
@@ -88,11 +89,15 @@ where
         mnemonic.to_string()
     }
 
-    /// is hd
-    pub fn is_hd_wallet(&self, name: &str, passphrase: &SecUtf8) -> bool {
+    /// get wallet type (hd, basic)
+    pub fn get_wallet_type(&self, name: &str, passphrase: &SecUtf8) -> WalletKind {
         let key = name.as_bytes();
         let value = self.read_value(passphrase, &key[..]);
-        value.is_some()
+        if value.is_some() {
+            WalletKind::HD
+        } else {
+            WalletKind::Basic
+        }
     }
     /// generate seed from mnemonic
     pub fn generate_seed(&self, mnemonic: &str, name: &str, passphrase: &SecUtf8) -> Result<()> {

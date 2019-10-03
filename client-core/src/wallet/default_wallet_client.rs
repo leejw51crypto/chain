@@ -6,6 +6,7 @@ use secstr::SecUtf8;
 
 use crate::service::*;
 use crate::transaction_builder::UnauthorizedTransactionBuilder;
+use crate::types::WalletKind;
 use crate::types::{BalanceChange, TransactionChange};
 use crate::{
     InputSelectionStrategy, MultiSigWalletClient, TransactionBuilder, UnspentTransactions,
@@ -92,7 +93,7 @@ where
         log::debug!("DefaultWalletClient New Wallet");
         log::debug!(
             "is hd wallet={}",
-            self.key_service.is_hd_wallet(name, passphrase)
+            self.key_service.get_wallet_type(name, passphrase) == WalletKind::HD
         );
         let view_key = self
             .key_service

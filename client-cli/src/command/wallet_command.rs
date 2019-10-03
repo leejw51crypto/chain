@@ -1,11 +1,11 @@
 use quest::{ask, success};
 use structopt::StructOpt;
 
-use client_common::{Error, ErrorKind, Result};
-use client_core::WalletClient;
-
 use crate::ask_passphrase;
+use client_common::{Error, ErrorKind, Result};
 use client_core::types::WalletKind;
+use client_core::WalletClient;
+use secstr::*;
 #[derive(Debug, StructOpt)]
 pub enum WalletCommand {
     #[structopt(name = "new", about = "New wallet")]
@@ -44,7 +44,7 @@ impl WalletCommand {
             }
             WalletCommand::List => Self::list_wallets(wallet_client),
             WalletCommand::Restore { name, mnemonic } => {
-                Self::restore_wallet(wallet_client, name, mnemonic)
+                Self::restore_wallet(wallet_client, name, &SecUtf8::from(mnemonic.as_bytes()))
             }
         }
     }
@@ -65,9 +65,13 @@ impl WalletCommand {
         }
 
         if WalletKind::HD == walletkind {
-            let mnemonic = wallet_client.new_mnemonics().unwrap();
-            println!("ok keep mnemonics safely={}", mnemonic);
-            wallet_client.new_hdwallet(name, &passphrase, mnemonic)?;
+            let mnemonic = wallet_client.new_mnemonics().expect("new hdwallet command");
+            println!("ok keep mnemonics safely={}", mnemonic.to_string());
+            wallet_client.new_hdwallet(
+                name,
+                &passphrase,
+                &SecUtf8::from(mnemonic.to_string().as_bytes()),
+            )?;
         }
         println!("--------------------------------------------");
         wallet_client.new_wallet(name, &passphrase)?;
@@ -75,7 +79,11 @@ impl WalletCommand {
         Ok(())
     }
 
-    fn restore_wallet<T: WalletClient>(wallet_client: T, name: &str, mnemonic: &str) -> Result<()> {
+    fn restore_wallet<T: WalletClient>(
+        wallet_client: T,
+        name: &str,
+        mnemonic_phrase: &SecUtf8,
+    ) -> Result<()> {
         let passphrase = ask_passphrase(None)?;
         let confirmed_passphrase = ask_passphrase(Some("Confirm passphrase: "))?;
 
@@ -86,8 +94,7 @@ impl WalletCommand {
             ));
         }
 
-        println!("ok keep mnemonics safely={}", mnemonic);
-        wallet_client.new_hdwallet(name, &passphrase, mnemonic.to_string())?;
+        wallet_client.new_hdwallet(name, &passphrase, mnemonic_phrase)?;
         println!("--------------------------------------------");
         wallet_client.new_wallet(name, &passphrase)?;
         success(&format!("Wallet restore with name: {}", name));

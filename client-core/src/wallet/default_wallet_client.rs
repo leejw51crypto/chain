@@ -104,7 +104,7 @@ where
     }
 
     /// Creates mnemonics
-    fn new_mnemonics(&self) -> Result<String> {
+    fn new_mnemonics(&self) -> Result<Mnemonic> {
         Ok(get_random_mnemonic())
     }
 
@@ -113,9 +113,10 @@ where
         &self,
         name: &str,
         passphrase: &SecUtf8,
-        mnemonics_phrase: String,
+        mnemonics_phrase: &SecUtf8,
     ) -> Result<()> {
-        let mnemonic = Mnemonic::from_phrase(&mnemonics_phrase, Language::English).unwrap();
+        let mnemonic =
+            Mnemonic::from_phrase(mnemonics_phrase.unsecure(), Language::English).unwrap();
 
         // load seed
         self.key_service.generate_seed(&mnemonic, name, passphrase)

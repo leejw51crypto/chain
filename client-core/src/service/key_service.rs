@@ -13,9 +13,8 @@ use log::debug;
 use tiny_hderive::bip32::ExtendedPrivKey;
 
 /// get random mnemonic
-pub fn get_random_mnemonic() -> String {
-    let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
-    mnemonic.to_string()
+pub fn get_random_mnemonic() -> Mnemonic {
+    Mnemonic::new(MnemonicType::Words24, Language::English)
 }
 
 /// Maintains mapping `public-key -> private-key`

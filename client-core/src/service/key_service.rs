@@ -11,6 +11,12 @@ use chain_core::init::network::get_bip44_coin_type;
 use log::debug;
 use tiny_hderive::bip32::ExtendedPrivKey;
 
+/// get random mnemonic
+pub fn get_random_mnemonic() -> String {
+    let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
+    mnemonic.to_string()
+}
+
 /// Maintains mapping `public-key -> private-key`
 #[derive(Debug, Default, Clone)]
 pub struct KeyService<T: Storage> {
@@ -83,12 +89,6 @@ where
         Ok(())
     }
 
-    /// get random mnemonic
-    pub fn get_random_mnemonic(&self) -> String {
-        let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
-        mnemonic.to_string()
-    }
-
     /// get wallet type (hd, basic)
     pub fn get_wallet_type(&self, name: &str, passphrase: &SecUtf8) -> WalletKind {
         let key = name.as_bytes();
@@ -100,12 +100,16 @@ where
         }
     }
     /// generate seed from mnemonic
-    pub fn generate_seed(&self, mnemonic: &str, name: &str, passphrase: &SecUtf8) -> Result<()> {
+    pub fn generate_seed(
+        &self,
+        mnemonic: &Mnemonic,
+        name: &str,
+        passphrase: &SecUtf8,
+    ) -> Result<()> {
         debug!("hdwallet generate seed={}", mnemonic);
-        let mnemonic = Mnemonic::from_phrase(&mnemonic.to_string(), Language::English).unwrap();
         let seed = Seed::new(&mnemonic, "");
         self.storage
-            .set_secure(KEYSPACE_HD, name, seed, passphrase)?;
+            .set_secure(KEYSPACE_HD, name, seed.as_bytes().into(), passphrase)?;
         debug!("hdwallet write seed success");
         Ok(())
     }
@@ -114,7 +118,7 @@ where
     /// with just one api call
     pub fn auto_restore(
         &self,
-        mnemonic: &str,
+        mnemonic: &Mnemonic,
         name: &str,
         passphrase: &SecUtf8,
         count: i32,

@@ -1,9 +1,5 @@
 use std::collections::BTreeSet;
 
-use parity_scale_codec::Encode;
-use secp256k1::schnorrsig::SchnorrSignature;
-use secstr::SecUtf8;
-
 use crate::service::*;
 use crate::transaction_builder::UnauthorizedTransactionBuilder;
 use crate::types::WalletKind;
@@ -12,6 +8,7 @@ use crate::{
     InputSelectionStrategy, MultiSigWalletClient, TransactionBuilder, UnspentTransactions,
     WalletClient,
 };
+use bip39::{Language, Mnemonic};
 use chain_core::common::{Proof, H256};
 use chain_core::init::address::RedeemAddress;
 use chain_core::init::coin::Coin;
@@ -29,6 +26,9 @@ use client_common::tendermint::{Client, UnauthorizedClient};
 use client_common::{
     Error, ErrorKind, PrivateKey, PublicKey, Result, ResultExt, SignedTransaction, Storage,
 };
+use parity_scale_codec::Encode;
+use secp256k1::schnorrsig::SchnorrSignature;
+use secstr::SecUtf8;
 
 /// Default implementation of `WalletClient` based on `Storage` and `Index`
 #[derive(Debug, Default, Clone)]
@@ -105,13 +105,20 @@ where
 
     /// Creates mnemonics
     fn new_mnemonics(&self) -> Result<String> {
-        Ok(self.key_service.get_random_mnemonic())
+        Ok(get_random_mnemonic())
     }
 
     /// Creates a new hd-wallet with given name and passphrase
-    fn new_hdwallet(&self, name: &str, passphrase: &SecUtf8, mnemonics: String) -> Result<()> {
+    fn new_hdwallet(
+        &self,
+        name: &str,
+        passphrase: &SecUtf8,
+        mnemonics_phrase: String,
+    ) -> Result<()> {
+        let mnemonic = Mnemonic::from_phrase(&mnemonics_phrase, Language::English).unwrap();
+
         // load seed
-        self.key_service.generate_seed(&mnemonics, name, passphrase)
+        self.key_service.generate_seed(&mnemonic, name, passphrase)
     }
 
     #[inline]

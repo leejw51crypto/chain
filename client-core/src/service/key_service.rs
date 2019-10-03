@@ -153,10 +153,18 @@ where
                     &seed_bytes.clone().unwrap()[..],
                     format!("m/44'/{}'/{}'/0/{}", cointype, account, index).as_str(),
                 )
-                .unwrap();
+                .map_err(|_e| {
+                    Error::new(
+                        ErrorKind::InvalidInput,
+                        "hdwallet cannot derive new address",
+                    )
+                })?;
                 let secret_key_bytes = extended.secret();
 
-                let private_key = PrivateKey::deserialize_from(&secret_key_bytes).unwrap();
+                let private_key =
+                    PrivateKey::deserialize_from(&secret_key_bytes).map_err(|_e| {
+                        Error::new(ErrorKind::InvalidInput, "hdwallet load private_key")
+                    })?;
                 let public_key = PublicKey::from(&private_key);
 
                 self.storage.set_secure(
@@ -204,12 +212,12 @@ where
     /// write number to store, write number as string
     /// writes hdwallet index, after making a new entry, index increases by 1
     /// so address is generated in deterministic way.
-    pub fn write_number(&self, passphrase: &SecUtf8, key: &[u8], value: u32) {
+    pub fn write_number(&self, passphrase: &SecUtf8, key: &[u8], value: u32) -> Result<()> {
         let a = value.to_string();
         let b = a.as_bytes();
         self.storage
-            .set_secure(KEYSPACE_HD, key, b.to_vec(), passphrase)
-            .unwrap();
+            .set_secure(KEYSPACE_HD, key, b.to_vec(), passphrase)?;
+        Ok(())
     }
 
     /// m / purpose' / coin_type' / account' / change / address_index
@@ -250,9 +258,9 @@ where
         // done
         index += 1;
         if is_staking {
-            self.write_number(passphrase, format!("staking_{}", name).as_bytes(), index);
+            self.write_number(passphrase, format!("staking_{}", name).as_bytes(), index)?;
         } else {
-            self.write_number(passphrase, format!("transfer_{}", name).as_bytes(), index);
+            self.write_number(passphrase, format!("transfer_{}", name).as_bytes(), index)?;
         }
 
         Ok((public_key, private_key))

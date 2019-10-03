@@ -241,10 +241,10 @@ where
         println!("coin type={}", cointype);
         let account = if is_staking { 1 } else { 0 };
         let extended = ExtendedPrivKey::derive(
-            &seed_bytes.unwrap(),
+            &seed_bytes.expect("generate_keypair_hd get seed bytes"),
             format!("m/44'/{}'/{}'/0/{}", cointype, account, index).as_str(),
         )
-        .unwrap();
+        .map_err(|_e| Error::new(ErrorKind::InvalidInput, "hdwallet derive new address"))?;
         let secret_key_bytes = extended.secret();
         debug!("hdwallet save index={}", index);
         let private_key = PrivateKey::deserialize_from(&secret_key_bytes).unwrap();

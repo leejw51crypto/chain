@@ -304,4 +304,47 @@ mod tests {
 
         assert!(key_service.clear().is_ok());
     }
+
+    #[test]
+    fn check_flow_hd() {
+        let key_service = KeyService::new(MemoryStorage::default());
+        let passphrase = SecUtf8::from("passphrase");
+        let name = "testhdwallet";
+        let mnemonic =
+            Mnemonic::from_phrase("genius pet nothing behave quick movie tragic moon slush unknown educate effort garbage crush topic suspect sausage turkey glare vital clown clog poet flock", Language::English).unwrap();
+        key_service
+            .generate_seed(&mnemonic, name, &passphrase)
+            .expect("generate hdwallet seed");
+        let (public_key, private_key) = key_service
+            .generate_keypair_hd(name, &passphrase, false)
+            .expect("Unable to generate private key");
+
+        // check deterministic of hdwallet
+        assert!(
+            String::from("03532d8f52237409a83c23fd48bf94a4b008e76ed79c05aa013fa1080dc2d7e8dc")
+                == public_key.to_string()
+        );
+        assert!(
+            String::from("66b0a362da2332cb7fdc0c940acf9638f824fe7112d79d7ac7baf341033f8abf")
+                == hex::encode(&private_key.serialize())
+        );
+        let retrieved_private_key = key_service
+            .private_key(&public_key, &passphrase)
+            .expect("hdwallet check_flow retrieve privatekey")
+            .expect("hdwallet check_flow retrieve privatekey2");
+
+        assert_eq!(private_key, retrieved_private_key);
+
+        let error = key_service
+            .private_key(&public_key, &SecUtf8::from("incorrect_passphrase"))
+            .expect_err("Decryption worked with incorrect passphrase");
+
+        assert_eq!(
+            error.kind(),
+            ErrorKind::DecryptionError,
+            "Invalid error kind"
+        );
+
+        assert!(key_service.clear().is_ok());
+    }
 }

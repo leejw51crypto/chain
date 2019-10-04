@@ -33,7 +33,6 @@ pub fn init_chain_id(chain_id_src: &str) {
     }
 }
 
-#[cfg(not(test))]
 fn init_network(network: Network) {
     unsafe {
         INIT_NETWORK.call_once(|| {
@@ -42,26 +41,11 @@ fn init_network(network: Network) {
     }
 }
 
-#[cfg(test)]
-fn init_network(network: Network) {
-    unsafe {
-        chosen_network::NETWORK = network;
-    }
-}
-
-#[cfg(not(test))]
 fn init_network_id(id: u8) {
     unsafe {
         INIT_NETWORK_ID.call_once(|| {
             chosen_network::NETWORK_ID = id;
         });
-    }
-}
-
-#[cfg(test)]
-fn init_network_id(id: u8) {
-    unsafe {
-        chosen_network::NETWORK_ID = id;
     }
 }
 
@@ -114,14 +98,5 @@ mod test {
         assert_eq!(0xab as u8, get_network_id());
         assert_eq!(Network::Devnet, get_network());
         assert_eq!("dcro", get_bech32_human_part());
-    }
-
-    #[test]
-    fn init_chain_id_should_setup_correctly_for_testnet() {
-        init_chain_id(TESTNET_CHAIN_ID);
-        assert_eq!(0x42 as u8, get_network_id());
-        assert_eq!(Network::Testnet, get_network());
-        assert_eq!("tcro", get_bech32_human_part());
-        init_chain_id("dev-chain-y3m1e6-AB");
     }
 }

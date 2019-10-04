@@ -144,7 +144,7 @@ where
         self.generate_seed(mnemonic, name, passphrase)
             .expect("auto restore");
         let cointype = get_bip44_coin_type();
-        println!("coin type={}", cointype);
+        log::debug!("coin type={}", cointype);
         let seed_bytes = self.storage.get_secure(KEYSPACE_HD, name, passphrase)?;
         for index in 0..count {
             for account in 0..2 {
@@ -238,7 +238,7 @@ where
         };
         debug!("hdwallet index={}", index);
         let cointype = get_bip44_coin_type();
-        println!("coin type={}", cointype);
+        log::debug!("coin type={}", cointype);
         let account = if is_staking { 1 } else { 0 };
         let extended = ExtendedPrivKey::derive(
             &seed_bytes.expect("generate_keypair_hd get seed bytes"),

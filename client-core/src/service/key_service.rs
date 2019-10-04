@@ -312,9 +312,21 @@ mod tests {
         let name = "testhdwallet";
         let mnemonic =
             Mnemonic::from_phrase("genius pet nothing behave quick movie tragic moon slush unknown educate effort garbage crush topic suspect sausage turkey glare vital clown clog poet flock", Language::English).unwrap();
+        assert!(
+            key_service
+                .get_wallet_type(&name, &passphrase)
+                .expect("check_flow_hd get_wallet_type before")
+                == WalletKind::Basic
+        );
         key_service
             .generate_seed(&mnemonic, name, &passphrase)
             .expect("generate hdwallet seed");
+        assert!(
+            key_service
+                .get_wallet_type(&name, &passphrase)
+                .expect("check_flow_hd get_wallet_type after")
+                == WalletKind::HD
+        );
         let (public_key, private_key) = key_service
             .generate_keypair_hd(name, &passphrase, false)
             .expect("Unable to generate private key");
@@ -346,5 +358,43 @@ mod tests {
         );
 
         assert!(key_service.clear().is_ok());
+    }
+
+    #[test]
+    fn check_read_write_numbers() {
+        let key_service = KeyService::new(MemoryStorage::default());
+        let passphrase = SecUtf8::from("passphrase");
+        let name = "testhdwallet";
+        let number = 100;
+        assert!(
+            key_service
+                .read_number(&passphrase, &format!("staking_{}", name).as_bytes(), 0)
+                .expect("check_read_write_numbers read_number")
+                == 0
+        );
+        key_service
+            .write_number(&passphrase, &format!("staking_{}", name).as_bytes(), number)
+            .expect("check_read_write_numbers write_number");
+        assert!(
+            key_service
+                .read_number(&passphrase, &format!("staking_{}", name).as_bytes(), 0)
+                .expect("check_read_write_numbers read_number")
+                == number
+        );
+
+        assert!(
+            key_service
+                .read_number(&passphrase, &format!("invalid_{}", name).as_bytes(), 0)
+                .expect("check_read_write_numbers read_number")
+                == 0
+        );
+    }
+
+    #[test]
+    fn check_random_mnemonics() {
+        let a = get_random_mnemonic();
+        let b = get_random_mnemonic();
+        assert!(a.to_string() != String::new());
+        assert!(a.to_string() != b.to_string());
     }
 }

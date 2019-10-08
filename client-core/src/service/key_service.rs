@@ -141,8 +141,7 @@ where
         passphrase: &SecUtf8,
         count: i32,
     ) -> Result<()> {
-        self.generate_seed(mnemonic, name, passphrase)
-            .expect("auto restore");
+        self.generate_seed(mnemonic, name, passphrase)?;
         let cointype = get_bip44_coin_type();
         log::debug!("coin type={}", cointype);
         let seed_bytes = self.storage.get_secure(KEYSPACE_HD, name, passphrase)?;

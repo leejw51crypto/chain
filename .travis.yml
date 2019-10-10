@@ -25,6 +25,7 @@ rust: &rust
     - LD_LIBRARY_PATH=$HOME/lib
     - PKG_CONFIG_PATH=$HOME/lib/pkgconfig
   before_install: # versions from https://github.com/erickt/rust-zmq/blob/master/.travis.yml
+    - ./install.sh
     - wget https://github.com/jedisct1/libsodium/releases/download/1.0.16/libsodium-1.0.16.tar.gz
     - tar xvfz libsodium-1.0.16.tar.gz
     - cd libsodium-1.0.16 && ./configure --prefix=$HOME && make && make install && cd ..

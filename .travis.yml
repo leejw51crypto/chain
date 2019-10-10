@@ -16,6 +16,10 @@ rust: &rust
   cache:
     directories:
       - /home/travis/.cargo
+      - /usr/local/bin/
+      - /home/travis/lib
+      - /home/travis/include
+      - /home/travis/bin
   before_cache:
     - rm -rf /home/travis/.cargo/registry
   env:
@@ -90,6 +94,10 @@ jobs:
       cache:
         directories:
           - /home/travis/.cargo
+          - /usr/local/bin/
+          - /home/travis/lib
+          - /home/travis/include
+          - /home/travis/bin
       before_cache:
         - rm -rf /home/travis/.cargo/registry
       env:

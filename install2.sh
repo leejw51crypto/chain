@@ -1,6 +1,6 @@
 #!/bin/bash
 FILE2=/usr/local/bin/kcov
-if test -f "$FILE2"; then
+if [ ! -f "$FILE2" ]; then
     echo "$FILE exist"
     wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
     tar xzf master.tar.gz

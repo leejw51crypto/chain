@@ -1,6 +1,6 @@
 #!/bin/bash
 FILE=/home/travis/lib/libzmq.so
-if test -f "$FILE"; then
+if [ ! -f "$FILE" ]; then
     echo "$FILE exist"
     wget https://github.com/jedisct1/libsodium/releases/download/1.0.16/libsodium-1.0.16.tar.gz
     tar xvfz libsodium-1.0.16.tar.gz

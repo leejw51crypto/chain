@@ -5,7 +5,6 @@ rust: &rust
   addons:
     apt:
       packages:
-        - git
         - libssl-dev
         - libcurl4-openssl-dev
         - libelf-dev
@@ -17,22 +16,24 @@ rust: &rust
   cache:
     directories:
       - /home/travis/.cargo
-
   before_cache:
     - rm -rf /home/travis/.cargo/registry
-
   env:
     - RUST_BACKTRACE=1
     - RUSTFLAGS=-Ctarget-feature=+aes,+ssse3
     - PATH=$HOME/.local/bin:$PATH
-    - LD_LIBRARY_PATH=/home/travis/lib
-    - LIBRARY_PATH=/home/travis/lib
-    - PKG_CONFIG_PATH=/home/travis/lib/pkgconfig
+    - LD_LIBRARY_PATH=$HOME/lib
+    - PKG_CONFIG_PATH=$HOME/lib/pkgconfig
   before_install: # versions from https://github.com/erickt/rust-zmq/blob/master/.travis.yml
-    - git clone https://github.com/leejw51crypto/ChainTravis.git /home/travis/tmpdir
-    - cp -Rf /home/travis/tmpdir/* /home/travis
+    - wget https://github.com/jedisct1/libsodium/releases/download/1.0.16/libsodium-1.0.16.tar.gz
+    - tar xvfz libsodium-1.0.16.tar.gz
+    - cd libsodium-1.0.16 && ./configure --prefix=$HOME && make && make install && cd ..
+    - wget https://github.com/zeromq/libzmq/releases/download/v4.2.5/zeromq-4.2.5.tar.gz
+    - tar xvfz zeromq-4.2.5.tar.gz
+    - cd zeromq-4.2.5 && ./configure --prefix=$HOME --with-libsodium && make && make install && cd ..
 
   script:
+    - cargo clean
     - cargo build
     - cargo test
     - |
@@ -47,9 +48,16 @@ rust: &rust
 
   after_success: |
     if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
-      sudo cp /home/travis/bin/kcov  /usr/local/bin/
-      sudo cp /home/travis/bin/kcov-system-daemon  /usr/local/bin/
-      echo "kcov is successfully installed"
+      wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+      tar xzf master.tar.gz &&
+      cd kcov-master &&
+      mkdir build &&
+      cd build &&
+      cmake .. &&
+      make &&
+      sudo make install &&
+      cd ../.. &&
+      rm -rf kcov-master &&  
       cargo-kcov --version || cargo install cargo-kcov;
       travis_wait 30 cargo kcov --all;
       bash <(curl -s https://codecov.io/bash);
@@ -76,7 +84,6 @@ jobs:
       addons:
         apt:
           packages:
-            - git
             - libssl-dev
             - libcurl4-openssl-dev
             - libelf-dev
@@ -88,19 +95,22 @@ jobs:
       cache:
         directories:
           - /home/travis/.cargo
-
       before_cache:
         - rm -rf /home/travis/.cargo/registry
       env:
         - RUSTFLAGS=-Ctarget-feature=+aes,+ssse3
         - PATH=$HOME/.local/bin:$PATH
-        - LD_LIBRARY_PATH=/home/travis/lib
-        - LIBRARY_PATH=/home/travis/lib
-        - PKG_CONFIG_PATH=/home/travis/lib/pkgconfig
+        - LD_LIBRARY_PATH=$HOME/lib
+        - PKG_CONFIG_PATH=$HOME/lib/pkgconfig
       before_install: # versions from https://github.com/erickt/rust-zmq/blob/master/.travis.yml
         - |
-          git clone https://github.com/leejw51crypto/ChainTravis.git /home/travis/tmpdir
-          cp -Rf /home/travis/tmpdir/* /home/travis
+          wget https://github.com/jedisct1/libsodium/releases/download/1.0.16/libsodium-1.0.16.tar.gz
+          tar xvfz libsodium-1.0.16.tar.gz
+          cd libsodium-1.0.16 && ./configure --prefix=$HOME && make && make install && cd ..
+          wget https://github.com/zeromq/libzmq/releases/download/v4.2.5/zeromq-4.2.5.tar.gz
+          tar xvfz zeromq-4.2.5.tar.gz
+          cd zeromq-4.2.5 && ./configure --prefix=$HOME --with-libsodium && make && make install && cd ..
+          cargo clean
         - nvm install 10
         - |
           sudo cp integration-tests/docker/wait-for-it.sh /usr/local/bin

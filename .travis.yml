@@ -47,16 +47,7 @@ rust: &rust
 
   after_success: |
     if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
-      wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-      tar xzf master.tar.gz &&
-      cd kcov-master &&
-      mkdir build &&
-      cd build &&
-      cmake .. &&
-      make &&
-      sudo make install &&
-      cd ../.. &&
-      rm -rf kcov-master &&  
+      ./install2.sh 
       cargo-kcov --version || cargo install cargo-kcov;
       travis_wait 30 cargo kcov --all;
       bash <(curl -s https://codecov.io/bash);

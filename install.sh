@@ -1,8 +1,4 @@
 #!/bin/bash
-pwd
-ls
-echo $HOME
-
 FILE=/home/travis/lib/libzmq.so
 if test -f "$FILE"; then
     echo "$FILE exist"
@@ -21,19 +17,4 @@ if test -f "$FILE"; then
     make
     make install
     cd ..
-fi
-
-FILE2=/usr/local/bin/kcov
-if test -f "$FILE2"; then
-    echo "$FILE exist"
-    wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
-    tar xzf master.tar.gz
-    cd kcov-master
-    mkdir build
-    cd build
-    cmake ..
-    make
-    sudo make install
-    cd ../..
-    rm -rf kcov-master
 fi

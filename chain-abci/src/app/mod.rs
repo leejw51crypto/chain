@@ -4,11 +4,11 @@ mod query;
 mod validate_tx;
 
 use abci::*;
-use chain_tx_filter::BlockFilter;
 use log::info;
 
 pub use self::app_init::{ChainNodeApp, ChainNodeState};
 use crate::enclave_bridge::EnclaveProxy;
+use crate::liveness::LivenessTracker;
 use crate::storage::account::AccountStorage;
 use crate::storage::account::AccountWrapper;
 use crate::storage::tx::StarlingFixedKey;
@@ -16,14 +16,17 @@ use crate::storage::COL_TX_META;
 use bit_vec::BitVec;
 use chain_core::common::TendermintEventType;
 use chain_core::state::account::StakedState;
-use chain_core::state::tendermint::TendermintVotePower;
+use chain_core::state::tendermint::{
+    BlockHeight, TendermintValidatorAddress, TendermintValidatorPubKey, TendermintVotePower,
+};
 use chain_core::tx::data::input::TxoPointer;
-use chain_core::tx::TxObfuscated;
-use chain_core::tx::{PlainTxAux, TxAux};
+use chain_core::tx::TxAux;
+use chain_tx_filter::BlockFilter;
+use enclave_protocol::{EnclaveRequest, EnclaveResponse};
 use kvdb::{DBTransaction, KeyValueDB};
-use parity_scale_codec::Decode;
 use protobuf::RepeatedField;
 use std::collections::BTreeMap;
+use std::convert::TryInto;
 use std::sync::Arc;
 
 /// Given a db and a DB transaction, it will go through TX inputs and mark them as spent
@@ -114,16 +117,37 @@ impl<T: EnclaveProxy> abci::Application for ChainNodeApp<T> {
         info!("received beginblock request");
         // TODO: process RequestBeginBlock -- e.g. rewards for validators? + punishment for malicious ByzantineValidators
         // TODO: Check security implications once https://github.com/tendermint/tendermint/issues/2653 is closed
-        let block_time = req
-            .header
-            .as_ref()
-            .expect("Begin block request does not have header")
-            .time
-            .as_ref()
-            .expect("Header does not have a timestamp")
-            .seconds;
-        self.last_state.as_mut().map(|mut x| x.block_time = block_time)
+        let (block_height, block_time) = match req.header.as_ref() {
+            None => panic!("No block header in begin block request from tendermint"),
+            Some(header) => (
+                header.height,
+                header
+                    .time
+                    .as_ref()
+                    .expect("No timestamp in begin block request from tendermint")
+                    .seconds,
+            ),
+        };
+
+        let last_state = self
+            .last_state
+            .as_mut()
             .expect("executing begin block, but no app state stored (i.e. no initchain or recovery was executed)");
+
+        last_state.block_time = block_time;
+
+        if block_height > 1 {
+            if let Some(last_commit_info) = req.last_commit_info.as_ref() {
+                // liveness will always be updated for previous block, i.e., `block_height - 1`
+                update_validator_liveness(last_state, block_height - 1, last_commit_info);
+            } else {
+                panic!(
+                    "No last commit info in begin block request for height: {}",
+                    block_height
+                );
+            }
+        }
+
         ResponseBeginBlock::new()
     }
 
@@ -166,26 +190,48 @@ impl<T: EnclaveProxy> abci::Application for ChainNodeApp<T> {
                     &self.uncommitted_account_root_hash,
                     &mut self.accounts,
                 ),
+                TxAux::UnjailTx(_, _) => update_account(
+                    fee_acc.1.expect("account returned in unjail verification"),
+                    &self.uncommitted_account_root_hash,
+                    &mut self.accounts,
+                ),
             };
+            let mut event = Event::new();
+            event.field_type = TendermintEventType::ValidTransactions.to_string();
+            let mut kvpair_fee = KVPair::new();
+            kvpair_fee.key = Vec::from(&b"fee"[..]);
+            kvpair_fee.value = Vec::from(format!("{}", fee_acc.0.to_coin()));
+            event.attributes.push(kvpair_fee);
+
             if let Some(ref account) = maccount {
+                // FIXME: no need to add to the filter / maintain this filter in abci
                 self.filter.add_staked_state_address(&account.address);
+                let mut kvpair = KVPair::new();
+                kvpair.key = Vec::from(&b"account"[..]);
+                kvpair.value = Vec::from(format!("{}", &account.address));
+                event.attributes.push(kvpair);
             }
             match maccount {
                 Some(ref account) if self.validator_voting_power.contains_key(&account.address) => {
-                    let min_power = TendermintVotePower::from(
-                        self.last_state
-                            .as_ref()
-                            .expect("delivertx should have app state")
-                            .required_council_node_stake,
-                    );
-                    let new_power = TendermintVotePower::from(account.bonded);
-                    let old_power = self.validator_voting_power[&account.address];
-                    if new_power > old_power && new_power >= min_power {
-                        self.power_changed_in_block
-                            .insert(account.address, new_power);
-                    } else if old_power >= min_power && new_power < old_power {
-                        self.power_changed_in_block
-                            .insert(account.address, TendermintVotePower::zero());
+                    if account.is_jailed() {
+                        log::error!("Validation should not be successful for jailed accounts");
+                        unreachable!("Validation should not be successful for jailed accounts");
+                    } else {
+                        let min_power = TendermintVotePower::from(
+                            self.last_state
+                                .as_ref()
+                                .expect("delivertx should have app state")
+                                .required_council_node_stake,
+                        );
+                        let new_power = TendermintVotePower::from(account.bonded);
+                        let old_power = self.validator_voting_power[&account.address];
+                        if new_power > old_power && new_power >= min_power {
+                            self.power_changed_in_block
+                                .insert(account.address, new_power);
+                        } else if old_power >= min_power && new_power < old_power {
+                            self.power_changed_in_block
+                                .insert(account.address, TendermintVotePower::zero());
+                        }
                     }
                 }
                 _ => {}
@@ -202,9 +248,6 @@ impl<T: EnclaveProxy> abci::Application for ChainNodeApp<T> {
             let mut kvpair = KVPair::new();
             kvpair.key = Vec::from(&b"txid"[..]);
             kvpair.value = Vec::from(hex::encode(txaux.tx_id()).as_bytes());
-
-            let mut event = Event::new();
-            event.field_type = TendermintEventType::ValidTransactions.to_string();
             event.attributes.push(kvpair);
             resp.events.push(event);
             self.delivered_txs.push(txaux);
@@ -227,34 +270,14 @@ impl<T: EnclaveProxy> abci::Application for ChainNodeApp<T> {
     fn end_block(&mut self, _req: &RequestEndBlock) -> ResponseEndBlock {
         info!("received endblock request");
         let mut resp = ResponseEndBlock::new();
-        for txaux in self.delivered_txs.iter() {
-            match txaux {
-                TxAux::TransferTx {
-                    payload: TxObfuscated { txpayload, .. },
-                    ..
-                } => {
-                    // FIXME: temporary hack / this shouldn't be here
-                    let plain_tx = PlainTxAux::decode(&mut txpayload.as_slice());
-                    if let Ok(PlainTxAux::TransferTx(tx, _)) = plain_tx {
-                        for view in tx.attributes.allowed_view.iter() {
-                            self.filter.add_view_key(&view.view_key);
-                        }
-                    }
-                }
-                TxAux::WithdrawUnbondedStakeTx {
-                    payload: TxObfuscated { txpayload, .. },
-                    ..
-                } => {
-                    // FIXME: temporary hack / this shouldn't be here
-                    let plain_tx = PlainTxAux::decode(&mut txpayload.as_slice());
-                    if let Ok(PlainTxAux::WithdrawUnbondedStakeTx(tx)) = plain_tx {
-                        for view in tx.attributes.allowed_view.iter() {
-                            self.filter.add_view_key(&view.view_key);
-                        }
-                    }
-                }
-                _ => {}
-            };
+        if !self.delivered_txs.is_empty() {
+            let end_block_resp = self.tx_validator.process_request(EnclaveRequest::EndBlock);
+            if let EnclaveResponse::EndBlock(Ok(raw_filter)) = end_block_resp {
+                let filter = BlockFilter::from(&*raw_filter);
+                self.filter.add_filter(&filter);
+            } else {
+                panic!("end block request to obtain the block filter failed");
+            }
         }
         if let Some((key, value)) = self.filter.get_tendermint_kv() {
             let mut kvpair = KVPair::new();
@@ -265,7 +288,7 @@ impl<T: EnclaveProxy> abci::Application for ChainNodeApp<T> {
             event.attributes.push(kvpair);
             resp.events.push(event);
         }
-        self.filter = BlockFilter::default();
+        self.filter.reset();
         // TODO: skipchain-based validator changes?
         if !self.power_changed_in_block.is_empty() {
             let mut validators = Vec::with_capacity(self.power_changed_in_block.len());
@@ -277,6 +300,32 @@ impl<T: EnclaveProxy> abci::Application for ChainNodeApp<T> {
                     validator.set_power(i64::from(*new_power));
                     validator.set_pub_key(self.validator_pubkeys[&address].clone());
                     validators.push(validator);
+
+                    let last_state = self
+                        .last_state
+                        .as_mut()
+                        .expect("Last app state not found, init chain was not called");
+
+                    let validator_liveness = &mut last_state.validator_liveness;
+
+                    let validator_address: TendermintValidatorAddress =
+                        into_tendermint_validator_pub_key(&self.validator_pubkeys[&address]).into();
+
+                    let new_vote_power: i64 = (*new_power).into();
+
+                    if new_vote_power == 0 && validator_liveness.contains_key(&validator_address) {
+                        validator_liveness.remove(&validator_address);
+                    } else if new_vote_power != 0
+                        && !validator_liveness.contains_key(&validator_address)
+                    {
+                        validator_liveness.insert(
+                            validator_address,
+                            LivenessTracker::new(
+                                *address,
+                                last_state.jailing_config.block_signing_window,
+                            ),
+                        );
+                    }
                 }
                 self.validator_voting_power.insert(*address, *new_power);
             }
@@ -293,4 +342,55 @@ impl<T: EnclaveProxy> abci::Application for ChainNodeApp<T> {
         info!("received commit request");
         ChainNodeApp::commit_handler(self, _req)
     }
+}
+
+fn update_validator_liveness(
+    state: &mut ChainNodeState,
+    block_height: BlockHeight,
+    last_commit_info: &LastCommitInfo,
+) {
+    log::debug!("Updating validator liveness for block: {}", block_height);
+
+    for vote_info in last_commit_info.votes.iter() {
+        let address: TendermintValidatorAddress = vote_info
+            .validator
+            .as_ref()
+            .expect("No validator address in vote_info")
+            .address
+            .as_slice()
+            .try_into()
+            .expect("Invalid address in vote_info");
+        let signed = vote_info.signed_last_block;
+
+        log::trace!(
+            "Updating validator liveness for {} with {}",
+            address,
+            signed
+        );
+
+        match state.validator_liveness.get_mut(&address) {
+            Some(liveness_tracker) => {
+                liveness_tracker.update(block_height, signed);
+            }
+            None => {
+                log::warn!("Validator in `last_commit_info` not found in liveness tracker");
+            }
+        }
+    }
+}
+
+/// Converts `abci::PubKey` into `TendermintValidatorPubKey`
+pub fn into_tendermint_validator_pub_key(pubkey: &PubKey) -> TendermintValidatorPubKey {
+    if pubkey.field_type != "ed25519" {
+        panic!("Received invalid pubkey type");
+    }
+
+    if pubkey.data.len() != 32 {
+        panic!("Reviced pubkey of invalid length");
+    }
+
+    let mut bytes = [0; 32];
+    bytes.copy_from_slice(&pubkey.data);
+
+    TendermintValidatorPubKey::Ed25519(bytes)
 }

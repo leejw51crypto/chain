@@ -104,13 +104,24 @@ mod tests {
     use parity_scale_codec::Encode;
     use secp256k1::recovery::{RecoverableSignature, RecoveryId};
 
+    use chain_core::init::address::RedeemAddress;
     use chain_core::init::coin::Coin;
-    use chain_core::state::account::{StakedStateOpAttributes, StakedStateOpWitness, UnbondTx};
+    use chain_core::state::account::{
+        StakedStateAddress, StakedStateOpAttributes, StakedStateOpWitness, UnbondTx,
+    };
     use chain_core::tx::TxObfuscated;
 
     fn unbond_transaction() -> TxAux {
+        let addr = StakedStateAddress::from(
+            RedeemAddress::from_str("0x0e7c045110b8dbf29765047380898919c5cb56f4").unwrap(),
+        );
         TxAux::UnbondStakeTx(
-            UnbondTx::new(Coin::new(100).unwrap(), 0, StakedStateOpAttributes::new(0)),
+            UnbondTx::new(
+                addr,
+                0,
+                Coin::new(100).unwrap(),
+                StakedStateOpAttributes::new(0),
+            ),
             StakedStateOpWitness::BasicRedeem(
                 RecoverableSignature::from_compact(
                     &[
@@ -130,12 +141,12 @@ mod tests {
 
     fn transfer_transaction() -> TxAux {
         TxAux::TransferTx {
-            txid: [0; 32],
             inputs: Vec::new(),
             no_of_outputs: 0,
             payload: TxObfuscated {
+                txid: [0; 32],
                 key_from: 0,
-                nonce: [0; 12],
+                init_vector: [0; 12],
                 txpayload: Vec::new(),
             },
         }

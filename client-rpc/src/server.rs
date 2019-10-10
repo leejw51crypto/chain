@@ -1,26 +1,22 @@
+use crate::program::Options;
 use crate::rpc::multisig_rpc::{MultiSigRpc, MultiSigRpcImpl};
 use crate::rpc::staking_rpc::{StakingRpc, StakingRpcImpl};
 use crate::rpc::sync_rpc::{SyncRpc, SyncRpcImpl};
 use crate::rpc::transaction_rpc::{TransactionRpc, TransactionRpcImpl};
 use crate::rpc::wallet_rpc::{WalletRpc, WalletRpcImpl};
-use crate::Options;
 use std::net::SocketAddr;
 
-use chain_core::init::network::{
-    get_network, get_network_id, init_chain_id, MAINNET_CHAIN_ID, TESTNET_CHAIN_ID,
-};
+use chain_core::init::network::{get_network, get_network_id, init_chain_id};
 use chain_core::tx::fee::LinearFee;
 use client_common::storage::SledStorage;
-use client_common::tendermint::{Client, RpcClient};
-use client_common::{Error, ErrorKind, Result, ResultExt};
+use client_common::tendermint::{Client, WebsocketRpcClient};
+use client_common::{Error, Result};
+use client_core::cipher::MockAbciTransactionObfuscation;
+use client_core::handler::{DefaultBlockHandler, DefaultTransactionHandler};
 use client_core::signer::DefaultSigner;
+use client_core::synchronizer::{AutoSync, ManualSynchronizer};
 use client_core::transaction_builder::DefaultTransactionBuilder;
 use client_core::wallet::DefaultWalletClient;
-use client_index::auto_sync::AutoSync;
-use client_index::cipher::MockAbciTransactionObfuscation;
-use client_index::handler::{DefaultBlockHandler, DefaultTransactionHandler};
-use client_index::index::DefaultIndex;
-use client_index::synchronizer::ManualSynchronizer;
 use client_network::network_ops::DefaultNetworkOpsClient;
 
 use jsonrpc_core::{self, IoHandler};
@@ -29,63 +25,50 @@ use secstr::SecUtf8;
 use serde::{Deserialize, Serialize};
 
 type AppSigner = DefaultSigner<SledStorage>;
-type AppIndex = DefaultIndex<SledStorage, RpcClient>;
-type AppTransactionCipher = MockAbciTransactionObfuscation<RpcClient>;
+type AppTransactionCipher = MockAbciTransactionObfuscation<WebsocketRpcClient>;
 type AppTxBuilder = DefaultTransactionBuilder<AppSigner, LinearFee, AppTransactionCipher>;
-type AppWalletClient = DefaultWalletClient<SledStorage, AppIndex, AppTxBuilder>;
-type AppOpsClient =
-    DefaultNetworkOpsClient<AppWalletClient, AppSigner, RpcClient, LinearFee, AppTransactionCipher>;
+type AppWalletClient = DefaultWalletClient<SledStorage, WebsocketRpcClient, AppTxBuilder>;
+type AppOpsClient = DefaultNetworkOpsClient<
+    AppWalletClient,
+    AppSigner,
+    WebsocketRpcClient,
+    LinearFee,
+    AppTransactionCipher,
+>;
 type AppTransactionHandler = DefaultTransactionHandler<SledStorage>;
 type AppBlockHandler =
     DefaultBlockHandler<AppTransactionCipher, AppTransactionHandler, SledStorage>;
-type AppSynchronizer = ManualSynchronizer<SledStorage, RpcClient, AppBlockHandler>;
+type AppSynchronizer = ManualSynchronizer<SledStorage, WebsocketRpcClient, AppBlockHandler>;
 pub(crate) struct Server {
     host: String,
     port: u16,
     network_id: u8,
     storage_dir: String,
-    tendermint_url: String,
     websocket_url: String,
     autosync: AutoSync,
 }
 
 impl Server {
     pub(crate) fn new(options: Options) -> Result<Server> {
-        let network_id = hex::decode(&options.network_id).chain(|| {
-            (
-                ErrorKind::DeserializationError,
-                "Unable to deserialize Network ID: Network ID is last two hex digits of chain ID",
-            )
-        })?[0];
-        let network_type = options.network_type;
-        if network_type.len() < 4 {
-            init_chain_id(&format!("dev-{}", options.network_id))
-        } else {
-            match &network_type[..4] {
-                "main" => init_chain_id(MAINNET_CHAIN_ID),
-                "test" => init_chain_id(TESTNET_CHAIN_ID),
-                _ => init_chain_id(&format!("dev-{}", options.network_id)),
-            }
-        }
-        println!(
-            "Network type {:?} id {:02X}",
-            get_network(),
-            get_network_id()
-        );
+        init_chain_id(&options.chain_id);
+        let network_id = get_network_id();
+
+        println!("Network type {:?} id {:02X}", get_network(), network_id);
         Ok(Server {
             host: options.host,
             port: options.port,
             network_id,
             storage_dir: options.storage_dir,
-            tendermint_url: options.tendermint_url,
             websocket_url: options.websocket_url,
-
             autosync: AutoSync::new(),
         })
     }
 
-    fn make_wallet_client(&self, storage: SledStorage) -> AppWalletClient {
-        let tendermint_client = RpcClient::new(&self.tendermint_url);
+    fn make_wallet_client(
+        &self,
+        storage: SledStorage,
+        tendermint_client: WebsocketRpcClient,
+    ) -> Result<AppWalletClient> {
         let signer = DefaultSigner::new(storage.clone());
         let transaction_cipher = MockAbciTransactionObfuscation::new(tendermint_client.clone());
         let transaction_builder = DefaultTransactionBuilder::new(
@@ -93,44 +76,56 @@ impl Server {
             tendermint_client.genesis().unwrap().fee_policy(),
             transaction_cipher,
         );
-        let index = DefaultIndex::new(storage.clone(), tendermint_client);
-        DefaultWalletClient::builder()
-            .with_wallet(storage)
-            .with_transaction_read(index)
-            .with_transaction_write(transaction_builder)
-            .build()
-            .unwrap()
+        Ok(DefaultWalletClient::new(
+            storage,
+            tendermint_client,
+            transaction_builder,
+        ))
     }
 
-    pub fn make_ops_client(&self, storage: SledStorage) -> AppOpsClient {
-        let tendermint_client = RpcClient::new(&self.tendermint_url);
+    pub fn make_ops_client(
+        &self,
+        storage: SledStorage,
+        tendermint_client: WebsocketRpcClient,
+    ) -> Result<AppOpsClient> {
         let transaction_cipher = MockAbciTransactionObfuscation::new(tendermint_client.clone());
         let signer = DefaultSigner::new(storage.clone());
         let fee_algorithm = tendermint_client.genesis().unwrap().fee_policy();
-        let wallet_client = self.make_wallet_client(storage);
-        DefaultNetworkOpsClient::new(
+        let wallet_client = self.make_wallet_client(storage, tendermint_client.clone())?;
+        Ok(DefaultNetworkOpsClient::new(
             wallet_client,
             signer,
             tendermint_client,
             fee_algorithm,
             transaction_cipher,
-        )
+        ))
     }
 
-    pub fn make_synchronizer(&self, storage: SledStorage) -> AppSynchronizer {
-        let tendermint_client = RpcClient::new(&self.tendermint_url);
+    pub fn make_synchronizer(
+        &self,
+        storage: SledStorage,
+        tendermint_client: WebsocketRpcClient,
+    ) -> Result<AppSynchronizer> {
         let transaction_cipher = MockAbciTransactionObfuscation::new(tendermint_client.clone());
         let transaction_handler = DefaultTransactionHandler::new(storage.clone());
         let block_handler =
             DefaultBlockHandler::new(transaction_cipher, transaction_handler, storage.clone());
 
-        ManualSynchronizer::new(storage, tendermint_client, block_handler)
+        Ok(ManualSynchronizer::new(
+            storage,
+            tendermint_client,
+            block_handler,
+        ))
     }
-    pub fn start_websocket(&mut self, storage: SledStorage) -> Result<()> {
+
+    pub fn start_websocket(
+        &mut self,
+        storage: SledStorage,
+        tendermint_client: WebsocketRpcClient,
+    ) -> Result<()> {
         log::info!("start_websocket");
         let url = self.websocket_url.clone();
 
-        let tendermint_client = RpcClient::new(&self.tendermint_url);
         let transaction_cipher = MockAbciTransactionObfuscation::new(tendermint_client.clone());
         let transaction_handler = DefaultTransactionHandler::new(storage.clone());
         let block_handler =
@@ -142,24 +137,30 @@ impl Server {
         Ok(())
     }
 
-    pub fn start_client(&self, io: &mut IoHandler, storage: SledStorage) -> Result<()> {
-        let multisig_rpc_wallet_client = self.make_wallet_client(storage.clone());
+    pub fn start_client(
+        &self,
+        io: &mut IoHandler,
+        storage: SledStorage,
+        tendermint_client: WebsocketRpcClient,
+    ) -> Result<()> {
+        let multisig_rpc_wallet_client =
+            self.make_wallet_client(storage.clone(), tendermint_client.clone())?;
         let multisig_rpc = MultiSigRpcImpl::new(multisig_rpc_wallet_client);
 
         let transaction_rpc = TransactionRpcImpl::new(self.network_id);
 
-        let staking_rpc_wallet_client = self.make_wallet_client(storage.clone());
-        let ops_client = self.make_ops_client(storage.clone());
+        let staking_rpc_wallet_client =
+            self.make_wallet_client(storage.clone(), tendermint_client.clone())?;
+        let ops_client = self.make_ops_client(storage.clone(), tendermint_client.clone())?;
         let staking_rpc =
             StakingRpcImpl::new(staking_rpc_wallet_client, ops_client, self.network_id);
 
-        let sync_rpc_wallet_client = self.make_wallet_client(storage.clone());
-        let synchronizer = self.make_synchronizer(storage.clone());
+        let synchronizer = self.make_synchronizer(storage.clone(), tendermint_client.clone())?;
 
-        let sync_rpc =
-            SyncRpcImpl::new(sync_rpc_wallet_client, synchronizer, self.autosync.clone());
+        let sync_rpc = SyncRpcImpl::new(synchronizer, self.autosync.clone());
 
-        let wallet_rpc_wallet_client = self.make_wallet_client(storage.clone());
+        let wallet_rpc_wallet_client =
+            self.make_wallet_client(storage.clone(), tendermint_client.clone())?;
         let wallet_rpc = WalletRpcImpl::new(wallet_rpc_wallet_client, self.network_id);
 
         io.extend_with(multisig_rpc.to_delegate());
@@ -174,8 +175,12 @@ impl Server {
         let mut io = IoHandler::new();
         let storage = SledStorage::new(&self.storage_dir)?;
 
-        self.start_websocket(storage.clone()).unwrap();
-        self.start_client(&mut io, storage.clone()).unwrap();
+        let tendermint_client = WebsocketRpcClient::new(&self.websocket_url)?;
+
+        self.start_websocket(storage.clone(), tendermint_client.clone())
+            .unwrap();
+        self.start_client(&mut io, storage.clone(), tendermint_client.clone())
+            .unwrap();
 
         let server = ServerBuilder::new(io)
             // TODO: Either make CORS configurable or make it more strict

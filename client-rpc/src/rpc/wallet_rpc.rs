@@ -1,6 +1,8 @@
+use std::collections::BTreeSet;
+use std::str::FromStr;
+
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
-use std::str::FromStr;
 
 use chain_core::init::coin::Coin;
 use chain_core::tx::data::access::{TxAccess, TxAccessPolicy};
@@ -8,8 +10,9 @@ use chain_core::tx::data::address::ExtendedAddr;
 use chain_core::tx::data::attribute::TxAttributes;
 use chain_core::tx::data::output::TxOut;
 use chain_core::tx::TxAux;
-use client_common::balance::TransactionChange;
+use chain_core::tx::TxObfuscated;
 use client_common::{PublicKey, Result as CommonResult};
+use client_core::types::TransactionChange;
 use client_core::{MultiSigWalletClient, WalletClient};
 
 use crate::server::{rpc_error_from_string, to_rpc_error, WalletRequest};
@@ -35,13 +38,13 @@ pub trait WalletRpc: Send + Sync {
     fn list(&self) -> Result<Vec<String>>;
 
     #[rpc(name = "wallet_listPublicKeys")]
-    fn list_public_keys(&self, request: WalletRequest) -> Result<Vec<PublicKey>>;
+    fn list_public_keys(&self, request: WalletRequest) -> Result<BTreeSet<PublicKey>>;
 
     #[rpc(name = "wallet_listStakingAddresses")]
-    fn list_staking_addresses(&self, request: WalletRequest) -> Result<Vec<String>>;
+    fn list_staking_addresses(&self, request: WalletRequest) -> Result<BTreeSet<String>>;
 
     #[rpc(name = "wallet_listTransferAddresses")]
-    fn list_transfer_addresses(&self, request: WalletRequest) -> Result<Vec<String>>;
+    fn list_transfer_addresses(&self, request: WalletRequest) -> Result<BTreeSet<String>>;
 
     #[rpc(name = "wallet_sendToAddress")]
     fn send_to_address(
@@ -126,20 +129,20 @@ where
         self.client.wallets().map_err(to_rpc_error)
     }
 
-    fn list_public_keys(&self, request: WalletRequest) -> Result<Vec<PublicKey>> {
+    fn list_public_keys(&self, request: WalletRequest) -> Result<BTreeSet<PublicKey>> {
         self.client
             .public_keys(&request.name, &request.passphrase)
             .map_err(to_rpc_error)
     }
 
-    fn list_staking_addresses(&self, request: WalletRequest) -> Result<Vec<String>> {
+    fn list_staking_addresses(&self, request: WalletRequest) -> Result<BTreeSet<String>> {
         self.client
             .staking_addresses(&request.name, &request.passphrase)
             .map(|addresses| addresses.iter().map(ToString::to_string).collect())
             .map_err(to_rpc_error)
     }
 
-    fn list_transfer_addresses(&self, request: WalletRequest) -> Result<Vec<String>> {
+    fn list_transfer_addresses(&self, request: WalletRequest) -> Result<BTreeSet<String>> {
         self.client
             .transfer_addresses(&request.name, &request.passphrase)
             .map(|addresses| addresses.iter().map(ToString::to_string).collect())
@@ -204,7 +207,11 @@ where
             .broadcast_transaction(&transaction)
             .map_err(to_rpc_error)?;
 
-        if let TxAux::TransferTx { txid, .. } = transaction {
+        if let TxAux::TransferTx {
+            payload: TxObfuscated { txid, .. },
+            ..
+        } = transaction
+        {
             Ok(hex::encode(txid))
         } else {
             Err(rpc_error_from_string(String::from(
@@ -225,18 +232,15 @@ pub mod tests {
     use super::*;
 
     use secstr::SecUtf8;
-    use std::time::SystemTime;
 
     use chrono::DateTime;
     use parity_scale_codec::Encode;
 
     use chain_core::init::coin::CoinError;
-    use chain_core::tx::data::input::{TxoIndex, TxoPointer};
-    use chain_core::tx::data::{Tx, TxId};
+    use chain_core::tx::data::input::TxoIndex;
+    use chain_core::tx::data::TxId;
     use chain_core::tx::fee::{Fee, FeeAlgorithm};
     use chain_core::tx::{PlainTxAux, TransactionId, TxAux, TxObfuscated};
-    use client_common::balance::BalanceChange;
-    use client_common::balance::TransactionChange;
     use client_common::storage::MemoryStorage;
     use client_common::tendermint::types::*;
     use client_common::tendermint::Client;
@@ -246,55 +250,7 @@ pub mod tests {
     use client_core::signer::DefaultSigner;
     use client_core::transaction_builder::DefaultTransactionBuilder;
     use client_core::wallet::DefaultWalletClient;
-    use client_index::{AddressDetails, Index, TransactionObfuscation};
-
-    #[derive(Default)]
-    pub struct MockIndex;
-
-    impl Index for MockIndex {
-        fn address_details(&self, address: &ExtendedAddr) -> CommonResult<AddressDetails> {
-            let mut address_details = AddressDetails::default();
-
-            address_details.transaction_history = vec![TransactionChange {
-                transaction_id: [0u8; 32],
-                address: address.clone(),
-                balance_change: BalanceChange::Incoming(Coin::new(30).unwrap()),
-                block_height: 1,
-                block_time: DateTime::from(SystemTime::now()),
-            }];
-            address_details.balance = Coin::new(30).unwrap();
-
-            Ok(address_details)
-        }
-
-        fn transaction(&self, _: &TxId) -> CommonResult<Option<Transaction>> {
-            Ok(Some(Transaction::TransferTransaction(Tx {
-                inputs: vec![TxoPointer {
-                    id: [0u8; 32],
-                    index: 1,
-                }],
-                outputs: Default::default(),
-                attributes: TxAttributes::new(171),
-            })))
-        }
-
-        fn output(&self, _input: &TxoPointer) -> CommonResult<TxOut> {
-            Ok(TxOut {
-                address: ExtendedAddr::OrTree([0; 32]),
-                value: Coin::new(10000000000000000000).unwrap(),
-                valid_from: None,
-            })
-        }
-
-        fn broadcast_transaction(&self, _transaction: &[u8]) -> CommonResult<BroadcastTxResult> {
-            Ok(BroadcastTxResult {
-                code: 0,
-                data: String::from(""),
-                hash: String::from(""),
-                log: String::from(""),
-            })
-        }
-    }
+    use client_core::TransactionObfuscation;
 
     #[derive(Default)]
     pub struct ZeroFeeAlgorithm;
@@ -326,22 +282,23 @@ pub mod tests {
 
             match transaction {
                 SignedTransaction::TransferTransaction(tx, _) => Ok(TxAux::TransferTx {
-                    txid: tx.id(),
                     inputs: tx.inputs.clone(),
                     no_of_outputs: tx.outputs.len() as TxoIndex,
                     payload: TxObfuscated {
+                        txid: tx.id(),
                         key_from: 0,
-                        nonce: [0u8; 12],
+                        init_vector: [0u8; 12],
                         txpayload,
                     },
                 }),
                 SignedTransaction::DepositStakeTransaction(tx, witness) => {
                     let plain = PlainTxAux::DepositStakeTx(witness);
                     Ok(TxAux::DepositStakeTx {
-                        tx,
+                        tx: tx.clone(),
                         payload: TxObfuscated {
+                            txid: tx.id(),
                             key_from: 0,
-                            nonce: [0u8; 12],
+                            init_vector: [0u8; 12],
                             txpayload: plain.encode(),
                         },
                     })
@@ -349,12 +306,12 @@ pub mod tests {
                 SignedTransaction::WithdrawUnbondedStakeTransaction(tx, _, witness) => {
                     let plain = PlainTxAux::WithdrawUnbondedStakeTx(tx.clone());
                     Ok(TxAux::WithdrawUnbondedStakeTx {
-                        txid: tx.id(),
                         no_of_outputs: tx.outputs.len() as TxoIndex,
                         witness,
                         payload: TxObfuscated {
+                            txid: tx.id(),
                             key_from: 0,
-                            nonce: [0u8; 12],
+                            init_vector: [0u8; 12],
                             txpayload: plain.encode(),
                         },
                     })
@@ -367,7 +324,7 @@ pub mod tests {
     type TestTxBuilder =
         DefaultTransactionBuilder<TestSigner, ZeroFeeAlgorithm, MockTransactionCipher>;
     type TestSigner = DefaultSigner<MemoryStorage>;
-    type TestWalletClient = DefaultWalletClient<MemoryStorage, MockIndex, TestTxBuilder>;
+    type TestWalletClient = DefaultWalletClient<MemoryStorage, MockRpcClient, TestTxBuilder>;
 
     #[derive(Default)]
     pub struct MockRpcClient;
@@ -461,7 +418,7 @@ pub mod tests {
             .create(create_wallet_request("Default", "123456"))
             .unwrap();
         assert_eq!(
-            Coin::new(30).unwrap(),
+            Coin::zero(),
             wallet_rpc
                 .balance(create_wallet_request("Default", "123456"))
                 .unwrap()
@@ -518,10 +475,8 @@ pub mod tests {
                     .unwrap()
                     .len()
             );
-            // FIXME: Create a transfer address also creates a staking address
-            // which is a known problem
             assert_eq!(
-                2,
+                1,
                 wallet_rpc
                     .list_staking_addresses(wallet_request.clone())
                     .unwrap()
@@ -536,10 +491,8 @@ pub mod tests {
         let wallet_request = create_wallet_request("Default", "123456");
 
         wallet_rpc.create(wallet_request.clone()).unwrap();
-        // FIXME: Create a transfer address also creates a staking address
-        // which is a known problem
         assert_eq!(
-            2,
+            1,
             wallet_rpc
                 .list_staking_addresses(wallet_request.clone())
                 .unwrap()
@@ -551,7 +504,7 @@ pub mod tests {
             .unwrap();
 
         assert_eq!(
-            3,
+            2,
             wallet_rpc
                 .list_staking_addresses(wallet_request.clone())
                 .unwrap()
@@ -632,7 +585,7 @@ pub mod tests {
 
         wallet_rpc.create(wallet_request.clone()).unwrap();
         assert_eq!(
-            1,
+            0,
             wallet_rpc
                 .transactions(wallet_request.clone())
                 .unwrap()
@@ -642,16 +595,12 @@ pub mod tests {
 
     fn make_test_wallet_client(storage: MemoryStorage) -> TestWalletClient {
         let signer = DefaultSigner::new(storage.clone());
-        DefaultWalletClient::builder()
-            .with_wallet(storage)
-            .with_transaction_read(MockIndex::default())
-            .with_transaction_write(DefaultTransactionBuilder::new(
-                signer,
-                ZeroFeeAlgorithm::default(),
-                MockTransactionCipher,
-            ))
-            .build()
-            .unwrap()
+        let transaction_builder = DefaultTransactionBuilder::new(
+            signer,
+            ZeroFeeAlgorithm::default(),
+            MockTransactionCipher,
+        );
+        DefaultWalletClient::new(storage, MockRpcClient, transaction_builder)
     }
 
     fn setup_wallet_rpc() -> WalletRpcImpl<TestWalletClient> {

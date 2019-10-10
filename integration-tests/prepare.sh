@@ -37,14 +37,13 @@ function check_command_exist() {
     set -e
 }
 
-function git_clone_chain_tx_enclave() {
-    if [ -d "${CHAIN_TX_ENCLAVE_DIRECTORY}" ]; then
-        CWD=$(pwd)
-        cd "${CHAIN_TX_ENCLAVE_DIRECTORY}" && git pull
-        cd "${CWD}"
-    else
-        git clone https://github.com/crypto-com/chain-tx-enclave.git "${CHAIN_TX_ENCLAVE_DIRECTORY}"
-    fi
+function build_chain_tx_enclave_docker_image() {
+    CWD=$(pwd)
+    cd "../" && docker build -t "${CHAIN_TX_ENCLAVE_DOCKER_IMAGE}" \
+        -f ./chain-tx-enclave/tx-validation/Dockerfile . \
+        --build-arg SGX_MODE=SW \
+        --build-arg NETWORK_ID="${CHAIN_HEX_ID}"
+    cd "${CWD}"
 }
 
 function init_tendermint() {
@@ -58,6 +57,14 @@ function init_tendermint() {
     if [ ! -z "${CI}" ]; then
         sudo chmod -R 777 ./tendermint
     fi
+
+    index_all_tags "tendermint"
+}
+
+# @argument Tendermint directory
+function index_all_tags() {
+    print_step "Enable tag indexing for ${1}"
+    cat "${1}/config/config.toml" | sed "s/index_all_tags = false/index_all_tags = true/g" | tee "${1}/config/config.toml" > /dev/null
 }
 
 # @argument Tendermint directory
@@ -81,10 +88,10 @@ function create_wallet() {
 # @argument Wallet Passphrase
 function create_wallet_staking_address() {
     print_step "Creating staking address for wallet \"${1}\""
-    printf "${2}\n" | CRYPTO_CLIENT_STORAGE=${WALLET_STORAGE_DIRECTORY} ../target/debug/client-cli address new --name ${1} --type Staking
+    printf "${2}\n" | CRYPTO_CHAIN_ID=${CHAIN_ID} CRYPTO_CLIENT_STORAGE=${WALLET_STORAGE_DIRECTORY} ../target/debug/client-cli address new --name ${1} --type Staking
 
     print_step "Retrieving last staking address for wallet \"${1}\""
-    ADDRESS_LIST=$(printf "${2}\n" | CRYPTO_CLIENT_STORAGE=${WALLET_STORAGE_DIRECTORY} ../target/debug/client-cli address list --name ${1} --type Staking)
+    ADDRESS_LIST=$(printf "${2}\n" | CRYPTO_CHAIN_ID=${CHAIN_ID} CRYPTO_CLIENT_STORAGE=${WALLET_STORAGE_DIRECTORY} ../target/debug/client-cli address list --name ${1} --type Staking)
     RET_VALUE=$(echo $ADDRESS_LIST | tail -n1 | sed -En "s/^.*(0x[0-9a-zA-Z]+).*$/\1/p")
 }
 
@@ -93,10 +100,10 @@ function create_wallet_staking_address() {
 # @argument Wallet Passphrase
 function create_wallet_transfer_address() {
     print_step "Creating transfer address for wallet \"${1}\""
-    printf "${2}\n" | CRYPTO_CLIENT_STORAGE=${WALLET_STORAGE_DIRECTORY} ../target/debug/client-cli address new --name ${1} --type Transfer
+    printf "${2}\n" | CRYPTO_CHAIN_ID=${CHAIN_ID} CRYPTO_CLIENT_STORAGE=${WALLET_STORAGE_DIRECTORY} ../target/debug/client-cli address new --name ${1} --type Transfer
 
     print_step "Retrieving last transfer address for wallet \"${1}\""
-    ADDRESS_LIST=$(printf "${2}\n" | CRYPTO_CLIENT_STORAGE=${WALLET_STORAGE_DIRECTORY} ../target/debug/client-cli address list --name ${1} --type Transfer)
+    ADDRESS_LIST=$(printf "${2}\n" | CRYPTO_CHAIN_ID=${CHAIN_ID} CRYPTO_CLIENT_STORAGE=${WALLET_STORAGE_DIRECTORY} ../target/debug/client-cli address list --name ${1} --type Transfer)
     echo "${ADDRESS_LIST}"
     RET_VALUE=$(echo $ADDRESS_LIST | tail -n1 | sed -En "s/^.*(dcro[0-9a-zA-Z]+).*$/\1/p")
 }
@@ -133,8 +140,13 @@ DEV_CONF=$(cat << EOF
         "0x3ae55c16800dc4bd0e3397a9d7806fb1f11639de": "1250000000000000000",
         "0x71507ee19cbc0c87ff2b5e05d161efe2aac4ee07": "1250000000000000000"
     },
-    "unbonding_period": 5,
+    "unbonding_period": 15,
     "required_council_node_stake": "1250000000000000000",
+    "jailing_config": {
+        "jail_duration": 86400,
+        "block_signing_window": 100,
+        "missed_block_threshold": 50
+    },
     "initial_fee_policy": {
         "base_fee": "{BASE_FEE}",
         "per_byte_fee": "{PER_BYTE_FEE}"
@@ -202,8 +214,10 @@ check_command_exist "cargo"
 print_step "cargo build"
 cargo build
 
-print_step "git update Chain Transaction Enclave"
-git_clone_chain_tx_enclave
+if [ -z "${CI}" ]; then
+    print_step "Build Chain Transaction Enclave image"
+    build_chain_tx_enclave_docker_image
+fi
 
 print_step "Initialize Tendermint"
 init_tendermint

@@ -1,19 +1,18 @@
 [package]
 name = "dev-utils"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["Crypto.com <chain@crypto.com>"]
 description = "Basic CLI for development purposes (e.g. generation of genesis.json parameters)"
 edition = "2018"
 
 [dependencies]
 client-common = { path = "../client-common" }
-client-index = { path = "../client-index" }
 client-core = { path = "../client-core" }
 client-network = { path = "../client-network" }
 chain-core = { path = "../chain-core/" }
 chain-abci = { path = "../chain-abci/" }
 structopt = "0.3"
-hex = "0.3"
+hex = "0.4"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }

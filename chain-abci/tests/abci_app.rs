@@ -14,11 +14,12 @@ use chain_core::init::coin::Coin;
 use chain_core::init::config::AccountType;
 use chain_core::init::config::InitConfig;
 use chain_core::init::config::InitNetworkParameters;
-use chain_core::init::config::{InitialValidator, ValidatorKeyType};
+use chain_core::init::config::{InitialValidator, JailingParameters, ValidatorKeyType};
 use chain_core::state::account::{
     to_stake_key, DepositBondTx, StakedState, StakedStateAddress, StakedStateOpAttributes,
     StakedStateOpWitness, UnbondTx, WithdrawUnbondedTx,
 };
+use chain_core::state::tendermint::TendermintVotePower;
 use chain_core::state::RewardsPoolState;
 use chain_core::tx::fee::{LinearFee, Milli};
 use chain_core::tx::witness::tree::RawPubkey;
@@ -150,6 +151,12 @@ fn get_dummy_app_state(app_hash: H256) -> ChainNodeState {
         council_nodes: vec![],
         required_council_node_stake: Coin::unit(),
         unbonding_period: 1,
+        jailing_config: JailingParameters {
+            jail_duration: 86400,
+            block_signing_window: 100,
+            missed_block_threshold: 50,
+        },
+        validator_liveness: BTreeMap::new(),
     }
 }
 
@@ -204,6 +211,11 @@ fn init_chain_for(address: RedeemAddress) -> ChainNodeApp<MockClient> {
         initial_fee_policy: LinearFee::new(Milli::new(1, 1), Milli::new(1, 1)),
         required_council_node_stake: Coin::unit(),
         unbonding_period: 1,
+        jailing_config: JailingParameters {
+            jail_duration: 86400,
+            block_signing_window: 100,
+            missed_block_threshold: 50,
+        },
     };
     let c = InitConfig::new(
         distribution,
@@ -306,6 +318,11 @@ fn init_chain_panics_with_different_app_hash() {
         initial_fee_policy: LinearFee::new(Milli::new(1, 1), Milli::new(1, 1)),
         required_council_node_stake: Coin::unit(),
         unbonding_period: 1,
+        jailing_config: JailingParameters {
+            jail_duration: 86400,
+            block_signing_window: 100,
+            missed_block_threshold: 50,
+        },
     };
     let c = InitConfig::new(
         distribution,
@@ -392,12 +409,12 @@ fn prepare_app_valid_tx() -> (ChainNodeApp<MockClient>, TxAux, WithdrawUnbondedT
     let witness = StakedStateOpWitness::new(get_ecdsa_witness(&secp, &tx.id(), &secret_key));
     // TODO: mock enc
     let txaux = TxAux::WithdrawUnbondedStakeTx {
-        txid: tx.id(),
         no_of_outputs: tx.outputs.len() as TxoIndex,
         witness: witness.clone(),
         payload: TxObfuscated {
+            txid: tx.id(),
             key_from: 0,
-            nonce: [0; 12],
+            init_vector: [0; 12],
             txpayload: PlainTxAux::WithdrawUnbondedStakeTx(tx.clone()).encode(),
         },
     };
@@ -495,10 +512,19 @@ fn deliver_tx_should_add_valid_tx() {
     assert_eq!(0, cresp.code);
     assert_eq!(1, app.delivered_txs.len());
     assert_eq!(1, cresp.events.len());
-    assert_eq!(1, cresp.events[0].attributes.len());
+    assert_eq!(3, cresp.events[0].attributes.len());
+    // the unit test transaction just has two outputs: 1 CRO + 1 carson / base unit, the rest goes to a fee
+    assert_eq!(
+        &b"99999999998.99999998".to_vec(),
+        &cresp.events[0].attributes[0].value
+    );
+    assert_eq!(
+        &b"0x89aef553a06ab0c3173e79de1ce241a9ed3b992c".to_vec(),
+        &cresp.events[0].attributes[1].value
+    );
     assert_eq!(
         &hex::encode(&tx.id()).as_bytes().to_vec(),
-        &cresp.events[0].attributes[0].value
+        &cresp.events[0].attributes[2].value
     );
 }
 
@@ -802,12 +828,12 @@ fn all_valid_tx_types_should_commit() {
     let txid = &tx0.id();
     let witness0 = StakedStateOpWitness::new(get_ecdsa_witness(&secp, &txid, &secret_key));
     let withdrawtx = TxAux::WithdrawUnbondedStakeTx {
-        txid: tx0.id(),
         no_of_outputs: tx0.outputs.len() as TxoIndex,
         witness: witness0,
         payload: TxObfuscated {
+            txid: tx0.id(),
             key_from: 0,
-            nonce: [0u8; 12],
+            init_vector: [0u8; 12],
             txpayload: PlainTxAux::WithdrawUnbondedStakeTx(tx0).encode(),
         },
     };
@@ -840,12 +866,12 @@ fn all_valid_tx_types_should_commit() {
     .into();
     let plain_txaux = PlainTxAux::TransferTx(tx1.clone(), witness1);
     let transfertx = TxAux::TransferTx {
-        txid: tx1.id(),
         inputs: tx1.inputs.clone(),
         no_of_outputs: tx1.outputs.len() as TxoIndex,
         payload: TxObfuscated {
+            txid: tx1.id(),
             key_from: 0,
-            nonce: [0u8; 12],
+            init_vector: [0u8; 12],
             txpayload: plain_txaux.encode(),
         },
     };
@@ -870,10 +896,11 @@ fn all_valid_tx_types_should_commit() {
     )]
     .into();
     let depositx = TxAux::DepositStakeTx {
-        tx: tx2,
+        tx: tx2.clone(),
         payload: TxObfuscated {
+            txid: tx2.id(),
             key_from: 0,
-            nonce: [0u8; 12],
+            init_vector: [0u8; 12],
             txpayload: PlainTxAux::DepositStakeTx(witness2).encode(),
         },
     };
@@ -894,7 +921,7 @@ fn all_valid_tx_types_should_commit() {
         assert_eq!(account.nonce, 2);
     }
 
-    let tx3 = UnbondTx::new(halfcoin, 2, StakedStateOpAttributes::new(0));
+    let tx3 = UnbondTx::new(addr.into(), 2, halfcoin, StakedStateOpAttributes::new(0));
     let witness3 = StakedStateOpWitness::new(get_ecdsa_witness(&secp, &tx3.id(), &secret_key));
     let unbondtx = TxAux::UnbondStakeTx(tx3, witness3);
     {
@@ -909,4 +936,178 @@ fn all_valid_tx_types_should_commit() {
         assert!(account.unbonded > Coin::zero());
         assert_eq!(account.nonce, 3);
     }
+}
+
+#[test]
+fn end_block_should_update_liveness_tracker() {
+    use chain_abci::app::into_tendermint_validator_pub_key;
+    use chain_core::state::tendermint::TendermintValidatorAddress;
+    use protobuf::well_known_types::Timestamp;
+
+    let storage = Storage::new_db(create_db());
+    let mut account_storage =
+        AccountStorage::new(Storage::new_db(Arc::new(create(1))), 20).expect("account db");
+
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_slice(&[0xcd; 32]).expect("32 bytes, within curve order");
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+    let address = RedeemAddress::from(&public_key);
+    let staking_account_address = StakedStateAddress::BasicRedeem(address);
+
+    let mut validator_pubkey = PubKey::new();
+    validator_pubkey.field_type = "Ed25519".to_string();
+    validator_pubkey.data = base64::decode("EIosObgfONUsnWCBGRpFlRFq5lSxjGIChRlVrVWVkcE=").unwrap();
+
+    let mut validator_voting_power = BTreeMap::new();
+    validator_voting_power.insert(staking_account_address, TendermintVotePower::zero());
+
+    let mut distribution = BTreeMap::new();
+    distribution.insert(address, (Coin::max(), AccountType::ExternallyOwnedAccount));
+    distribution.insert(
+        RedeemAddress::default(),
+        (Coin::zero(), AccountType::Contract),
+    );
+
+    let init_network_params = InitNetworkParameters {
+        initial_fee_policy: LinearFee::new(Milli::new(0, 0), Milli::new(0, 0)),
+        required_council_node_stake: Coin::max(),
+        unbonding_period: 1,
+        jailing_config: JailingParameters {
+            jail_duration: 60,
+            block_signing_window: 5,
+            missed_block_threshold: 1,
+        },
+    };
+
+    let init_config = InitConfig::new(
+        distribution,
+        RedeemAddress::default(),
+        RedeemAddress::default(),
+        RedeemAddress::default(),
+        init_network_params,
+        vec![InitialValidator {
+            staking_account_address: address,
+            consensus_pubkey_type: ValidatorKeyType::Ed25519,
+            consensus_pubkey_b64: "EIosObgfONUsnWCBGRpFlRFq5lSxjGIChRlVrVWVkcE=".to_string(),
+        }],
+    );
+
+    let timestamp = Timestamp::new();
+
+    let (accounts, rewards_pool_state, _) = init_config
+        .validate_config_get_genesis(timestamp.get_seconds())
+        .expect("Error while validating distribution");
+
+    let mut keys: Vec<StarlingFixedKey> = accounts.iter().map(|account| account.key()).collect();
+    let mut wrapped: Vec<AccountWrapper> = accounts
+        .iter()
+        .map(|account| AccountWrapper(account.clone()))
+        .collect();
+    let new_account_root = account_storage
+        .insert(None, &mut keys, &mut wrapped)
+        .expect("initial insert");
+
+    let transaction_tree = MerkleTree::empty();
+
+    let genesis_app_hash =
+        compute_app_hash(&transaction_tree, &new_account_root, &rewards_pool_state);
+
+    let mut app = ChainNodeApp::new_with_storage(
+        get_enclave_bridge_mock(),
+        &hex::encode_upper(genesis_app_hash),
+        TEST_CHAIN_ID,
+        storage,
+        account_storage,
+    );
+
+    // Init Chain
+
+    let mut request_init_chain = RequestInitChain::default();
+    request_init_chain.set_time(timestamp);
+    request_init_chain.set_app_state_bytes(serde_json::to_vec(&init_config).unwrap());
+    request_init_chain.set_chain_id(String::from(TEST_CHAIN_ID));
+    let response_init_chain = app.init_chain(&request_init_chain);
+
+    let validators = response_init_chain.validators.to_vec();
+
+    assert_eq!(1, validators.len());
+    assert_eq!(
+        100000000000,
+        i64::from(
+            *app.validator_voting_power
+                .get(&staking_account_address)
+                .unwrap()
+        )
+    );
+
+    // Begin Block
+
+    let mut request_begin_block = RequestBeginBlock::default();
+    let mut header = Header::default();
+    header.time = Some(Timestamp::new()).into();
+    header.chain_id = TEST_CHAIN_ID.to_owned();
+    header.height = 1;
+
+    request_begin_block.set_header(header);
+    app.begin_block(&request_begin_block);
+
+    // Unbond Transaction (this'll change voting power to zero)
+
+    let transaction = UnbondTx::new(
+        staking_account_address,
+        0,
+        Coin::new(10000000000).unwrap(),
+        StakedStateOpAttributes::new(0),
+    );
+    let witness =
+        StakedStateOpWitness::new(get_ecdsa_witness(&secp, &transaction.id(), &secret_key));
+    let tx_aux = TxAux::UnbondStakeTx(transaction, witness);
+
+    let mut request_deliver_tx = RequestDeliverTx::default();
+    request_deliver_tx.set_tx(tx_aux.encode());
+    let response_deliver_tx = app.deliver_tx(&request_deliver_tx);
+
+    assert_eq!(0, response_deliver_tx.code);
+    assert_eq!(
+        0,
+        i64::from(
+            *app.power_changed_in_block
+                .get(&staking_account_address)
+                .expect("Power did not change after unbonding funds")
+        )
+    );
+
+    // End Block (this'll remove validator from liveness tracker)
+
+    let validator_address: TendermintValidatorAddress = into_tendermint_validator_pub_key(
+        app.validator_pubkeys.get(&staking_account_address).unwrap(),
+    )
+    .into();
+    assert!(app
+        .last_state
+        .as_ref()
+        .unwrap()
+        .validator_liveness
+        .contains_key(&validator_address));
+
+    let mut request_end_block = RequestEndBlock::default();
+    request_end_block.height = 1;
+    let response_end_block = app.end_block(&request_end_block);
+
+    assert_eq!(1, response_end_block.validator_updates.to_vec().len());
+    assert_eq!(0, response_end_block.validator_updates.to_vec()[0].power);
+    assert_eq!(
+        0,
+        i64::from(
+            *app.validator_voting_power
+                .get(&staking_account_address)
+                .unwrap()
+        )
+    );
+    assert!(!app
+        .last_state
+        .as_ref()
+        .unwrap()
+        .validator_liveness
+        .contains_key(&validator_address));
 }

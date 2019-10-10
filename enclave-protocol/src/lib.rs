@@ -8,19 +8,21 @@
 )]
 
 #[cfg(all(feature = "mesalock_sgx", not(target_env = "sgx")))]
-#[macro_use]
 extern crate sgx_tstd as std;
 
 use parity_scale_codec::{Decode, Encode, Error, Input, Output};
 use std::prelude::v1::{Box, Vec};
 
 use chain_core::common::{H256, H264, H512};
+use chain_core::init::coin::Coin;
 use chain_core::state::account::DepositBondTx;
 use chain_core::state::account::StakedState;
 use chain_core::state::account::StakedStateOpWitness;
 use chain_core::state::account::WithdrawUnbondedTx;
+use chain_core::tx::data::input::TxoPointer;
 use chain_core::tx::data::{txid_hash, Tx, TxId};
 use chain_core::tx::witness::TxWitness;
+use chain_core::tx::TxObfuscated;
 use chain_core::tx::{fee::Fee, TxAux};
 use chain_core::ChainInfo;
 use chain_tx_validation::TxWithOutputs;
@@ -32,9 +34,102 @@ use secp256k1::{
 const ENCRYPTION_REQUEST_SIZE: usize = 1024 * 60; // 60 KB
 const TOKEN_LEN: usize = 1024;
 
+/// raw sgx_sealed_data_t
+type SealedLog = Vec<u8>;
+
+/// tx filter
+type TxFilter = [u8; 256];
+
+/// Internal encryption request
+#[derive(Encode, Decode)]
+pub struct IntraEncryptRequest {
+    /// transaction ID
+    pub txid: TxId,
+    /// EncryptionRequest
+    pub sealed_enc_request: SealedLog,
+    /// transaction inputs (if any)
+    pub tx_inputs: Option<Vec<SealedLog>>,
+    /// last chain info
+    pub info: ChainInfo,
+}
+
+/// variable length request passed to the tx-validation enclave
+#[derive(Encode, Decode)]
+pub enum IntraEnclaveRequest {
+    ValidateTx {
+        request: Box<VerifyTxRequest>,
+        tx_inputs: Option<Vec<SealedLog>>,
+    },
+    EndBlock,
+    Encrypt(Box<IntraEncryptRequest>),
+}
+
+/// helper method to validate basic assumptions
+pub fn is_basic_valid_tx_request(
+    request: &VerifyTxRequest,
+    tx_inputs: &Option<Vec<SealedLog>>,
+    chain_hex_id: u8,
+) -> Result<(), ()> {
+    if request.info.chain_hex_id != chain_hex_id {
+        return Err(());
+    }
+    match request.tx {
+        TxAux::DepositStakeTx { .. } => match tx_inputs {
+            Some(ref i) if !i.is_empty() => Ok(()),
+            _ => Err(()),
+        },
+        TxAux::TransferTx { .. } => match tx_inputs {
+            Some(ref i) if !i.is_empty() => Ok(()),
+            _ => Err(()),
+        },
+        TxAux::WithdrawUnbondedStakeTx { .. } => {
+            if request.account.is_some() {
+                Ok(())
+            } else {
+                Err(())
+            }
+        }
+        _ => Err(()),
+    }
+}
+
+/// positive response from the enclave
+#[derive(Encode, Decode)]
+pub enum IntraEnclaveResponseOk {
+    /// returns the actual paid fee + transaction data sealed for the local machine for later lookups
+    TxWithOutputs { paid_fee: Fee, sealed_tx: SealedLog },
+    /// deposit stake pays minimal fee, so this returns the sum of input amounts -- staked stake's bonded balance is added `input_coins-min_fee`
+    DepositStakeTx { input_coins: Coin },
+    /// transaction filter
+    EndBlock(Box<TxFilter>),
+    /// encryption response
+    Encrypt(TxObfuscated),
+}
+
+/// variable length response returned from the tx-validation enclave
+pub type IntraEnclaveResponse = Result<IntraEnclaveResponseOk, chain_tx_validation::Error>;
+
+/// request passed from abci
+/// TODO: only certain Tx types should be sent -> create a more restrictive datatype instead of checking in `is_basic_valid`
+#[derive(Encode, Decode, Clone)]
+pub struct VerifyTxRequest {
+    pub tx: TxAux,
+    pub account: Option<StakedState>,
+    pub info: ChainInfo,
+}
+
+/// TQE's encryption request
+#[derive(Encode, Decode)]
+pub struct QueryEncryptRequest {
+    /// transaction ID
+    pub txid: TxId,
+    /// EncryptionRequest sealed by TQE to "mrsigner"
+    pub sealed_enc_request: SealedLog,
+    /// transaction inputs (if any)
+    pub tx_inputs: Option<Vec<TxoPointer>>,
+}
+
 /// requests sent from chain-abci app to enclave wrapper server
-/// FIXME: box chain info or txaux?
-#[allow(clippy::large_enum_variant)]
 #[derive(Encode, Decode)]
 pub enum EnclaveRequest {
     /// a sanity check (sends the chain network ID -- last byte / two hex digits convention)
@@ -47,25 +142,29 @@ pub enum EnclaveRequest {
     },
     /// "stateless" transaction validation requests (sends transaction + all required information)
     /// double-spent / BitVec check done in chain-abci
-    /// FIXME: when sealing is done, sealed TX would probably be stored by enclave server, hence this should send TxPointers instead
-    /// FIXME: only certain Tx types should be sent -> create a datatype / enum for it (probably after encrypted Tx data types)
-    VerifyTx {
-        tx: TxAux,
-        account: Option<StakedState>,
-        info: ChainInfo,
-    },
+    VerifyTx(Box<VerifyTxRequest>),
+    /// request to get the block's transaction filter and reset the existing one
+    EndBlock,
     /// request to flush/persist storage + store the computed app hash
     /// FIXME: enclave should be able to compute a part of app hash, so send the other parts and check the same app hash was computed
     CommitBlock { app_hash: H256 },
-    /// request to get a stored launch token (requested by TDQE -- they should be on the same machine)
+    /// request to get a stored launch token (requested by TQE -- they should be on the same machine)
     GetCachedLaunchToken { enclave_metaname: Vec<u8> },
-    /// request to update the stored launch token (requested by TDQE -- they should be on the same machine)
+    /// request to update the stored launch token (requested by TQE -- they should be on the same machine)
     UpdateCachedLaunchToken {
         enclave_metaname: Vec<u8>,
         token: Box<[u8; TOKEN_LEN]>,
     },
-    /// request to get tx data sealed to "mrsigner" (requested by TDQE -- they should be on the same machine)
+    /// request to get tx data sealed to "mrsigner" (requested by TQE -- they should be on the same machine)
     GetSealedTxData { txids: Vec<TxId> },
+    /// request to encrypt tx by the current key (requested by TQE -- they should be on the same machine)
+    EncryptTx(Box<QueryEncryptRequest>),
+}
+
+impl EnclaveRequest {
+    pub fn new_tx_request(tx: TxAux, account: Option<StakedState>, info: ChainInfo) -> Self {
+        EnclaveRequest::VerifyTx(Box::new(VerifyTxRequest { tx, account, info }))
+    }
 }
 
 /// reponses sent from enclave wrapper server to chain-abci app
@@ -76,6 +175,8 @@ pub enum EnclaveResponse {
     CheckChain(Result<(), Option<H256>>),
     /// returns the affected (account) state (if any) and paid fee if the TX is valid
     VerifyTx(Result<(Fee, Option<StakedState>), chain_tx_validation::Error>),
+    /// returns the transaction filter for the current block
+    EndBlock(Result<Box<TxFilter>, ()>),
     /// returns if the data was sucessfully persisted in the enclave's local storage
     CommitBlock(Result<(), ()>),
     /// returns a stored launch token if any
@@ -83,7 +184,9 @@ pub enum EnclaveResponse {
     /// indicates whether the update was successful
     UpdateCachedLaunchToken(Result<(), ()>),
     /// returns Some(sealed data payloads) or None (if any TXID was not found / invalid)
-    GetSealedTxData(Option<Vec<Vec<u8>>>),
+    GetSealedTxData(Option<Vec<SealedLog>>),
+    /// returns Ok(encrypted tx payload) if Tx was valid
+    EncryptTx(Result<TxObfuscated, chain_tx_validation::Error>),
     /// response if unsupported tx type is sent (e.g. unbondtx) -- TODO: probably unnecessary if there is a data type with a subset of TxAux
     UnsupportedTxType,
     /// response if the enclave failed to parse the request
@@ -136,13 +239,13 @@ pub struct EncryptionResponse {
     pub tx: TxAux,
 }
 
-/// Request in direct communication (over one-side attested TLS) to TDQE
+/// Request in direct communication (over one-side attested TLS) to TQE
 pub struct DecryptionRequestBody {
     /// transactions to check
     pub txs: Vec<TxId>,
     /// requester's public view key
     pub view_key: PublicKey,
-    /// 32-byte challenge obtained from TDQE after establishing TLS connection
+    /// 32-byte challenge obtained from TQE after establishing TLS connection
     pub challenge: H256,
 }
 
@@ -175,7 +278,7 @@ impl Decode for DecryptionRequestBody {
     }
 }
 
-/// Signed request in direct communication (over one-side attested TLS) to TDQE
+/// Signed request in direct communication (over one-side attested TLS) to TQE
 pub struct DecryptionRequest {
     pub body: DecryptionRequestBody,
     pub view_key_sig: Signature,
@@ -231,7 +334,7 @@ impl Decode for DecryptionRequest {
     }
 }
 
-/// Response in direct communication (over one-side attested TLS) from TDQE
+/// Response in direct communication (over one-side attested TLS) from TQE
 #[derive(Encode, Decode)]
 pub struct DecryptionResponse {
     pub txs: Vec<TxWithOutputs>,

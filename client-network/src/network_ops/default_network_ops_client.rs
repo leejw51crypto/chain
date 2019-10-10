@@ -14,8 +14,7 @@ use chain_core::tx::fee::FeeAlgorithm;
 use chain_core::tx::{TransactionId, TxAux};
 use client_common::tendermint::Client;
 use client_common::{ErrorKind, Result, ResultExt, SignedTransaction};
-use client_core::{Signer, UnspentTransactions, WalletClient};
-use client_index::TransactionObfuscation;
+use client_core::{Signer, TransactionObfuscation, UnspentTransactions, WalletClient};
 
 use crate::NetworkOpsClient;
 
@@ -115,7 +114,7 @@ where
         let transactions = inputs
             .into_iter()
             .map(|txo_pointer| {
-                let output = self.wallet_client.output(&txo_pointer)?;
+                let output = self.wallet_client.output(name, passphrase, &txo_pointer)?;
                 Ok((txo_pointer, output))
             })
             .collect::<Result<Vec<(TxoPointer, TxOut)>>>()?;
@@ -137,19 +136,19 @@ where
         &self,
         name: &str,
         passphrase: &SecUtf8,
-        address: &StakedStateAddress,
+        address: StakedStateAddress,
         value: Coin,
         attributes: StakedStateOpAttributes,
     ) -> Result<TxAux> {
-        let staked_state = self.get_staked_state(name, passphrase, address)?;
+        let staked_state = self.get_staked_state(name, passphrase, &address)?;
         let nonce = staked_state.nonce;
 
-        let transaction = UnbondTx::new(value, nonce, attributes);
+        let transaction = UnbondTx::new(address, nonce, value, attributes);
 
         let public_key = match address {
             StakedStateAddress::BasicRedeem(ref redeem_address) => self
                 .wallet_client
-                .find_public_key(name, passphrase, redeem_address)?
+                .find_staking_key(name, passphrase, redeem_address)?
                 .chain(|| {
                     (
                         ErrorKind::InvalidInput,
@@ -190,7 +189,7 @@ where
         let public_key = match from_address {
             StakedStateAddress::BasicRedeem(ref redeem_address) => self
                 .wallet_client
-                .find_public_key(name, passphrase, redeem_address)?
+                .find_staking_key(name, passphrase, redeem_address)?
                 .chain(|| {
                     (
                         ErrorKind::InvalidInput,
@@ -281,7 +280,7 @@ where
         match address {
             StakedStateAddress::BasicRedeem(ref redeem_address) => {
                 self.wallet_client
-                    .find_public_key(name, passphrase, redeem_address)?;
+                    .find_staking_key(name, passphrase, redeem_address)?;
             }
         }
 
@@ -297,6 +296,7 @@ mod tests {
 
     use chain_core::init::address::RedeemAddress;
     use chain_core::init::coin::CoinError;
+    use chain_core::state::account::StakedState;
     use chain_core::tx::data::input::TxoIndex;
     use chain_core::tx::data::TxId;
     use chain_core::tx::fee::Fee;
@@ -326,10 +326,11 @@ mod tests {
                 SignedTransaction::DepositStakeTransaction(tx, witness) => {
                     let plain = PlainTxAux::DepositStakeTx(witness);
                     Ok(TxAux::DepositStakeTx {
-                        tx,
+                        tx: tx.clone(),
                         payload: TxObfuscated {
+                            txid: tx.id(),
                             key_from: 0,
-                            nonce: [0u8; 12],
+                            init_vector: [0u8; 12],
                             txpayload: plain.encode(),
                         },
                     })
@@ -337,12 +338,12 @@ mod tests {
                 SignedTransaction::WithdrawUnbondedStakeTransaction(tx, _, witness) => {
                     let plain = PlainTxAux::WithdrawUnbondedStakeTx(tx.clone());
                     Ok(TxAux::WithdrawUnbondedStakeTx {
-                        txid: tx.id(),
                         no_of_outputs: tx.outputs.len() as TxoIndex,
                         witness,
                         payload: TxObfuscated {
+                            txid: tx.id(),
                             key_from: 0,
-                            nonce: [0u8; 12],
+                            init_vector: [0u8; 12],
                             txpayload: plain.encode(),
                         },
                     })
@@ -401,12 +402,19 @@ mod tests {
         }
 
         fn query(&self, _path: &str, _data: &[u8]) -> Result<QueryResult> {
+            let staked_state = StakedState::new(
+                0,
+                Coin::zero(),
+                Coin::new(2499999999999999999 + 1).unwrap(),
+                0,
+                StakedStateAddress::BasicRedeem(RedeemAddress::default()),
+                None,
+            );
+
             Ok(QueryResult {
                 response: Response {
                     code: 0,
-                    value:
-                        "AAAAAAAAAAAAAAAAAAAAAAAAeiLByLEia/aSXAAAAAAADbIhxPV9XTi5aBOcBukTKq+E6N8="
-                            .to_string(),
+                    value: base64::encode(&staked_state.encode()),
                     log: "".to_owned(),
                 },
             })
@@ -423,10 +431,7 @@ mod tests {
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::builder()
-            .with_wallet(storage.clone())
-            .build()
-            .unwrap();
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
@@ -467,10 +472,7 @@ mod tests {
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::builder()
-            .with_wallet(storage.clone())
-            .build()
-            .unwrap();
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         wallet_client.new_wallet(name, passphrase).unwrap();
 
@@ -491,7 +493,7 @@ mod tests {
         let attributes = StakedStateOpAttributes::new(0);
 
         assert!(network_ops_client
-            .create_unbond_stake_transaction(name, passphrase, &address, value, attributes)
+            .create_unbond_stake_transaction(name, passphrase, address, value, attributes)
             .is_ok());
     }
 
@@ -505,10 +507,7 @@ mod tests {
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::builder()
-            .with_wallet(storage.clone())
-            .build()
-            .unwrap();
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         let tendermint_client = MockClient::default();
         let network_ops_client = DefaultNetworkOpsClient::new(
@@ -540,7 +539,11 @@ mod tests {
             .unwrap();
 
         match transaction {
-            TxAux::WithdrawUnbondedStakeTx { txid, witness, .. } => {
+            TxAux::WithdrawUnbondedStakeTx {
+                payload: TxObfuscated { txid, .. },
+                witness,
+                ..
+            } => {
                 let account_address = verify_tx_recover_address(&witness, &txid)
                     .expect("Unable to verify transaction");
 
@@ -562,10 +565,7 @@ mod tests {
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::builder()
-            .with_wallet(storage.clone())
-            .build()
-            .unwrap();
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         let tendermint_client = MockClient::default();
         let network_ops_client = DefaultNetworkOpsClient::new(
@@ -599,9 +599,10 @@ mod tests {
 
         match transaction {
             TxAux::WithdrawUnbondedStakeTx {
-                txid,
                 witness,
-                payload: TxObfuscated { txpayload, .. },
+                payload: TxObfuscated {
+                    txid, txpayload, ..
+                },
                 ..
             } => {
                 let account_address = verify_tx_recover_address(&witness, &txid)
@@ -632,10 +633,7 @@ mod tests {
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::builder()
-            .with_wallet(storage.clone())
-            .build()
-            .unwrap();
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
 
         let tendermint_client = MockClient::default();
         let network_ops_client = DefaultNetworkOpsClient::new(
@@ -678,10 +676,7 @@ mod tests {
 
         let fee_algorithm = UnitFeeAlgorithm::default();
 
-        let wallet_client = DefaultWalletClient::builder()
-            .with_wallet(storage)
-            .build()
-            .unwrap();
+        let wallet_client = DefaultWalletClient::new_read_only(storage.clone());
         let tendermint_client = MockClient::default();
 
         let network_ops_client = DefaultNetworkOpsClient::new(

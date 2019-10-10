@@ -13,8 +13,13 @@ rust: &rust
               - gcc
               - binutils-dev
               - libc6-dev
-  cache: cargo
+  cache:
+    directories:
+      - /home/travis/.cargo
+  before_cache:
+    - rm -rf /home/travis/.cargo/registry
   env:
+    - RUST_BACKTRACE=1
     - RUSTFLAGS=-Ctarget-feature=+aes,+ssse3
     - PATH=$HOME/.local/bin:$PATH
     - LD_LIBRARY_PATH=$HOME/lib
@@ -64,14 +69,18 @@ jobs:
   include:
     - <<: *rust
       rust: stable
+      if: (branch != staging.tmp) AND (branch != trying.tmp)
     - <<: *rust
       rust: beta
+      if: (branch = staging) OR (branch = trying)
     - <<: *rust
       rust: nightly
+      if: (branch != staging.tmp) AND (branch != trying.tmp)
     - name: Integration Test
       language: rust
       sudo: required
       dist: trusty
+      if: (branch = staging) OR (branch = trying)
       addons:
           apt:
               packages:
@@ -83,7 +92,11 @@ jobs:
                   - gcc
                   - binutils-dev
                   - libc6-dev
-      cache: cargo
+      cache:
+        directories:
+          - /home/travis/.cargo
+      before_cache:
+        - rm -rf /home/travis/.cargo/registry
       env:
         - RUSTFLAGS=-Ctarget-feature=+aes,+ssse3
         - PATH=$HOME/.local/bin:$PATH
@@ -108,7 +121,7 @@ jobs:
         - . ./env.sh
         - docker-compose up -d || travis_terminate 1;
         - |
-          sleep 10
+          sleep 25
           docker-compose ps
           docker-compose logs -t --tail="all"
         - ./run-test.sh || travis_terminate 1;
@@ -116,29 +129,6 @@ jobs:
           cd client-rpc
           yarn
           yarn test
-
-    # - name: Integration Tests
-    #   language: node_js
-    #   node_js:
-    #     - "10"
-    #   services:
-    #     - docker
-    #   before_script:
-    #     - |
-    #       sudo cp integration-tests/docker/wait-for-it.sh /usr/local/bin
-    #       sudo chmod +x /usr/local/bin/wait-for-it.sh
-    #     - git clone https://github.com/crypto-com/chain-tx-enclave ./integration-tests/docker/chain-tx-enclave
-    #   script:
-    #     # - |
-    #     #   cd client-rpc
-    #     #   yarn
-    #     #   /usr/local/bin/wait-for-it.sh 127.0.0.1:16659 --strict -- yarn test
-    #     - cd integration-tests
-    #     - ./prepare.sh
-    #     - . ./env.sh
-    #     - docker-compose up -d
-    #     - |
-    #       sleep 5
-    #       docker-compose ps
-    #       docker-compose logs -t --tail="all"
-    #     - ./run-test.sh
+        - |
+          docker-compose ps
+          docker-compose logs -t --tail="all" || travis_terminate 0;

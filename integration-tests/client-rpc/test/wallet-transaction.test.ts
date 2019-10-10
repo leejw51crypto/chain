@@ -16,16 +16,30 @@ import {
 	sleep,
 	shouldTest,
 	FEE_SCHEMA,
+	newZeroFeeTendermintClient,
+	newWithFeeTendermintClient,
+	asyncMiddleman,
 } from "./core/utils";
+import { TendermintClient } from "./core/tendermint-client";
+import { waitTxIdConfirmed, syncWallet } from "./core/rpc";
+import {
+	expectTransactionShouldBe,
+	TransactionDirection,
+	getFirstElementOfArray,
+} from "./core/transaction-utils";
 chaiUse(chaiAsPromised);
 
 describe("Wallet transaction", () => {
-	let zeroFeeClient: RpcClient;
-	let withFeeClient: RpcClient;
+	let zeroFeeRpcClient: RpcClient;
+	let zeroFeeTendermintClient: TendermintClient;
+	let withFeeRpcClient: RpcClient;
+	let withFeeTendermintClient: TendermintClient;
 	before(async () => {
 		await unbondAndWithdrawStake();
-		zeroFeeClient = newZeroFeeRpcClient();
-		withFeeClient = newWithFeeRpcClient();
+		zeroFeeRpcClient = newZeroFeeRpcClient();
+		zeroFeeTendermintClient = newZeroFeeTendermintClient();
+		withFeeRpcClient = newWithFeeRpcClient();
+		withFeeTendermintClient = newWithFeeTendermintClient();
 	});
 
 	describe("Zero Fee", () => {
@@ -37,7 +51,7 @@ describe("Wallet transaction", () => {
 
 			const totalCROSupply = "10000000000000000000";
 			return expect(
-				zeroFeeClient.request("wallet_sendToAddress", [
+				zeroFeeRpcClient.request("wallet_sendToAddress", [
 					walletRequest,
 					WALLET_TRANSFER_ADDRESS_2,
 					totalCROSupply,
@@ -46,87 +60,100 @@ describe("Wallet transaction", () => {
 			).to.eventually.rejectedWith("Insufficient balance");
 		});
 
-		it("can transfer funds between two wallets", async () => {
+		it("can transfer funds between two wallets", async function() {
+			this.timeout(30000);
+
 			const receiverWalletName = generateWalletName("Receive");
 			const senderWalletRequest = newWalletRequest("Default", "123456");
 			const receiverWalletRequest = newWalletRequest(receiverWalletName, "123456");
 			const transferAmount = "1000";
 
-			await zeroFeeClient.request("wallet_create", [receiverWalletRequest]);
-
-			const senderWalletTransactionListBeforeSend = await zeroFeeClient.request(
-				"wallet_transactions",
-				[senderWalletRequest],
-			);
-			const senderWalletBalanceBeforeSend = await zeroFeeClient.request(
-				"wallet_balance",
-				[senderWalletRequest],
+			await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_create", [receiverWalletRequest]),
+				"Error when creating receiver wallet",
 			);
 
-			const receiverWalletTransferAddress = await zeroFeeClient.request(
-				"wallet_createTransferAddress",
-				[receiverWalletRequest],
+			const senderWalletTransactionListBeforeSend = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_transactions", [senderWalletRequest]),
+				"Error when retrieving sender wallet transactions before send",
 			);
-			const receiverWalletTransactionListBeforeReceive = await zeroFeeClient.request(
-				"wallet_transactions",
-				[receiverWalletRequest],
-			);
-			const receiverWalletBalanceBeforeReceive = await zeroFeeClient.request(
-				"wallet_balance",
-				[receiverWalletRequest],
+			const senderWalletBalanceBeforeSend = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_balance", [senderWalletRequest]),
+				"Error when retrieving sender wallet balance before send",
 			);
 
-			const txId = await zeroFeeClient.request("wallet_sendToAddress", [
-				senderWalletRequest,
-				receiverWalletTransferAddress,
-				transferAmount,
-				[],
-			]);
+			const receiverWalletTransferAddress = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_createTransferAddress", [
+					receiverWalletRequest,
+				]),
+				"Error when creating receiver transfer address",
+			);
+			const receiverWalletTransactionListBeforeReceive = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_transactions", [receiverWalletRequest]),
+				"Error when retrieving receiver wallet transactions before receive",
+			);
+			const receiverWalletBalanceBeforeReceive = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_balance", [receiverWalletRequest]),
+				"Error when retrieving reciever wallet balance before receive",
+			);
+			const receiverViewKey = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_getViewKey", [receiverWalletRequest]),
+				"Error when retrieving receiver view key",
+			);
+
+			const txId = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_sendToAddress", [
+					senderWalletRequest,
+					receiverWalletTransferAddress,
+					transferAmount,
+					[receiverViewKey],
+				]),
+				"Error when trying to send funds from sender to receiver",
+			);
 			expect(txId.length).to.eq(
 				64,
 				"wallet_sendToAddress should return transaction id",
 			);
 
-			await sleep(2000);
+			await asyncMiddleman(
+				waitTxIdConfirmed(zeroFeeTendermintClient, txId),
+				"Error when waiting for transaction confirmation",
+			);
 
-			await zeroFeeClient.request("sync", [senderWalletRequest]);
-			await zeroFeeClient.request("sync", [receiverWalletRequest]);
+			await asyncMiddleman(
+				syncWallet(zeroFeeRpcClient, senderWalletRequest),
+				"Error when synchronizing sender wallet",
+			);
+			await asyncMiddleman(
+				syncWallet(zeroFeeRpcClient, receiverWalletRequest),
+				"Error when synchronizing receiver wallet",
+			);
 
-			const senderWalletTransactionListAfterSend = await zeroFeeClient.request(
-				"wallet_transactions",
-				[senderWalletRequest],
+			const senderWalletTransactionListAfterSend = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_transactions", [senderWalletRequest]),
+				"Error when retrieving sender wallet transactions after send",
 			);
 
 			expect(senderWalletTransactionListAfterSend.length).to.eq(
-				senderWalletTransactionListBeforeSend.length + 2,
-				"Sender should have two extra transaction records",
+				senderWalletTransactionListBeforeSend.length + 1,
+				"Sender should have one extra transaction record",
 			);
-			const senderWalletSecondLastTransaction = getSecondLastElementOfArray(
+			const senderWalletLastTransaction = getFirstElementOfArray(
 				senderWalletTransactionListAfterSend,
 			);
-			const senderWalletLastTransaction = getLastElementOfArray(
-				senderWalletTransactionListAfterSend,
-			);
-			expectTransactionShouldBe(
-				senderWalletSecondLastTransaction,
-				{
-					direction: TransactionDirection.OUTGOING,
-					amount: senderWalletBalanceBeforeSend,
-				},
-				"Sender should have one Outgoing transaction",
-			);
+
 			expectTransactionShouldBe(
 				senderWalletLastTransaction,
 				{
-					direction: TransactionDirection.INCOMING,
-					amount: new BigNumber(senderWalletBalanceBeforeSend).minus(transferAmount),
+					direction: TransactionDirection.OUTGOING,
+					amount: new BigNumber(transferAmount),
 				},
-				"Sender should have one Incoming transaction",
+				"Sender should have one Outgoing transaction",
 			);
 
-			const senderWalletBalanceAfterSend = await zeroFeeClient.request(
-				"wallet_balance",
-				[senderWalletRequest],
+			const senderWalletBalanceAfterSend = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_balance", [senderWalletRequest]),
+				"Error when retrieving sender wallet balance after send",
 			);
 			expect(senderWalletBalanceAfterSend).to.eq(
 				new BigNumber(senderWalletBalanceBeforeSend)
@@ -135,16 +162,16 @@ describe("Wallet transaction", () => {
 				"Sender balance should be deducted by transfer amount",
 			);
 
-			const receiverWalletTransactionListAfterReceive = await zeroFeeClient.request(
-				"wallet_transactions",
-				[receiverWalletRequest],
+			const receiverWalletTransactionListAfterReceive = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_transactions", [receiverWalletRequest]),
+				"Error when retrieving receiver wallet transaction after receive",
 			);
 			expect(receiverWalletTransactionListAfterReceive.length).to.eq(
 				receiverWalletTransactionListBeforeReceive.length + 1,
 				"Receiver should have one extra transaction record",
 			);
 
-			const receiverWalletLastTransaction = getLastElementOfArray(
+			const receiverWalletLastTransaction = getFirstElementOfArray(
 				receiverWalletTransactionListAfterReceive,
 			);
 			expectTransactionShouldBe(
@@ -156,9 +183,9 @@ describe("Wallet transaction", () => {
 				"Receiver should have one Incoming transaction of the received amount",
 			);
 
-			const receiverWalletBalanceAfterReceive = await zeroFeeClient.request(
-				"wallet_balance",
-				[receiverWalletRequest],
+			const receiverWalletBalanceAfterReceive = await asyncMiddleman(
+				zeroFeeRpcClient.request("wallet_balance", [receiverWalletRequest]),
+				"Error when retrieving receiver wallet balance after receive",
 			);
 			expect(receiverWalletBalanceAfterReceive).to.eq(
 				new BigNumber(receiverWalletBalanceBeforeReceive)
@@ -174,93 +201,103 @@ describe("Wallet transaction", () => {
 			return;
 		}
 		it("can transfer funds between two wallets with fee included", async function() {
+			this.timeout(30000);
+
 			const receiverWalletName = generateWalletName("Receive");
 			const senderWalletRequest = newWalletRequest("Default", "123456");
 			const receiverWalletRequest = newWalletRequest(receiverWalletName, "123456");
 			const transferAmount = "1000";
 
-			await withFeeClient.request("wallet_create", [receiverWalletRequest]);
-
-			const senderWalletTransactionListBeforeSend = await withFeeClient.request(
-				"wallet_transactions",
-				[senderWalletRequest],
-			);
-			const senderWalletBalanceBeforeSend = await withFeeClient.request(
-				"wallet_balance",
-				[senderWalletRequest],
+			await asyncMiddleman(
+				withFeeRpcClient.request("wallet_create", [receiverWalletRequest]),
+				"Error when creating receive wallet",
 			);
 
-			const receiverWalletTransferAddress = await withFeeClient.request(
-				"wallet_createTransferAddress",
-				[receiverWalletRequest],
+			const senderWalletTransactionListBeforeSend = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_transactions", [senderWalletRequest]),
+				"Error when retrieving sender wallet transaction before send",
 			);
-			const receiverWalletTransactionListBeforeReceive = await withFeeClient.request(
-				"wallet_transactions",
-				[receiverWalletRequest],
-			);
-			const receiverWalletBalanceBeforeReceive = await withFeeClient.request(
-				"wallet_balance",
-				[receiverWalletRequest],
+			const senderWalletBalanceBeforeSend = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_balance", [senderWalletRequest]),
+				"Error when retrieving sender wallet balance before send",
 			);
 
-			const txId = await withFeeClient.request("wallet_sendToAddress", [
-				senderWalletRequest,
-				receiverWalletTransferAddress,
-				transferAmount,
-				[],
-			]);
+			const receiverWalletTransferAddress = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_createTransferAddress", [
+					receiverWalletRequest,
+				]),
+				"Error when creating receiver transfer address",
+			);
+			const receiverWalletTransactionListBeforeReceive = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_transactions", [receiverWalletRequest]),
+				"Error when retrieving receiver wallet transaction before receive",
+			);
+			const receiverWalletBalanceBeforeReceive = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_balance", [receiverWalletRequest]),
+				"Error when retrieving receiver wallet balance before receive",
+			);
+			const receiverViewKey = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_getViewKey", [receiverWalletRequest]),
+				"Error when retrieving receiver view key",
+			);
+
+			const txId = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_sendToAddress", [
+					senderWalletRequest,
+					receiverWalletTransferAddress,
+					transferAmount,
+					[receiverViewKey],
+				]),
+				"Error when sending funds from sender to receiver",
+			);
 			expect(txId.length).to.eq(
 				64,
 				"wallet_sendToAddress should return transaction id",
 			);
 
-			await sleep(2000);
+			await asyncMiddleman(
+				waitTxIdConfirmed(withFeeTendermintClient, txId),
+				"Error when waiting for transaction confirmation",
+			);
 
-			await withFeeClient.request("sync", [senderWalletRequest]);
-			await withFeeClient.request("sync", [receiverWalletRequest]);
+			await asyncMiddleman(
+				syncWallet(withFeeRpcClient, senderWalletRequest),
+				"Error when synchronizing sender wallet",
+			);
+			await asyncMiddleman(
+				syncWallet(withFeeRpcClient, receiverWalletRequest),
+				"Error when synchronizing receiver wallet",
+			);
 
-			const senderWalletTransactionListAfterSend = await withFeeClient.request(
-				"wallet_transactions",
-				[senderWalletRequest],
+			const senderWalletTransactionListAfterSend = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_transactions", [senderWalletRequest]),
+				"Error when retrieving sender wallet transactions after send",
 			);
 			expect(senderWalletTransactionListAfterSend.length).to.eq(
-				senderWalletTransactionListBeforeSend.length + 2,
-				"Sender should have two extra transaction records",
+				senderWalletTransactionListBeforeSend.length + 1,
+				"Sender should have one extra transaction record1",
 			);
-			const senderWalletSecondLastTransaction = getSecondLastElementOfArray(
+			const senderWalletLastTransaction = getFirstElementOfArray(
 				senderWalletTransactionListAfterSend,
-			);
-			const senderWalletLastTransaction = getLastElementOfArray(
-				senderWalletTransactionListAfterSend,
-			);
-			expectTransactionShouldBe(
-				senderWalletSecondLastTransaction,
-				{
-					direction: TransactionDirection.OUTGOING,
-					amount: senderWalletBalanceBeforeSend,
-				},
-				"Sender should have one Outgoing transaction",
 			);
 			expectTransactionShouldBe(
 				senderWalletLastTransaction,
 				{
-					direction: TransactionDirection.INCOMING,
+					direction: TransactionDirection.OUTGOING,
+					amount: new BigNumber(transferAmount),
 				},
-				"Sender should have one Incoming transaction",
+				"Sender should have one Outgoing transaction",
 			);
 			expect(senderWalletLastTransaction.kind).to.eq(
-				TransactionDirection.INCOMING,
+				TransactionDirection.OUTGOING,
 			);
-			const senderWalletIncomingAmount = senderWalletLastTransaction.amount;
 			expect(
-				new BigNumber(senderWalletIncomingAmount).isLessThan(
-					new BigNumber(senderWalletBalanceBeforeSend).minus(transferAmount),
-				),
+				new BigNumber(0).isLessThan(new BigNumber(senderWalletLastTransaction.fee)),
 			).to.eq(true, "Sender should pay for transfer fee");
 
-			const senderWalletBalanceAfterSend = await withFeeClient.request(
-				"wallet_balance",
-				[senderWalletRequest],
+			const senderWalletBalanceAfterSend = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_balance", [senderWalletRequest]),
+				"Error when retrieving sender wallet balance after send",
 			);
 			expect(
 				new BigNumber(senderWalletBalanceAfterSend).isLessThan(
@@ -271,16 +308,16 @@ describe("Wallet transaction", () => {
 				"Sender balance should be deducted by transfer amount and fee",
 			);
 
-			const receiverWalletTransactionListAfterReceive = await withFeeClient.request(
-				"wallet_transactions",
-				[receiverWalletRequest],
+			const receiverWalletTransactionListAfterReceive = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_transactions", [receiverWalletRequest]),
+				"Error when retrieving receiver wallet transactions after receive",
 			);
 			expect(receiverWalletTransactionListAfterReceive.length).to.eq(
 				receiverWalletTransactionListBeforeReceive.length + 1,
 				"Receiver should have one extra transaction record",
 			);
 
-			const receiverWalletLastTransaction = getLastElementOfArray(
+			const receiverWalletLastTransaction = getFirstElementOfArray(
 				receiverWalletTransactionListAfterReceive,
 			);
 			expectTransactionShouldBe(
@@ -292,9 +329,9 @@ describe("Wallet transaction", () => {
 				"Receiver should have one Incoming transaction of the exact received amount",
 			);
 
-			const receiverWalletBalanceAfterReceive = await withFeeClient.request(
-				"wallet_balance",
-				[receiverWalletRequest],
+			const receiverWalletBalanceAfterReceive = await asyncMiddleman(
+				withFeeRpcClient.request("wallet_balance", [receiverWalletRequest]),
+				"Error when retrieving receiver wallet balance after receive",
 			);
 			expect(receiverWalletBalanceAfterReceive).to.eq(
 				new BigNumber(receiverWalletBalanceBeforeReceive)
@@ -305,61 +342,3 @@ describe("Wallet transaction", () => {
 		});
 	});
 });
-
-enum TransactionDirection {
-	INCOMING = "Incoming",
-	OUTGOING = "Outgoing",
-}
-interface TransactionAssertion {
-	address?: string;
-	direction: TransactionDirection;
-	amount?: BigNumber;
-	height?: number;
-}
-
-const expectTransactionShouldBe = (
-	actual: any,
-	expected: TransactionAssertion,
-	message?: string,
-): boolean => {
-	expect(actual).to.contain.keys([
-		"address",
-		"amount",
-		"block_height",
-		"kind",
-		"transaction_id",
-		"block_time",
-	]);
-
-	if (typeof expected.address !== "undefined") {
-		expect(actual.address).to.deep.eq(
-			{
-				BasicRedeem: expected.address,
-			},
-			message,
-		);
-	}
-
-	expect(actual.kind).to.eq(expected.direction);
-	if (typeof expected.amount !== "undefined") {
-		expect(actual.amount).to.eq(expected.amount.toString(10), message);
-	}
-
-	if (typeof expected.height !== "undefined") {
-		expect(actual.block_height).to.eq(expected.height.toString(), message);
-	} else {
-		expect(new BigNumber(actual.block_height).isGreaterThan(0)).to.eq(
-			true,
-			message,
-		);
-	}
-	return true;
-};
-
-const getSecondLastElementOfArray = (arr: any[]) => {
-	return arr[arr.length - 2];
-};
-
-const getLastElementOfArray = (arr: any[]) => {
-	return arr[arr.length - 1];
-};

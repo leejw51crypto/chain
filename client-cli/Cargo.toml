@@ -1,19 +1,18 @@
 [package]
 name = "client-cli"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["Devashish Dixit <devashish@crypto.com>"]
 edition = "2018"
 
 [dependencies]
 chain-core = { path = "../chain-core" }
 client-common = { path = "../client-common" }
-client-index = { path = "../client-index" }
 client-core = { path = "../client-core" }
 client-network = { path = "../client-network" }
 structopt = "0.3"
 quest = "0.3"
-secstr = "0.3.2"
-hex = "0.3"
+secstr = { version = "0.3.2", features = ["serde"] }
+hex = "0.4"
 prettytable-rs = "0.8"
 unicase = "2.5"
 chrono = "0.4"

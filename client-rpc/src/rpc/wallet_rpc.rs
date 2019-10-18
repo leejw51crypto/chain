@@ -13,17 +13,25 @@ use chain_core::tx::TxAux;
 use chain_core::tx::TxObfuscated;
 use client_common::{PublicKey, Result as CommonResult};
 use client_core::types::TransactionChange;
+use client_core::types::WalletKind;
 use client_core::{MultiSigWalletClient, WalletClient};
 
 use crate::server::{rpc_error_from_string, to_rpc_error, WalletRequest};
-
+use secstr::*;
 #[rpc]
 pub trait WalletRpc: Send + Sync {
     #[rpc(name = "wallet_balance")]
     fn balance(&self, request: WalletRequest) -> Result<Coin>;
 
     #[rpc(name = "wallet_create")]
-    fn create(&self, request: WalletRequest) -> Result<String>;
+    fn create(&self, request: WalletRequest, walletkind: WalletKind) -> Result<String>;
+
+    fn create_basic(&self, request: WalletRequest) -> Result<String>;
+
+    fn create_hd(&self, request: WalletRequest) -> Result<String>;
+
+    #[rpc(name = "wallet_restore")]
+    fn restore(&self, request: WalletRequest, mnemonics: SecUtf8) -> Result<String>;
 
     #[rpc(name = "wallet_createStakingAddress")]
     fn create_staking_address(&self, request: WalletRequest) -> Result<String>;
@@ -87,7 +95,63 @@ where
         }
     }
 
-    fn create(&self, request: WalletRequest) -> Result<String> {
+    fn create(&self, request: WalletRequest, kind: WalletKind) -> Result<String> {
+        match kind {
+            WalletKind::Basic => self.create_basic(request),
+            WalletKind::HD => self.create_hd(request),
+        }
+    }
+
+    fn create_basic(&self, request: WalletRequest) -> Result<String> {
+        if let Err(err) = self.client.new_wallet(&request.name, &request.passphrase) {
+            return Err(to_rpc_error(err));
+        }
+
+        self.client
+            .new_staking_address(&request.name, &request.passphrase)
+            .map_err(to_rpc_error)?;
+        self.client
+            .new_transfer_address(&request.name, &request.passphrase)
+            .map_err(to_rpc_error)?;
+        Ok(request.name)
+    }
+
+    fn create_hd(&self, request: WalletRequest) -> Result<String> {
+        let mnemonics = self.client.new_mnemonics().map_err(to_rpc_error)?;
+        let mnemonics_phrase = SecUtf8::from(mnemonics.to_string());
+
+        // make seed for hd-wallet
+        if let Err(err) =
+            self.client
+                .new_hdwallet(&request.name, &request.passphrase, &mnemonics_phrase)
+        {
+            return Err(to_rpc_error(err));
+        }
+        // make basic wallet
+        // only generation is different with basic wallet
+        if let Err(err) = self.client.new_wallet(&request.name, &request.passphrase) {
+            return Err(to_rpc_error(err));
+        }
+
+        self.client
+            .new_staking_address(&request.name, &request.passphrase)
+            .map_err(to_rpc_error)?;
+        self.client
+            .new_transfer_address(&request.name, &request.passphrase)
+            .map_err(to_rpc_error)?;
+        Ok(mnemonics.to_string())
+    }
+
+    fn restore(&self, request: WalletRequest, mnemonics: SecUtf8) -> Result<String> {
+        println!("restore {}", mnemonics.unsecure());
+        if let Err(err) =
+            self.client
+                .new_hdwallet(&request.name, &request.passphrase, &mnemonics)
+        {
+            return Err(to_rpc_error(err));
+        }
+        // make basic wallet
+        // only generation is different with basic wallet
         if let Err(err) = self.client.new_wallet(&request.name, &request.passphrase) {
             return Err(to_rpc_error(err));
         }

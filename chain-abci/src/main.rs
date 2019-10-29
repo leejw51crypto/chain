@@ -5,90 +5,98 @@ mod punishment;
 mod slashing;
 mod storage;
 
-use log::info;
-use std::net::{IpAddr, SocketAddr};
-use zmq::{Context, REQ};
-
-use crate::app::ChainNodeApp;
-use crate::enclave_bridge::ZmqEnclaveClient;
-use crate::storage::*;
-use chain_core::init::network::{get_network, get_network_id, init_chain_id};
-use structopt::StructOpt;
-
-#[derive(Debug, StructOpt)]
-#[structopt(
-    name = "chain-abci",
-    about = " Pre-alpha version prototype of Crypto.com Chain node (Tendermint ABCI application)."
-)]
-struct AbciOpt {
-    #[structopt(
-        short = "d",
-        long = "data",
-        default_value = ".cro-storage/",
-        help = "Sets a data storage directory"
-    )]
-    data: String,
-    #[structopt(
-        short = "p",
-        long = "port",
-        default_value = "26658",
-        help = "Sets a port to listen on"
-    )]
-    port: u16,
-    #[structopt(
-        short = "h",
-        long = "host",
-        default_value = "127.0.0.1",
-        help = "Sets the ip address to listen on"
-    )]
-    host: IpAddr,
-    #[structopt(
-        short = "g",
-        long = "genesis_app_hash",
-        help = "The expected app hash after init chain (computed from the merkle trie root etc.)"
-    )]
-    genesis_app_hash: String,
-    #[structopt(
-        short = "c",
-        long = "chain_id",
-        help = "The expected chain id from init chain (the name convention is \"...some-name...-<TWO_HEX_DIGITS>\")"
-    )]
-    chain_id: String,
-    #[structopt(
-        short = "e",
-        long = "enclave_server",
-        help = "Connection string (e.g. ipc://enclave.socket or tcp://127.0.0.1:25933) for ZeroMQ server wrapper around the transaction validation enclave."
-    )]
-    enclave_server: String,
-}
+use abci::Application;
+use abci::*;
+use bit_vec::BitVec;
+use chain_abci::app::*;
+use chain_abci::enclave_bridge::mock::MockClient;
+use chain_abci::storage::account::AccountStorage;
+use chain_abci::storage::account::AccountWrapper;
+use chain_abci::storage::tx::StarlingFixedKey;
+use chain_abci::storage::*;
+use chain_core::common::{MerkleTree, Proof, H256, HASH_SIZE_256};
+use chain_core::compute_app_hash;
+use chain_core::init::address::RedeemAddress;
+use chain_core::init::coin::Coin;
+use chain_core::init::config::InitConfig;
+use chain_core::init::config::InitNetworkParameters;
+use chain_core::init::config::StakedStateDestination;
+use chain_core::init::config::{
+    JailingParameters, SlashRatio, SlashingParameters, ValidatorKeyType, ValidatorPubkey,
+};
+use chain_core::state::account::{
+    to_stake_key, DepositBondTx, StakedState, StakedStateAddress, StakedStateOpAttributes,
+    StakedStateOpWitness, UnbondTx, WithdrawUnbondedTx,
+};
+use chain_core::state::tendermint::TendermintVotePower;
+use chain_core::state::RewardsPoolState;
+use chain_core::tx::fee::{LinearFee, Milli};
+use chain_core::tx::witness::tree::RawPubkey;
+use chain_core::tx::witness::EcdsaSignature;
+use chain_core::tx::PlainTxAux;
+use chain_core::tx::TransactionId;
+use chain_core::tx::TxObfuscated;
+use chain_core::tx::{
+    data::{
+        access::{TxAccess, TxAccessPolicy},
+        address::ExtendedAddr,
+        attribute::TxAttributes,
+        input::{TxoIndex, TxoPointer},
+        output::TxOut,
+        txid_hash, Tx, TxId,
+    },
+    witness::{TxInWitness, TxWitness},
+    TxAux, TxEnclaveAux,
+};
+use chain_tx_filter::BlockFilter;
+use chain_tx_validation::TxWithOutputs;
+use hex::decode;
+use kvdb::KeyValueDB;
+use kvdb_memorydb::create;
+use parity_scale_codec::{Decode, Encode};
+use secp256k1::schnorrsig::schnorr_sign;
+use secp256k1::{key::PublicKey, key::SecretKey, Message, Secp256k1, Signing};
+use std::collections::BTreeMap;
+use std::convert::TryFrom;
+use std::str::FromStr;
+use std::sync::Arc;
 
 fn main() {
-    env_logger::init();
-    let opt = AbciOpt::from_args();
-    let ctx = Context::new();
-    let socket = ctx.socket(REQ).expect("failed to init zmq context");
-    socket
-        .connect(&opt.enclave_server)
-        .expect("failed to connect to enclave zmq wrapper");
-    let proxy = ZmqEnclaveClient::new(socket);
+    println!("ok");
 
-    init_chain_id(&opt.chain_id);
-    info!(
-        "network={:?} network_id={:X}",
-        get_network(),
-        get_network_id()
-    );
+        let init_network_params = InitNetworkParameters {
+        initial_fee_policy: LinearFee::new(Milli::new(0, 0), Milli::new(0, 0)),
+        required_council_node_stake: Coin::max(),
+        unbonding_period: 1,
+        jailing_config: JailingParameters {
+            jail_duration: 60,
+            block_signing_window: 5,
+            missed_block_threshold: 1,
+        },
+        slashing_config: SlashingParameters {
+            liveness_slash_percent: SlashRatio::from_str("0.1").unwrap(),
+            byzantine_slash_percent: SlashRatio::from_str("0.2").unwrap(),
+            slash_wait_period: 5,
+        },
+    };
+    let mut nodes = BTreeMap::new();
+    let node_pubkey = ValidatorPubkey {
+        consensus_pubkey_type: ValidatorKeyType::Ed25519,
+        consensus_pubkey_b64: "EIosObgfONUsnWCBGRpFlRFq5lSxjGIChRlVrVWVkcE=".to_string(),
+    };
 
-    let addr = SocketAddr::new(opt.host, opt.port);
-    info!("starting up");
-    abci::run(
-        addr,
-        ChainNodeApp::new(
-            proxy,
-            &opt.genesis_app_hash,
-            &opt.chain_id,
-            &StorageConfig::new(&opt.data, StorageType::Node),
-            &StorageConfig::new(&opt.data, StorageType::AccountTrie),
-        ),
-    );
+      let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_slice(&[0xcd; 32]).expect("32 bytes, within curve order");
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+    let address = RedeemAddress::from(&public_key);
+    let staking_account_address = StakedStateAddress::BasicRedeem(address);
+    nodes.insert(address, node_pubkey);
+
+
+ let rewards_pool = Coin::zero();
+    let mut distribution = BTreeMap::new();
+    distribution.insert(address, (StakedStateDestination::Bonded, Coin::max()));
+    let init_config = InitConfig::new(rewards_pool, distribution, init_network_params, nodes);
+    let m= serde_json::to_string_pretty(&init_config).unwrap();
+    println!("{}", m);
 }

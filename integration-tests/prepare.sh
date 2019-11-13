@@ -78,7 +78,7 @@ function index_all_tags() {
 function clone_tendermint_config() {
     print_step "Cloning Tendermint config from \"${1}\" to \"${2}\""
 
-    rm -rf "${2}"
+    sudo rm -rf "${2}"
     mkdir -p "${2}"
     cp -r "${1}/." "${2}"
 }
@@ -134,7 +134,7 @@ function create_wallet_transfer_address() {
 function clone_wallet() {
     print_step "Cloning wallet from \"${1}\" to \"${2}\""
 
-    rm -rf "${2}"
+    sudo rm -rf "${2}"
     mkdir -p "${2}"
     cp -r "${1}/." "${2}/"
 }
@@ -269,7 +269,7 @@ print_step "Build Chain Transaction Enclave image"
 build_chain_tx_enclave_docker_image
 
 print_step "Initialize Tendermint"
-rm -rf "${TENDERMINT_TEMP_DIRECTORY}"
+sudo rm -rf "${TENDERMINT_TEMP_DIRECTORY}"
 init_tendermint "${TENDERMINT_TEMP_DIRECTORY}"
 
 print_step "Clone Tendermint configuration"
@@ -277,7 +277,7 @@ clone_tendermint_config "${TENDERMINT_TEMP_DIRECTORY}" "${TENDERMINT_WITHFEE_DIR
 clone_tendermint_config "${TENDERMINT_TEMP_DIRECTORY}" "${TENDERMINT_ZEROFEE_DIRECTORY}"
 
 print_step "Generate wallet and addresses"
-rm -rf "${WALLET_STORAGE_TEMP_DIRECTORY}"
+sudo rm -rf "${WALLET_STORAGE_TEMP_DIRECTORY}"
 create_wallet "Default" "${WALLET_PASSPHRASE}" "${WALLET_STORAGE_TEMP_DIRECTORY}"
 create_wallet_staking_address "Default" "${WALLET_PASSPHRASE}" "${WALLET_STORAGE_TEMP_DIRECTORY}"; STAKING_ADDRESS="${RET_VALUE}"
 create_wallet_transfer_address "Default" "${WALLET_PASSPHRASE}" "${WALLET_STORAGE_TEMP_DIRECTORY}"; TRANSFER_ADDRESS_1="${RET_VALUE}"

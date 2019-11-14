@@ -24,6 +24,22 @@ describe("Wallet management", () => {
 		}
 	});
 
+	it("can restore hd-wallet with specified name", async () => {
+		const walletName = generateWalletName();
+		const walletRequest = newWalletRequest(walletName, "123456");
+
+		const walletRestoreResult = await client.request("wallet_restore", [
+			walletRequest
+			, "speed tortoise kiwi forward extend baby acoustic foil coach castle ship purchase unlock base hip erode tag keen present vibrant oyster cotton write fetch"
+		]);
+		expect(walletRestoreResult).to.deep.eq(walletName);
+
+		const walletList = await client.request("wallet_list");
+		expect(walletList).to.include(walletName);
+	});
+
+
+
 	it("cannot access un-existing wallet", async () => {
 		const nonExistingWalletName = generateWalletName();
 		const nonExistingWalletRequest = newWalletRequest(

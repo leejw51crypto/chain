@@ -46,7 +46,7 @@ describe("Wallet Auto-sync", () => {
 		const transferAmount = "1000";
 
 		await asyncMiddleman(
-			zeroFeeRpcClient.request("wallet_restore", [receiverWalletRequest, "speed tortoise kiwi forward extend baby acoustic foil coach castle ship purchase unlock base hip erode tag keen present vibrant oyster cotton write fetch"]),
+			zeroFeeRpcClient.request("wallet_restore", [receiverWalletRequest, "blind heavy warrior off power high lab trend diagram happy bargain level demise safe image pride napkin example wolf adjust pistol spatial eight audit"]),
 			"Error when recovering receiver hdwallet",
 		);
 

@@ -122,9 +122,9 @@ describe("Wallet management", () => {
 		expect(res.length).to.deep.eq(24);
 
 		return expect(
-			client.request("wallet_create", [walletRequest,"Basic"]),
+			client.request("wallet_create", [walletRequest,"HD"]),
 		).to.eventually.rejectedWith(
-			`Invalid input: Wallet with name (${walletName}) already exists`,
+			`HD Key with given name already exists`,
 		);
 	});
 

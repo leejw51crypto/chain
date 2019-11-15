@@ -46,9 +46,10 @@ describe("Wallet Auto-sync", () => {
 		const transferAmount = "1000";
 
 		await asyncMiddleman(
-			zeroFeeRpcClient.request("wallet_create", [receiverWalletRequest, "HD"]),
-			"Error when creating receiver wallet",
+			zeroFeeRpcClient.request("wallet_restore", [receiverWalletRequest, "speed tortoise kiwi forward extend baby acoustic foil coach castle ship purchase unlock base hip erode tag keen present vibrant oyster cotton write fetch"]),
+			"Error when recovering receiver hdwallet",
 		);
+
 
 		await asyncMiddleman(
 			syncWallet(zeroFeeRpcClient, senderWalletRequest),

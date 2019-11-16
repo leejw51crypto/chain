@@ -32,7 +32,11 @@ rm -rf /enclave-storage
 sleep 1
 echo "clear folders"
 ls /root/bin -la
+echo "clear disk"
+rm -rf /root/bin/.storage
+rm -rf /root/bin/.cro_storage
 /root/bin/tendermint unsafe_reset_all
+echo "launch"
 /root/disk/launch.sh
 echo "ready"
 sleep 10 

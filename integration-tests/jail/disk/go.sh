@@ -13,8 +13,10 @@ echo "compile chain"
 pwd
 ls
 cd /root/chain
+cargo clean
 cargo build
 cd /root/chain/chain-tx-enclave/tx-validation
+make clean
 make
 cd /root
 cp /root/chain/target/debug/client-rpc /root/bin

@@ -27,15 +27,16 @@
       "name": ""
     }
   ],
-"app_hash": "A6EEE423BB7FBB55A4DA98BF72CFFC321E669BEF085C4B67D9912F85180E2283",
+
+"app_hash": "2AC4B133256CD3B8DEDBDEA48A6C1ACDC6269BBA6214DF5308ECB815CE71942B",
 "app_state": {
   "rewards_pool": "6250000000000000000",
   "distribution": {
-    "0x3ae55c16800dc4bd0e3397a9d7806fb1f11639de": [
+    "0x83fe11feb0887183eb62c30994bdd9e303497e3d": [
       "Bonded",
       "1250000000000000000"
     ],
-    "0x9ca76144cbea76bc47d47a8a016d215eb2831885": [
+    "0xe5b4b42406a061752c78bf5c4d6d6fccca0b575f": [
       "UnbondedFromGenesis",
       "2500000000000000000"
     ]
@@ -60,7 +61,7 @@
     "max_validators": 50
   },
   "council_nodes": {
-    "0x3ae55c16800dc4bd0e3397a9d7806fb1f11639de": [
+    "0x83fe11feb0887183eb62c30994bdd9e303497e3d": [
       "test",
       "security@example.com",
       {

@@ -1,8 +1,8 @@
 {
     "rewards_pool": "6250000000000000000",
     "distribution": {
-        "0x9ca76144cbea76bc47d47a8a016d215eb2831885": "2500000000000000000",
-        "0x3ae55c16800dc4bd0e3397a9d7806fb1f11639de": "1250000000000000000"
+        "0xe5b4b42406a061752c78bf5c4d6d6fccca0b575f": "2500000000000000000",
+        "0x83fe11feb0887183eb62c30994bdd9e303497e3d": "1250000000000000000"
     },
     "unbonding_period": 60,
     "required_council_node_stake": "1250000000000000000",
@@ -21,7 +21,7 @@
         "per_byte_fee": "1.25"
     },
     "council_nodes": {
-            "0x3ae55c16800dc4bd0e3397a9d7806fb1f11639de": [
+            "0x83fe11feb0887183eb62c30994bdd9e303497e3d": [
                 "test",
                 "security@example.com",
                 {

@@ -1,3 +1,7 @@
 #!/usr/bin/python3
-
-print("jail & unjail test");
+import docker
+client = docker.from_env()
+containers= client.containers.list()
+for container in containers:
+    id = container
+    print(id.id, id.name)

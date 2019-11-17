@@ -17,60 +17,86 @@
     }
   },
   "validators": [
-    {
-      "address": "3FE3F07E3C3E6532464E3A4CAC0AF43B14EFDE9D",
-      "pub_key": {
-        "type": "tendermint/PubKeyEd25519",
-        "value": "tnD57iPl+OOv/oD+NXvPxt8N2TOWCbHTXCjhY5Op5oQ="
-      },
-      "power": "10",
-      "name": ""
-    }
+    
   ],
 
-"app_hash": "2AC4B133256CD3B8DEDBDEA48A6C1ACDC6269BBA6214DF5308ECB815CE71942B",
-"app_state": {
-  "rewards_pool": "6250000000000000000",
-  "distribution": {
-    "0x83fe11feb0887183eb62c30994bdd9e303497e3d": [
-      "Bonded",
-      "1250000000000000000"
-    ],
-    "0xe5b4b42406a061752c78bf5c4d6d6fccca0b575f": [
-      "UnbondedFromGenesis",
-      "2500000000000000000"
-    ]
-  },
-  "network_params": {
-    "initial_fee_policy": {
-      "constant": 1100,
-      "coefficient": 1250
+  "app_hash": "06F2C8A94B439884C3A8B65E9BFE64AE03A4793008C76599B300DA91C5FB006E",
+  "app_state": {
+    "rewards_pool": "5000000000000000000",
+    "distribution": {
+      "0x56cbf4a74f59dcf1e0064f0daff3b1cf177ea972": [
+        "Bonded",
+        "1250000000000000000"
+      ],
+      "0x7310a0328e446df02cb4fb668a7a6790cea8c96e": [
+        "Bonded",
+        "1250000000000000000"
+      ],
+      "0x83fe11feb0887183eb62c30994bdd9e303497e3d": [
+        "Bonded",
+        "1250000000000000000"
+      ],
+      "0xe5b4b42406a061752c78bf5c4d6d6fccca0b575f": [
+        "Bonded",
+        "1250000000000000000"
+      ]
     },
-    "required_council_node_stake": "1250000000000000000",
-    "unbonding_period": 60,
-    "jailing_config": {
-      "jail_duration": 86400,
-      "block_signing_window": 100,
-      "missed_block_threshold": 50
+    "network_params": {
+      "initial_fee_policy": {
+        "constant": 1100,
+        "coefficient": 1250
+      },
+      "required_council_node_stake": "1250000000000000000",
+      "unbonding_period": 60,
+      "jailing_config": {
+        "jail_duration": 86400,
+        "block_signing_window": 100,
+        "missed_block_threshold": 50
+      },
+      "slashing_config": {
+        "liveness_slash_percent": "0.100",
+        "byzantine_slash_percent": "0.200",
+        "slash_wait_period": 10800
+      },
+      "max_validators": 50
     },
-    "slashing_config": {
-      "liveness_slash_percent": "0.100",
-      "byzantine_slash_percent": "0.200",
-      "slash_wait_period": 10800
-    },
-    "max_validators": 50
-  },
-  "council_nodes": {
-    "0x83fe11feb0887183eb62c30994bdd9e303497e3d": [
-      "test",
-      "security@example.com",
-      {
-        "consensus_pubkey_type": "Ed25519",
-        "consensus_pubkey_b64": "tnD57iPl+OOv/oD+NXvPxt8N2TOWCbHTXCjhY5Op5oQ="
-      }
-    ]
+    "council_nodes": {
+      "0x56cbf4a74f59dcf1e0064f0daff3b1cf177ea972": [
+        "test3",
+        "security3@example.com",
+        {
+          "consensus_pubkey_type": "Ed25519",
+          "consensus_pubkey_b64": "NK3JE+JnJ8F5VF5FxAbqgiUQddNGpPD9Mt6DEguIzcQ="
+        }
+      ],
+      "0x7310a0328e446df02cb4fb668a7a6790cea8c96e": [
+        "test2",
+        "security2@example.com",
+        {
+          "consensus_pubkey_type": "Ed25519",
+          "consensus_pubkey_b64": "pCwBWrb/sha9fcB4mGxSuTG56IMw5qqpuPMcwDiwQnk="
+        }
+      ],
+      "0x83fe11feb0887183eb62c30994bdd9e303497e3d": [
+        "test0",
+        "security0@example.com",
+        {
+          "consensus_pubkey_type": "Ed25519",
+          "consensus_pubkey_b64": "zVbAlxXktHidGs1c6pA01IIxLqm0DIZiqHGZqeWIjB0="
+        }
+      ],
+      "0xe5b4b42406a061752c78bf5c4d6d6fccca0b575f": [
+        "test1",
+        "security1@example.com",
+        {
+          "consensus_pubkey_type": "Ed25519",
+          "consensus_pubkey_b64": "6hYXhMHZpWP0yz+5+aT+wLT2deJsGcyOLR/h+o7CZS8="
+        }
+      ]
+    }
   }
-}
+  
+  
 
 
 }

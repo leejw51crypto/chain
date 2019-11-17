@@ -3,7 +3,7 @@ services:
   chain:
     build: .
     volumes:
-      - ../..:/root/chain
+      - ../..:/root/chain_src
       - ./disk:/root/disk
     image: chain_test
     ports:
@@ -13,7 +13,7 @@ services:
        - "26656:26656"
        - "26657:26657"
        - "26658:26658"
-    command: /root/disk/go.sh
+    command: /root/disk/go0.sh
     environment:
       RUST_BACKTRACE: 1
       RUST_LOG: debug

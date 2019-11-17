@@ -1,5 +1,5 @@
 #!/bin/bash
-docker-compose up --build
+docker-compose up
 echo "docker compose ok"
 #echo "wait for docker setting up"
 #sleep 1800

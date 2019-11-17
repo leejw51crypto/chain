@@ -1,20 +1,59 @@
 version: '3'
+
 services:
-  chain:
+  chain0:
     build: .
     volumes:
       - ../..:/root/chain_src
       - ./disk:/root/disk
-    image: chain_test
+    image: chain_test0
     ports:
        - "1022:22"
-       - "1080:80"
        - "9981:9981"
-       - "26656:26656"
-       - "26657:26657"
-       - "26658:26658"
+       - "26656:26656"     
     command: /root/disk/go0.sh
     environment:
       RUST_BACKTRACE: 1
       RUST_LOG: debug
-  
+  chain1:
+    build: .
+    volumes:
+      - ../..:/root/chain_src
+      - ./disk:/root/disk
+    image: chain_test1
+    ports:
+       - "1021:22"
+       - "9980:9981"
+       - "26655:26656"
+    command: /root/disk/go1.sh
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug    
+  chain2:
+    build: .
+    volumes:
+      - ../..:/root/chain_src
+      - ./disk:/root/disk
+    image: chain_test2
+    ports:
+       - "1020:22"
+       - "9979:9981"
+       - "26654:26656"
+    command: /root/disk/go2.sh
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug    
+  chain3:
+    build: .
+    volumes:
+      - ../..:/root/chain_src
+      - ./disk:/root/disk
+    image: chain_test3
+    ports:
+       - "1019:22"
+       - "9978:9981"
+       - "25653:26656"
+    command: /root/disk/go3.sh
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug      

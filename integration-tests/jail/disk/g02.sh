@@ -38,9 +38,9 @@ echo "clear disk"
 rm -rf /root/bin/.storage
 rm -rf /root/bin/.cro_storage
 /root/bin/tendermint unsafe_reset_all
-#echo "launch"
-#/root/disk/launch.sh
+echo "launch"
+/root/disk/launch.sh
 echo "ready"
 sleep 10 
 #python3 /root/disk/test.py
-#sleep infinity 
+sleep infinity 

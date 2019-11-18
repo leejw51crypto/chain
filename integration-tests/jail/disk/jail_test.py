@@ -49,6 +49,8 @@ def test_jailing() :
         assert True
     else :
         assert False
+    print("wait for jailing")
+    time.sleep(10)
     jailthis = containers["jail_chain1_1"]
     print("jail = " , jailthis)
     jailthis.kill()

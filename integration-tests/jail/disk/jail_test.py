@@ -20,6 +20,69 @@ def get_containers() :
 # tendermint rpc
 
 server="http://localhost:26657"
+client_rpc= "http://localhost:9981"
+headers = {
+    'Content-Type': 'application/json',
+}
+
+
+
+def create_staking_address(name, passphrase):
+    q = {
+        "method": "wallet_createStakingAddress",
+        "jsonrpc": "2.0",
+        "params": [{
+            "name": name,
+            "passphrase": passphrase
+        }],
+        "id": "wallet_createStakingAddress"
+    }
+    data = json.dumps(q)
+    response = requests.post(client_rpc, headers=headers, data=data)
+
+
+def restore_wallet(name, passphrase, mnemonics):
+    q = {
+        "method": "wallet_restore",
+        "jsonrpc": "2.0",
+        "params": [{
+            "name": name,
+            "passphrase": passphrase
+        }, mnemonics],
+        "id": "wallet_restore_hd"
+    }
+    data = json.dumps(q)
+    response = requests.post(client_rpc, headers=headers, data=data)
+    print("restore wallet {}".format(name), response.json())
+
+def restore_wallets():
+    restore_wallet(
+        "a", "1",
+        "speed tortoise kiwi forward extend baby acoustic foil coach castle ship purchase unlock base hip erode tag keen present vibrant oyster cotton write fetch"
+    )
+
+
+def create_addresses():
+    create_staking_address("a", "1")
+    create_staking_address("a", "1")
+
+
+
+def unjail(name, passphrase, address):
+    q = {
+        "method": "staking_unjail",
+        "jsonrpc": "2.0",
+        "params": [{
+            "name": name,
+            "passphrase": passphrase
+        }, address],
+        "id": "staking_unjail"
+    }
+    data = json.dumps(q)
+    response = requests.post(client_rpc, headers=headers, data=data)
+    print(response.json())
+    return response.json()
+
 
 def check_validators() :
 	try: 
@@ -42,6 +105,7 @@ def wait_for_ready(count) :
 
 
 def test_jailing() :
+    print("test jailing")
     wait_for_ready(2)
     containers=get_containers()
     print(containers)
@@ -65,5 +129,23 @@ def test_jailing() :
     print("jail test success")
 
 
+def test_unjailing() :
+    print("test unjailing")
+    wait_for_ready(1)
+
+    count=2
+    while True:
+        unjail("a","1", "0xe5b4b42406a061752c78bf5c4d6d6fccca0b575f")
+        validators=check_validators()
+        print("{}  current validators={}  waiting for validators={}".format(datetime.datetime.now(),validators, count))
+        if count== validators :
+            print("validators ready")
+            break
+        time.sleep(60)
+    print("unjail test success")
+
 ############################################################################3
 test_jailing()
+restore_wallets()
+create_addresses()
+test_unjailing()

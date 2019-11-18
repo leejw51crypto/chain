@@ -11,7 +11,8 @@ def get_containers() :
     ret= {}
     for container in containers:
         id = container
-        ret[id.name]= id.id
+        #ret[id.name]= id.id
+        ret[id.name]= container
     return ret
     
 
@@ -24,17 +25,16 @@ def check_validators() :
 	try: 
 		x= requests.get('{}/validators'.format(server))
 		data =len(x.json()["result"]["validators"])
-		print(data)
 		return data
 	except requests.ConnectionError:
  		return 0
 	except:
 		assert False
 
-def wait_for_ready() :
+def wait_for_ready(count) :
 	while True:
 		validators=check_validators()
-		if 2<= validators :
+		if count== validators :
 			print("validators ready")
 			break
 		print("validators =", validators)
@@ -42,7 +42,7 @@ def wait_for_ready() :
 
 
 ############################################################################3
-wait_for_ready()
+wait_for_ready(2)
 containers=get_containers()
 print(containers)
 if "jail_chain1_1" in containers :
@@ -51,3 +51,12 @@ else :
     assert False
 jailthis = containers["jail_chain1_1"]
 print("jail = " , jailthis)
+jailthis.kill()
+wait_for_ready(1)
+#jailed
+containers=get_containers()
+print(containers)
+if "jail_chain1_1" in containers :
+    assert False
+else :
+    assert True 

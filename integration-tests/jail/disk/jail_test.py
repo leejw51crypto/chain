@@ -101,7 +101,7 @@ def wait_for_ready(count) :
 		if count== validators :
 			print("validators ready")
 			break
-		time.sleep(1)
+		time.sleep(60)
 
 
 def test_jailing() :
@@ -141,7 +141,7 @@ def test_unjailing() :
         if count== validators :
             print("validators ready")
             break
-        time.sleep(60)
+        time.sleep(10)
     print("unjail test success")
 
 ############################################################################3

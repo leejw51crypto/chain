@@ -34,7 +34,7 @@ def check_validators() :
 def wait_for_ready(count) :
 	while True:
 		validators=check_validators()
-		print("{}  current validators={}  waiting for  validators={}".format(datetime.datetime.now(),validators, count))
+		print("{}  current validators={}  waiting for validators={}".format(datetime.datetime.now(),validators, count))
 		if count== validators :
 			print("validators ready")
 			break

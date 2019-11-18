@@ -10,7 +10,8 @@ services:
     ports:
        - "1022:22"
        - "9981:9981"
-       - "26656:26656"     
+       - "26656:26656"
+      
     command: /root/disk/go0.sh
     environment:
       RUST_BACKTRACE: 1
@@ -22,10 +23,11 @@ services:
       - ./disk:/root/disk
     image: chain_test1
     ports:
-       - "1021:22"
-       - "9980:9981"
-       - "26655:26656"
+       - "1023:22"
+       - "9982:9981"
+       - "25657:26656"
     command: /root/disk/go1.sh
     environment:
       RUST_BACKTRACE: 1
       RUST_LOG: debug    
+  

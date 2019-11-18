@@ -5,12 +5,15 @@ import requests
 import datetime
 import time
 
-def show_containers() :
-	client = docker.from_env()
-	containers= client.containers.list()
-	for container in containers:
-	    id = container
-	    print(id.id, id.name)
+def get_containers() :
+    client = docker.from_env()
+    containers= client.containers.list()
+    ret= {}
+    for container in containers:
+        id = container
+        ret[id.name]= id.id
+    return ret
+    
 
 #show_containers()
 # tendermint rpc
@@ -19,7 +22,7 @@ server="http://localhost:26657"
 
 def check_validators() :
 	try: 
-		x= requests.get("http://localhost:26657/validators")
+		x= requests.get('{}/validators'.format(server))
 		data =len(x.json()["result"]["validators"])
 		print(data)
 		return data
@@ -40,4 +43,11 @@ def wait_for_ready() :
 
 ############################################################################3
 wait_for_ready()
-show_containers()
+containers=get_containers()
+print(containers)
+if "jail_chain1_1" in containers :
+    assert True
+else :
+    assert False
+jailthis = containers["jail_chain1_1"]
+print("jail = " , jailthis)

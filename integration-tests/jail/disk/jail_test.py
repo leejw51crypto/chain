@@ -34,29 +34,34 @@ def check_validators() :
 def wait_for_ready(count) :
 	while True:
 		validators=check_validators()
+		print("validators =", validators)
 		if count== validators :
 			print("validators ready")
 			break
-		print("validators =", validators)
 		time.sleep(1)
 
 
+def test_jailing() :
+    wait_for_ready(2)
+    containers=get_containers()
+    print(containers)
+    if "jail_chain1_1" in containers :
+        assert True
+    else :
+        assert False
+    jailthis = containers["jail_chain1_1"]
+    print("jail = " , jailthis)
+    jailthis.kill()
+    wait_for_ready(1)
+    #jailed
+    containers=get_containers()
+    print(containers)
+    if "jail_chain1_1" in containers :
+        assert False
+    else :
+        assert True 
+    print("jail test success")
+
+
 ############################################################################3
-wait_for_ready(2)
-containers=get_containers()
-print(containers)
-if "jail_chain1_1" in containers :
-    assert True
-else :
-    assert False
-jailthis = containers["jail_chain1_1"]
-print("jail = " , jailthis)
-jailthis.kill()
-wait_for_ready(1)
-#jailed
-containers=get_containers()
-print(containers)
-if "jail_chain1_1" in containers :
-    assert False
-else :
-    assert True 
+test_jailing()

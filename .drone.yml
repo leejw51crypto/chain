@@ -117,6 +117,23 @@ trigger:
   event:
   - push
 
+
+---
+kind: pipeline
+type: exec
+name: integration-tests-jail-unjail
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: integration-tests
+  commands:
+  - cd integration-tests/jail
+  - ./run.sh
+
+
 ---
 kind: signature
 hmac: 0f8171e647ab947251845f2541fd7aa6710961670259ab31ed47b15080a96b7b

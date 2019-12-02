@@ -1,0 +1,14 @@
+version: '3'
+services:
+  chain_compiler:
+    build: .
+    volumes:
+      - ../../..:/root/chain_src
+      - ../disk:/root/disk
+    image: chain_compiler
+    ports:
+       - "1022:22"
+    command: /root/disk/go_compile.sh
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug

@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+  chain0:
+    build: .
+    volumes:
+      - ../..:/root/chain_src
+      - ./disk:/root/disk
+    image: chain_test0
+    ports:
+       - ${JAIL_CLIENT_RPC}:9981
+       - ${JAIL_CHAIN_RPC}:26657
+    command: /root/disk/go0.sh
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug
+      TENDERMINT_FLAG0: --rpc.laddr=tcp://0.0.0.0:26657
+      TENDERMINT_FLAG1:
+      APP_HASH:  $APP_HASH
+  chain1:
+    build: .
+    volumes:
+      - ../..:/root/chain_src 
+      - ./disk:/root/disk
+    image: chain_test1
+    ports:
+       - "1012:22"
+    command: /root/disk/go1.sh
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug    
+      TENDERMINT_FLAG0: --p2p.persistent_peers 
+      TENDERMINT_FLAG1: $SEED_ID@chain0:26656
+      APP_HASH: $APP_HASH

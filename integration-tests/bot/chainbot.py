@@ -57,8 +57,8 @@ def tendermint_cfg(moniker, app_port, rpc_port, p2p_port, peers):
         'fast_sync': True,
         'db_backend': 'goleveldb',
         'db_dir': 'data',
-        # 'log_level': 'main:info,state:info,*:error',
-        'log_level': '*:debug',
+        'log_level': 'main:info,state:info,*:error',
+        #'log_level': '*:debug',
         'log_format': 'plain',
         'genesis_file': 'config/genesis.json',
         'priv_validator_key_file': 'config/priv_validator_key.json',
@@ -137,7 +137,7 @@ def tendermint_cfg(moniker, app_port, rpc_port, p2p_port, peers):
             'timeout_commit': '1s',
             'skip_timeout_commit': False,
             'create_empty_blocks': True,
-            'create_empty_blocks_interval': '5s',
+            'create_empty_blocks_interval': '0s',
             'peer_gossip_sleep_duration': '100ms',
             'peer_query_maj23_sleep_duration': '2s'
         },
@@ -452,10 +452,10 @@ async def init_cluster(cfg):
                   open(cfg_path / Path('priv_validator_key.json'), 'w'),
                   indent=4)
         toml.dump(tendermint_cfg(node_name,
-                                 BASE_PORT + (i * 10) + 8,
-                                 BASE_PORT + (i * 10) + 7,
-                                 BASE_PORT + (i * 10) + 6,
-                                 peers),
+                                 26658,
+                                 26657,
+                                 26656,
+                                 ""),
                   open(cfg_path / Path('config.toml'), 'w'))
 
         data_path = ROOT_PATH / Path(node_name) / Path('tendermint') / Path('data')

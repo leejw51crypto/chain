@@ -42,8 +42,8 @@ def tendermint_cfg(moniker, app_port, rpc_port, p2p_port, peers):
         'fast_sync': True,
         'db_backend': 'goleveldb',
         'db_dir': 'data',
-        # 'log_level': 'main:info,state:info,*:error',
-        'log_level': '*:debug',
+        'log_level': 'main:info,state:info,*:error',
+        #'log_level': '*:debug',
         'log_format': 'plain',
         'genesis_file': 'config/genesis.json',
         'priv_validator_key_file': 'config/priv_validator_key.json',
@@ -172,14 +172,14 @@ def app_state_cfg(cfg):
         "unbonding_period": 60,
         "required_council_node_stake": "1",
         "jailing_config": {
-            "jail_duration": 86400,
-            "block_signing_window": 100,
-            "missed_block_threshold": 50
+            "jail_duration": 86,
+            "block_signing_window": 20,
+            "missed_block_threshold": 10
         },
         "slashing_config": {
             "liveness_slash_percent": "0.1",
             "byzantine_slash_percent": "0.2",
-            "slash_wait_period": 10800
+            "slash_wait_period": 10
         },
         "initial_fee_policy": {
             "base_fee": "1.1",
@@ -404,6 +404,23 @@ async def init_cluster(cfg):
     app_hash = genesis['app_hash']
     root_path = Path(cfg['root_path']).resolve()
 
+    node_cfg= cfg['nodes'][0]
+    info= {"app_hash":app_hash, "seed_id":  SigningKey(node_cfg['node_seed']).validator_address().lower()}
+    # write
+    json.dump(info,
+                open(root_path / Path('info.json'), 'w'),
+                indent=4)
+    # write nodes
+    json.dump(cfg,
+                open(root_path / Path('nodes_info.json'), 'w'),
+                indent=4)
+
+    # write
+    f = open("run_test_env.sh", "w")
+    f.write("export APP_HASH={}\n".format(info["app_hash"]))
+    f.write("export SEED_ID={}\n".format(info["seed_id"]))
+    f.close()
+    
     for i, node in enumerate(cfg['nodes']):
         base_port = node['base_port']
         node_name = 'node%d' % i
@@ -426,10 +443,14 @@ async def init_cluster(cfg):
             patch.apply(
                 tendermint_cfg(
                     node_name,
-                    base_port + (i * 10) + 8,
-                    base_port + (i * 10) + 7,
-                    base_port + (i * 10) + 6,
-                    peers
+                    #base_port + (i * 10) + 8,
+                    #base_port + (i * 10) + 7,
+                    #base_port + (i * 10) + 6,
+                    #peers
+                    26658,
+                    26657,
+                    26656,
+                    ""              
                 )
             ),
             open(cfg_path / Path('config.toml'), 'w')
@@ -479,7 +500,7 @@ class CLI:
         share = int(int(max_coin - rewards_pool) / count / 2)
         sgx_mode = '' if sgx_device else '-sw'
         cfg = {
-            'root_path': './data',
+            'root_path': root_path,
             'chain_id': chain_id,
             'sgx_device': sgx_device,
             'enclave_docker_image': 'integration-tests-chain-tx-enclave' + sgx_mode,
@@ -507,6 +528,7 @@ class CLI:
             ],
         }
         print(json.dumps(cfg, indent=4))
+        return cfg
 
     def prepare(self, spec=None):
         '''Prepare tendermint testnet based on specification
@@ -516,6 +538,9 @@ class CLI:
         asyncio.run(init_cluster(cfg))
         print('Prepared succesfully', cfg['root_path'])
 
+    def prepare_cfg(self, cfg, spec=None):
+        asyncio.run(init_cluster(cfg))
+        print('Prepared succesfully', cfg['root_path'])
 
 if __name__ == '__main__':
     fire.Fire(CLI())

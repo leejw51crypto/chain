@@ -7,8 +7,8 @@ from decouple import config
 
 #CLIENT_RPC_URL = config('CLIENT_RPC_URL', 'http://127.0.0.1:9981')
 #CHAIN_RPC_URL = config('CHAIN_RPC_URL', 'http://127.0.0.1:26657')
-CLIENT_RPC_URL = 'http://127.0.0.1:{}'.format(config('JAIL_CLIENT_RPC'))  
-CHAIN_RPC_URL = 'http://127.0.0.1:{}'.format(config('JAIL_CHAIN_RPC')) 
+CLIENT_RPC_URL = 'http://localhost:{}'.format(config('JAIL_CLIENT_RPC'))  
+CHAIN_RPC_URL = 'http://localhost:{}'.format(config('JAIL_CHAIN_RPC')) 
 DEFAULT_WALLET = config('DEFAULT_WALLET', 'Default')
 
 

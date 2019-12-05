@@ -14,8 +14,10 @@ setup(
         'fire==0.2.1',
         'mnemonic==0.19',
         'jsonpatch==1.24',
+        'jsonrpcclient[requests]',
     ],
     scripts=[
         'chainbot.py',
+        'chainrpc.py',
     ]
 )

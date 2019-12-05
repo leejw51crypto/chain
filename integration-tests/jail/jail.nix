@@ -74,6 +74,7 @@ stdenv.mkDerivation rec {
   buildInputs = [
     
     gmp
+    zeromq
     pkgconfig
     # With Python configuration requiring a special wrapper
     (python37.buildEnv.override {
@@ -98,5 +99,6 @@ stdenv.mkDerivation rec {
   # Customizable development shell setup with at last SSL certs set
   shellHook = ''
     export SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
+    export LD_LIBRARY_PATH="/nix/store/$(ls /nix/store | grep -E "zeromq-[0-9\.]+$" | head -n1)/lib":$LD_LIBRARY_PATH
   '';
 }

@@ -1,7 +1,8 @@
 #!/bin/bash
 echo "run test"
-echo "chian rpc="$JAIL_CHAIN_RPC
-echo "tendermint rpc port="$JAIL_TENDERMINT_RPC
+. run_open_port.sh
+echo "client rpc port="$JAIL_CLIENT_RPC
+echo "chain rpc port="$JAIL_CHAIN_RPC
 
 . run_test_env.sh
 docker-compose up -d  

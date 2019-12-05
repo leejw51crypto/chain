@@ -1,4 +1,4 @@
-FROM baiduxlab/sgx-rust:1804-1.0.9
+FROM cryptocom/chain:latest
 LABEL maintainer="Crypto.com"
 RUN echo 'source /opt/sgxsdk/environment' >> /root/.docker_bashrc 
 RUN echo 'source /root/.cargo/env' >> /root/.docker_bashrc

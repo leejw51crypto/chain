@@ -2,7 +2,7 @@ Prerequisite
 ============
 
 * `tendermint <https://tendermint.com/downloads>`_ in PATH.
-* `docker <https://docs.docker.com/install/>`_ with ``integration-tests-chain-tx-enclave`` image inside.
+* `docker <https://docs.docker.com/install/>`_ with ``integration-tests-chain-tx-enclave`` (or ``integration-tests-chain-tx-enclave-sw`` for software mode) image inside.
 * binaries ``dev-utils`` ``client-cli`` ``chain-abci`` ``client-rpc`` in PATH.
 * python3.7+
 

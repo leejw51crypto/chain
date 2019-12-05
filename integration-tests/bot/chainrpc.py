@@ -5,7 +5,7 @@ import fire
 from jsonrpcclient import request
 from decouple import config
 
-CLIENT_RPC_URL = config('CLIENT_RPC_URL', 'http://localhost:9981')
+CLIENT_RPC_URL = config('CLIENT_RPC_URL', 'http://localhost:26651')
 CHAIN_RPC_URL = config('CHAIN_RPC_URL', 'http://localhost:26657')
 DEFAULT_WALLET = config('DEFAULT_WALLET', 'Default')
 
@@ -78,7 +78,7 @@ class Wallet:
 
     def view_key(self, name=DEFAULT_WALLET):
         return call(
-            'wallet_getViewKey'
+            'wallet_getViewKey',
             [name, get_passphrase()]
         )
 
@@ -117,11 +117,11 @@ class Staking:
     def unbond_stake(self, address, amount, name=DEFAULT_WALLET):
         return call('staking_unbondStake', [name, get_passphrase()], fix_address(address), amount)
 
-    def withdraw_all_unbonded_stake(self, from_address, to_address, name=DEFAULT_WALLET):
+    def withdraw_all_unbonded_stake(self, from_address, to_address, view_keys=None, name=DEFAULT_WALLET):
         return call(
             'staking_withdrawAllUnbondedStake',
             [name, get_passphrase()],
-            fix_address(from_address), to_address, []
+            fix_address(from_address), to_address, view_keys or []
         )
 
     def unjail(self, address, name=DEFAULT_WALLET):
@@ -131,17 +131,17 @@ class Staking:
 class MultiSig:
     def create_address(self, public_keys, self_public_key, required_signatures, name=DEFAULT_WALLET):
         return call('multiSig_createAddress',
-                   [name, get_passphrase()],
-                   public_keys,
-                   self_public_key,
-                   required_signatures)
+                    [name, get_passphrase()],
+                    public_keys,
+                    self_public_key,
+                    required_signatures)
 
     def new_session(self, message, signer_public_keys, self_public_key, name=DEFAULT_WALLET):
         return call('multiSig_newSession',
-                   [name, get_passphrase()],
-                   message,
-                   signer_public_keys,
-                   self_public_key)
+                    [name, get_passphrase()],
+                    message,
+                    signer_public_keys,
+                    self_public_key)
 
     def nonce_commitment(self, session_id, passphrase):
         return call('multiSig_nonceCommitment', session_id, passphrase)
@@ -166,9 +166,9 @@ class MultiSig:
 
     def broadcast_with_signature(self, session_id, unsigned_transaction, name=DEFAULT_WALLET):
         return call('multiSig_broadcastWithSignature',
-                   [name, get_passphrase()],
-                   session_id,
-                   unsigned_transaction)
+                    [name, get_passphrase()],
+                    session_id,
+                    unsigned_transaction)
 
 
 class Blockchain:
@@ -187,9 +187,8 @@ class Blockchain:
     def latest_height(self):
         return self.status()['sync_info']['latest_block_height']
 
-    def validators(self, height='latest'):
-        height = height if height != 'latest' else self.latest_height()
-        return call_chain('validators', str(height))
+    def validators(self, height=None):
+        return call_chain('validators', str(height) if height is not None else None)
 
     def block(self, height='latest'):
         height = height if height != 'latest' else self.latest_height()
@@ -207,8 +206,8 @@ class Blockchain:
         height = height if height != 'latest' else self.latest_height()
         return call_chain('commit', str(height))
 
-    def query(self, path, data, proof=False):
-        return call_chain('abci_query', path, data, proof)
+    def query(self, path, data=None, height=None, proof=False):
+        return call_chain('abci_query', path, data, str(height) if height is not None else None, proof)
 
     def broadcast_tx_commit(self, tx):
         return call_chain('broadcast_tx_commit', tx)

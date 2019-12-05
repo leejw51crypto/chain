@@ -42,8 +42,8 @@ def tendermint_cfg(moniker, hostname, app_port, rpc_port, p2p_port, peers):
         'fast_sync': True,
         'db_backend': 'goleveldb',
         'db_dir': 'data',
-        # 'log_level': 'main:info,state:info,*:error',
-        'log_level': '*:debug',
+        'log_level': 'main:info,state:info,*:error',
+        #'log_level': '*:debug',
         'log_format': 'plain',
         'genesis_file': 'config/genesis.json',
         'priv_validator_key_file': 'config/priv_validator_key.json',
@@ -461,10 +461,10 @@ async def init_cluster(cfg):
                 tendermint_cfg(
                     node_name,
                     node['hostname'],
-                    base_port + 8,
-                    base_port + 7,
-                    base_port + 6,
-                    peers
+                    26658,
+                    26657,
+                    26656,
+                    ""
                 )
             ),
             open(cfg_path / Path('config.toml'), 'w')
@@ -502,12 +502,12 @@ async def populate_wallet_addresses(nodes):
 
 
 class CLI:
-    def gen(self, count=1, expansion_cap=0,
+    def gen(self, count=1, expansion_cap=50000000000000000,
             dist=1000000000000000000,
             genesis_time="2019-11-20T08:56:48.618137Z",
             base_fee='0.0', per_byte_fee='0.0',
             base_port=26650, sgx_device=None,
-            chain_id='test-ab', root_path='./', hostname='localhost'):
+            chain_id='test-ab', root_path='./', hostname='127.0.0.1'):
         '''Generate testnet node specification
         :param count: Number of nodes, [default: 1].
         '''

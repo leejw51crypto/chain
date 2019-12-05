@@ -507,7 +507,7 @@ class CLI:
             genesis_time="2019-11-20T08:56:48.618137Z",
             base_fee='0.0', per_byte_fee='0.0',
             base_port=26650, sgx_device=None,
-            chain_id='test-chain-y3m1e6-AB', root_path='./', hostname='localhost'):
+            chain_id='test-ab', root_path='./', hostname='localhost'):
         '''Generate testnet node specification
         :param count: Number of nodes, [default: 1].
         '''

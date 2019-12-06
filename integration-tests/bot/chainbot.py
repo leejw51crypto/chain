@@ -184,7 +184,7 @@ def app_state_cfg(cfg):
             "monetary_expansion_cap": str(cfg['expansion_cap']),
             "distribution_period": 86400,
             "monetary_expansion_r0": 500,
-            "monetary_expansion_tau": 145000000,
+            "monetary_expansion_tau": 1450000000,
             "monetary_expansion_decay": 999860
         },
         "initial_fee_policy": {

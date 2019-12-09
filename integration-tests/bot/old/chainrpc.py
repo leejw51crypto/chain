@@ -5,9 +5,8 @@ import fire
 from jsonrpcclient import request
 from decouple import config
 
-BASE_PORT = config('BASE_PORT', 26650, cast=int)
-CLIENT_RPC_URL = config('CLIENT_RPC_URL', 'http://127.0.0.1:%d' % (BASE_PORT + 9))
-CHAIN_RPC_URL = config('CHAIN_RPC_URL', 'http://127.0.0.1:%d' % (BASE_PORT + 7))
+CLIENT_RPC_URL = config('CLIENT_RPC_URL', 'http://localhost:26651')
+CHAIN_RPC_URL = config('CHAIN_RPC_URL', 'http://localhost:26657')
 DEFAULT_WALLET = config('DEFAULT_WALLET', 'Default')
 
 
@@ -18,8 +17,8 @@ def get_passphrase():
     return phrase
 
 
-def call(method, *args, **kwargs):
-    rsp = request(CLIENT_RPC_URL, method, *args, **kwargs)
+def call(method, *args):
+    rsp = request(CLIENT_RPC_URL, method, *args)
     return rsp.data.result
 
 
@@ -109,16 +108,16 @@ class Wallet:
 
 
 class Staking:
-    def deposit(self, to_address, inputs, name=DEFAULT_WALLET):
+    def deposit_stake(self, to_address, inputs, name=DEFAULT_WALLET):
         return call('staking_depositStake', [name, get_passphrase()], fix_address(to_address), inputs)
 
     def state(self, address, name=DEFAULT_WALLET):
         return call('staking_state', [name, get_passphrase()], fix_address(address))
 
-    def unbond(self, address, amount, name=DEFAULT_WALLET):
-        return call('staking_unbondStake', [name, get_passphrase()], fix_address(address), str(amount))
+    def unbond_stake(self, address, amount, name=DEFAULT_WALLET):
+        return call('staking_unbondStake', [name, get_passphrase()], fix_address(address), amount)
 
-    def withdraw_all_unbonded(self, from_address, to_address, view_keys=None, name=DEFAULT_WALLET):
+    def withdraw_all_unbonded_stake(self, from_address, to_address, view_keys=None, name=DEFAULT_WALLET):
         return call(
             'staking_withdrawAllUnbondedStake',
             [name, get_passphrase()],

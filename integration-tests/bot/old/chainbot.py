@@ -42,8 +42,8 @@ def tendermint_cfg(moniker, hostname, app_port, rpc_port, p2p_port, peers):
         'fast_sync': True,
         'db_backend': 'goleveldb',
         'db_dir': 'data',
-        # 'log_level': 'main:info,state:info,*:error',
-        'log_level': '*:debug',
+        'log_level': 'main:info,state:info,*:error',
+        #'log_level': '*:debug',
         'log_format': 'plain',
         'genesis_file': 'config/genesis.json',
         'priv_validator_key_file': 'config/priv_validator_key.json',
@@ -171,20 +171,20 @@ def app_state_cfg(cfg):
         "unbonding_period": 60,
         "required_council_node_stake": "1",
         "jailing_config": {
-            "jail_duration": 86400,
-            "block_signing_window": 100,
-            "missed_block_threshold": 50
+            "jail_duration": 86,
+            "block_signing_window": 20,
+            "missed_block_threshold": 10
         },
         "slashing_config": {
             "liveness_slash_percent": "0.1",
             "byzantine_slash_percent": "0.2",
-            "slash_wait_period": 10800
+            "slash_wait_period": 10
         },
         "rewards_config": {
             "monetary_expansion_cap": str(cfg['expansion_cap']),
             "distribution_period": 86400,
-            "monetary_expansion_r0": 450,
-            "monetary_expansion_tau": 145000000000000000,
+            "monetary_expansion_r0": 500,
+            "monetary_expansion_tau": 1450000000,
             "monetary_expansion_decay": 999860
         },
         "initial_fee_policy": {
@@ -196,8 +196,8 @@ def app_state_cfg(cfg):
                 node['name'],
                 '%s@example.com' % node['name'],
                 {
-                    'type': 'tendermint/PubKeyEd25519',
-                    'value': SigningKey(node['validator_seed']).pub_key_base64(),
+                    'consensus_pubkey_type': 'Ed25519',
+                    'consensus_pubkey_b64': SigningKey(node['validator_seed']).pub_key_base64(),
                 }
             ]
             for node in cfg['nodes']
@@ -211,7 +211,7 @@ def programs(node, app_hash, root_path, cfg):
     base_port = node['base_port']
     chain_abci_port = base_port + 8
     tendermint_rpc_port = base_port + 7
-    client_rpc_port = base_port + 9
+    client_rpc_port = base_port + 1
     sgx_device = cfg.get('sgx_device')
     commands = [
         ('tx-enclave', f'''docker run --rm -p {base_port}:25933 --env RUST_BACKTRACE=1 --env RUST_LOG=info -v {node_path / Path('enclave')}:/enclave-storage {'--device ' + sgx_device if sgx_device else ''} {cfg['enclave_docker_image']}'''),
@@ -309,21 +309,23 @@ async def gen_wallet_addr(mnemonic, type='Staking', count=1):
         'Transfer': 'dcro',
     }[type]
     with tempfile.TemporaryDirectory() as dirname:
-        env = dict(
-            os.environ,
-            CRYPTO_CLIENT_STORAGE=dirname,
-        )
         await interact(
             f'client-cli wallet restore --name Default',
             ('123456\n123456\n%s\n%s\n' % (mnemonic, mnemonic)).encode(),
-            env=env,
+            env=dict(
+                os.environ,
+                CRYPTO_CLIENT_STORAGE=dirname,
+            ),
         )
         addrs = []
         for i in range(count):
             result = (await interact(
                 f'client-cli address new --name Default --type {type}',
                 b'123456\n',
-                env=env,
+                env=dict(
+                    os.environ,
+                    CRYPTO_CLIENT_STORAGE=dirname,
+                ),
             )).decode()
             addrs.append(re.search(prefix + r'[0-9a-zA-Z]+', result).group())
         return addrs
@@ -408,31 +410,6 @@ def gen_peers(cfgs):
         for i, cfg in enumerate(cfgs)
     )
 
-
-async def init_wallet(wallet_root, mnemonic, chain_id):
-    # init wallet
-    env = dict(
-        os.environ,
-        CRYPTO_CLIENT_STORAGE=wallet_root,
-        CRYPTO_CHAIN_ID=chain_id
-    )
-    await interact(
-        f'client-cli wallet restore --name Default',
-        ('123456\n123456\n%s\n%s\n' % (mnemonic, mnemonic)).encode(),
-        env=env,
-    )
-    for i in range(2):
-        await interact(
-            f'client-cli address new --name Default --type Staking',
-            b'123456\n',
-            env=env,
-        )
-    for i in range(2):
-        await interact(
-            f'client-cli address new --name Default --type Transfer',
-            b'123456\n',
-            env=env,
-        )
 def write_json(cfg, app_hash, root_path):
     node_cfg= cfg['nodes'][0]
     info= {"app_hash":app_hash, "seed_id":  SigningKey(node_cfg['node_seed']).validator_address().lower()}
@@ -444,6 +421,7 @@ def write_json(cfg, app_hash, root_path):
     json.dump(cfg,
                 open(root_path / Path('nodes_info.json'), 'w'),
                 indent=4)
+
     # write
     f = open("run_test_env.sh", "w")
     f.write("export APP_HASH={}\n".format(info["app_hash"]))
@@ -483,10 +461,10 @@ async def init_cluster(cfg):
                 tendermint_cfg(
                     node_name,
                     node['hostname'],
-                    base_port + 8,
-                    base_port + 7,
-                    base_port + 6,
-                    peers
+                    26658,
+                    26657,
+                    26656,
+                    ""
                 )
             ),
             open(cfg_path / Path('config.toml'), 'w')
@@ -500,13 +478,6 @@ async def init_cluster(cfg):
             "round": "0",
             "step": 0
         }, open(data_path / Path('priv_validator_state.json'), 'w'))
-
-        wallet_path = root_path / Path(node_name) / Path('wallet')
-        if not wallet_path.exists():
-            wallet_path.mkdir()
-            await init_wallet(wallet_path, node['mnemonic'], cfg['chain_id'])
-        else:
-            print('wallet directory already exists, ignore')
 
     logs_path = root_path / Path('logs')
     if not logs_path.exists():
@@ -531,12 +502,12 @@ async def populate_wallet_addresses(nodes):
 
 
 class CLI:
-    def gen(self, count=1, expansion_cap=1000000000000000000,
+    def gen(self, count=1, expansion_cap=50000000000000000,
             dist=1000000000000000000,
             genesis_time="2019-11-20T08:56:48.618137Z",
             base_fee='0.0', per_byte_fee='0.0',
             base_port=26650, sgx_device=None,
-            chain_id='test-chain-y3m1e6-AB', root_path='./data', hostname='127.0.0.1'):
+            chain_id='test-ab', root_path='./', hostname='127.0.0.1'):
         '''Generate testnet node specification
         :param count: Number of nodes, [default: 1].
         '''
@@ -582,10 +553,9 @@ class CLI:
         asyncio.run(init_cluster(cfg))
         print('Prepared succesfully', cfg['root_path'])
 
-    def prepare_cfg(self,cfg):
+    def prepare_cfg(self, cfg, spec=None):
         asyncio.run(init_cluster(cfg))
         print('Prepared succesfully', cfg['root_path'])
-
 
 if __name__ == '__main__':
     fire.Fire(CLI())

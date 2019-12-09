@@ -91,7 +91,7 @@ Port Usage
 * tendermint-rpc-port: base-port + 7
 * chain-abci: base-port + 8
 * tx-enclave: base-port + 0
-* client-rpc-port: base-port + 1
+* client-rpc-port: base-port + 9
 
 ``chainrpc.py``
 ===============

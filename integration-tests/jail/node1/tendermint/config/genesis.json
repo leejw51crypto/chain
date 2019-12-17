@@ -1,0 +1,104 @@
+{
+    "genesis_time": "2019-11-20T08:56:48.618137Z",
+    "chain_id": "test-ab",
+    "consensus_params": {
+        "block": {
+            "max_bytes": "22020096",
+            "max_gas": "-1",
+            "time_iota_ms": "1000"
+        },
+        "evidence": {
+            "max_age": "100000"
+        },
+        "validator": {
+            "pub_key_types": [
+                "ed25519"
+            ]
+        }
+    },
+    "validators": [
+        {
+            "address": "74F76AA811E80A787450463C9DDE28334353BEB3",
+            "pub_key": {
+                "type": "tendermint/PubKeyEd25519",
+                "value": "sqrBjoHzUqUfKK85V+m7OzVM0RLZnehRhvDu20r7r0o="
+            },
+            "power": "37500000000",
+            "name": "node0"
+        },
+        {
+            "address": "284D9B3E186F4EF740B189882DC147B33606BF63",
+            "pub_key": {
+                "type": "tendermint/PubKeyEd25519",
+                "value": "4dFQmkORpc3MQtYLOtvOiqiQnFrYt01VDbcX2wD4+nI="
+            },
+            "power": "12500000000",
+            "name": "node1"
+        }
+    ],
+    "app_hash": "7BC203C2199F22FA92F41CB24C0F0E56D0800D519BB94B40BEC78FC7568EAEBA",
+    "app_state": {
+        "distribution": {
+            "0x0681a656a994a10a3121979259bb0c1c0c290915": [
+                "UnbondedFromGenesis",
+                "3700000000000000000"
+            ],
+            "0x4a946043faecf3c2c3c5ba2226294275d51fffbe": [
+                "Bonded",
+                "1250000000000000000"
+            ],
+            "0xc47d78767039cd5bd6f8244f97e7b572daf7a825": [
+                "UnbondedFromGenesis",
+                "1250000000000000000"
+            ],
+            "0xf721b415104c9f8d585904a7d58c184eed37acc3": [
+                "Bonded",
+                "3750000000000000000"
+            ]
+        },
+        "network_params": {
+            "initial_fee_policy": {
+                "constant": 0,
+                "coefficient": 0
+            },
+            "required_council_node_stake": "1",
+            "unbonding_period": 60,
+            "jailing_config": {
+                "jail_duration": 86,
+                "block_signing_window": 20,
+                "missed_block_threshold": 10
+            },
+            "slashing_config": {
+                "liveness_slash_percent": "0.100",
+                "byzantine_slash_percent": "0.200",
+                "slash_wait_period": 10
+            },
+            "rewards_config": {
+                "monetary_expansion_cap": "50000000000000000",
+                "distribution_period": 86400,
+                "monetary_expansion_r0": 450,
+                "monetary_expansion_tau": 145000000000000000,
+                "monetary_expansion_decay": 999860
+            },
+            "max_validators": 50
+        },
+        "council_nodes": {
+            "0x4a946043faecf3c2c3c5ba2226294275d51fffbe": [
+                "node1",
+                "node1@example.com",
+                {
+                    "type": "tendermint/PubKeyEd25519",
+                    "value": "4dFQmkORpc3MQtYLOtvOiqiQnFrYt01VDbcX2wD4+nI="
+                }
+            ],
+            "0xf721b415104c9f8d585904a7d58c184eed37acc3": [
+                "node0",
+                "node0@example.com",
+                {
+                    "type": "tendermint/PubKeyEd25519",
+                    "value": "sqrBjoHzUqUfKK85V+m7OzVM0RLZnehRhvDu20r7r0o="
+                }
+            ]
+        }
+    }
+}

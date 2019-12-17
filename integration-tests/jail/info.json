@@ -1,0 +1,92 @@
+{
+    "root_path": "./",
+    "chain_id": "test-ab",
+    "sgx_device": null,
+    "enclave_docker_image": "integration-tests-chain-tx-enclave-sw",
+    "genesis_time": "2019-11-20T08:56:48.618137Z",
+    "expansion_cap": 50000000000000000,
+    "nodes": [
+        {
+            "name": "node0",
+            "hostname": "chain0",
+            "mnemonic": "fall assist office biology diary unfair true join demise win poet poverty fiction raw pole",
+            "validator_seed": "dccef6de61ddf15c7a9a0dccd7b69de5fa4bd81e529837991995a4168c03f8a8",
+            "node_seed": "06f162769b7e5d9eaf4b724cee8fa428ff217195b0537f40fcad8cc4f5b716e4",
+            "bonded_coin": 3750000000000000000,
+            "unbonded_coin": 1250000000000000000,
+            "base_port": 26650,
+            "staking": [
+                "0xf721b415104c9f8d585904a7d58c184eed37acc3",
+                "0xc47d78767039cd5bd6f8244f97e7b572daf7a825"
+            ],
+            "transfer": [
+                "dcro1vecr5enrhv9whldjm7lemv2cxfm6k7lenv52zgnyjk5te9w400gq2d35sg",
+                "dcro1jt93rjgxljj4ng2lzp02j35ma7nj5qly9w58a2m6upjykpacwupq0qpf8f"
+            ],
+            "node_id": "68dad817cf289742e18055a361c8743c0a6009ee"
+        },
+        {
+            "name": "node1",
+            "hostname": "chain1",
+            "mnemonic": "huge unlock annual pink guess arrive awkward wasp song mechanic doctor flight barrel good depart",
+            "validator_seed": "0cdc41e460c7afc76e2202f0c718bd761893a990d9ad36c6bbb3eec93dfdf7ef",
+            "node_seed": "4725e2519360b9ed60d667d34bb804663afa91f48b61179a6b229b192e6af109",
+            "bonded_coin": 1250000000000000000,
+            "unbonded_coin": 3700000000000000000,
+            "base_port": 26650,
+            "staking": [
+                "0x4a946043faecf3c2c3c5ba2226294275d51fffbe",
+                "0x0681a656a994a10a3121979259bb0c1c0c290915"
+            ],
+            "transfer": [
+                "dcro1x9y8qr4zg7akw5g63g980jjt8p7ag9wxrqkul46tj2yu7lpenhlqlqwn3y",
+                "dcro1galm0s6826szvafwgw36njuflmtkj3c6774xexzzxn5uqh6f44jstw3x2u"
+            ],
+            "node_id": "675186896a91ded2a54f123236122ebc2112e855"
+        }
+    ],
+    "chain_config_patch": [
+        {
+            "op": "replace",
+            "path": "/initial_fee_policy/base_fee",
+            "value": "0.0"
+        },
+        {
+            "op": "replace",
+            "path": "/initial_fee_policy/per_byte_fee",
+            "value": "0.0"
+        },
+        {
+            "op": "replace",
+            "path": "/slashing_config/slash_wait_period",
+            "value": 10
+        },
+        {
+            "op": "replace",
+            "path": "/jailing_config/jail_duration",
+            "value": 86
+        },
+        {
+            "op": "replace",
+            "path": "/jailing_config/block_signing_window",
+            "value": 20
+        },
+        {
+            "op": "replace",
+            "path": "/jailing_config/missed_block_threshold",
+            "value": 10
+        }
+    ],
+    "tendermint_config_patch": [
+        {
+            "op": "replace",
+            "path": "/consensus/create_empty_blocks",
+            "value": true
+        },
+        {
+            "op": "add",
+            "path": "/consensus/create_empty_blocks_interval",
+            "value": "0s"
+        }
+    ]
+}

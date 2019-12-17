@@ -11,11 +11,9 @@ use std::time::Duration;
 use chain_core::init::network::{get_network, get_network_id, init_chain_id};
 use chain_core::tx::fee::LinearFee;
 use client_common::storage::SledStorage;
-#[cfg(not(feature = "mock-enc-dec"))]
-use client_common::tendermint::types::AbciQueryExt;
 use client_common::tendermint::types::GenesisExt;
 use client_common::tendermint::{Client, WebsocketRpcClient};
-use client_common::{Error, ErrorKind, Result, ResultExt};
+use client_common::{Error, ErrorKind, Result};
 #[cfg(not(feature = "mock-enc-dec"))]
 use client_core::cipher::DefaultTransactionObfuscation;
 #[cfg(feature = "mock-enc-dec")]
@@ -164,8 +162,7 @@ impl Server {
 
         let sync_rpc = SyncRpcImpl::new(syncer_config);
 
-        let wallet_rpc_wallet_client =
-            self.make_wallet_client(storage.clone(), tendermint_client.clone())?;
+        let wallet_rpc_wallet_client = self.make_wallet_client(storage, tendermint_client)?;
         let wallet_rpc = WalletRpcImpl::new(wallet_rpc_wallet_client, self.network_id);
 
         io.extend_with(multisig_rpc.to_delegate());
@@ -197,7 +194,7 @@ impl Server {
             thread::sleep(Duration::from_secs(2));
         }?;
 
-        self.start_client(&mut io, storage.clone(), tendermint_client.clone())
+        self.start_client(&mut io, storage, tendermint_client)
             .unwrap();
 
         let server = ServerBuilder::new(io)

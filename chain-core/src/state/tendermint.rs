@@ -11,6 +11,8 @@ use std::prelude::v1::{String, ToString, Vec};
 #[cfg(not(feature = "mesalock_sgx"))]
 use thiserror::Error;
 
+use std::cmp::Ordering;
+
 /// Tendermint block height
 /// TODO: u64?
 pub type BlockHeight = i64;
@@ -47,6 +49,7 @@ where
 }
 
 #[cfg(feature = "serde")]
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn serialize_validator_power<S>(
     power: &TendermintVotePower,
     serializer: S,
@@ -255,14 +258,14 @@ impl TryFrom<&[u8]> for TendermintValidatorAddress {
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         let length = bytes.len();
 
-        if length == 20 {
-            let mut address_bytes = [0; 20];
-            address_bytes.copy_from_slice(bytes);
-            Ok(Self(address_bytes))
-        } else if length < 20 {
-            Err(TendermintValidatorAddressError::Short)
-        } else {
-            Err(TendermintValidatorAddressError::Long)
+        match length.cmp(&20) {
+            Ordering::Equal => {
+                let mut address_bytes = [0; 20];
+                address_bytes.copy_from_slice(bytes);
+                Ok(Self(address_bytes))
+            }
+            Ordering::Less => Err(TendermintValidatorAddressError::Short),
+            Ordering::Greater => Err(TendermintValidatorAddressError::Long),
         }
     }
 }

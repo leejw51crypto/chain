@@ -13,14 +13,6 @@ echo "rust flags=" $RUSTFLAGS
 echo "app port=" $APP_PORT
 echo "compile chain"
 pwd
-ls
-cd /root/chain
-cargo clean
-cargo build
-ret=$?
-if [ $ret -ne 0 ]; then
-	exit -1
-fi
 
 cd /root/chain/chain-tx-enclave/tx-validation
 make clean

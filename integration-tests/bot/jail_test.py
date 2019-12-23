@@ -19,6 +19,13 @@ class Program :
         # wallet b
         self.node1_address = ""
         self.node1_mnemonics=""
+
+        # wallet b
+        self.node2_address = ""
+        self.node2_mnemonics=""
+
+
+
         self.headers = {
             'Content-Type': 'application/json',
         }
@@ -50,6 +57,7 @@ class Program :
         print("restore wallets")
         self.rpc.wallet.restore(self.node0_mnemonics, "a")
         self.rpc.wallet.restore(self.node1_mnemonics, "b")
+        self.rpc.wallet.restore(self.node2_mnemonics, "c")
             
 
     def create_addresses(self):
@@ -57,6 +65,8 @@ class Program :
         self.create_staking_address("a", "1")
         self.create_staking_address("b", "1")
         self.create_staking_address("b", "1")
+        self.create_staking_address("c", "1")
+        self.create_staking_address("c", "1")
         
 
     def unjail(self,name, passphrase, address):
@@ -145,7 +155,7 @@ class Program :
         print("unjail test success")
 
     ############################################################################3
-    def main (self) :
+    def main2 (self) :
         self.test_jailing()
         try :
             self.restore_wallets()
@@ -154,6 +164,12 @@ class Program :
         self.create_addresses()
         self.test_unjailing()
 
+    def main (self) :
+        try :
+            self.restore_wallets()
+        except jsonrpcclient.exceptions.JsonRpcClientError as ex:
+            print("wallet already exists={}".format(ex))
+        self.create_addresses()
 
     def read_info(self):
         print("read data")
@@ -162,16 +178,20 @@ class Program :
         print(json.dumps(data,indent=4))
         self.node0_address= data["nodes"][0]["staking"][0]
         self.node1_address= data["nodes"][1]["staking"][0]
+        self.node2_address= data["nodes"][2]["staking"][0]
 
         self.node0_mnemonics=data["nodes"][0]["mnemonic"]
         self.node1_mnemonics=data["nodes"][1]["mnemonic"]
+        self.node2_mnemonics=data["nodes"][2]["mnemonic"]
         
     def display_info(self):
         print("jail test current hash={}".format(CURRENT_HASH))
         print("node0 staking= {}".format(self.node0_address))
         print("node1 staking= {}".format(self.node1_address))
+        print("node2 staking= {}".format(self.node2_address))
         print("node0 mnemonics= {}".format(self.node0_mnemonics))
         print("node1 mnemonics= {}".format(self.node1_mnemonics))
+        print("node2 mnemonics= {}".format(self.node2_mnemonics))
 
 
 p = Program()

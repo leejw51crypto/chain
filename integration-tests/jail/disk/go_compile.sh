@@ -1,7 +1,7 @@
 #!/bin/bash
 cd /root/disk
 mkdir /root/chain
-cp -Rf /root/chain_src/chain-tx-enclave /root/chain
+cp -Rf /root/chain_src/* /root/chain
 source /root/disk/prepare.sh
 source /opt/sgxsdk/environment
 source /root/.cargo/env

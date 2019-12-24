@@ -231,12 +231,13 @@ impl WebsocketRpcClient {
         for<'de> T: Deserialize<'de>,
     {
         let response_value = self.request(method, params)?;
-        serde_json::from_value(response_value).chain(|| {
+        serde_json::from_value(response_value.clone()).chain(|| {
+            let  s= response_value.to_string();
             (
                 ErrorKind::DeserializationError,
                 format!(
-                    "Unable to deserialize `{}` from JSON-RPC response for params: {:?}",
-                    method, params
+                    "Unable to deserialize `{}` from JSON-RPC response for params: {:?} {}",
+                    method, params,response_value ,
                 ),
             )
         })

@@ -37,6 +37,7 @@ pub struct WebsocketRpcClient {
     websocket_writer: Arc<Mutex<Writer<TcpStream>>>,
     channel_map: Arc<Mutex<HashMap<String, SyncSender<JsonRpcResponse>>>>,
     unique_id: Arc<AtomicUsize>,
+    area_lock: Arc<Mutex<String>>,
 }
 
 impl WebsocketRpcClient {
@@ -66,11 +67,13 @@ impl WebsocketRpcClient {
             websocket_writer.clone(),
         );
 
+        let area_lock=Arc::new(Mutex::new("".to_string()));
         Ok(Self {
             connection_state,
             websocket_writer,
             channel_map,
             unique_id: Arc::new(AtomicUsize::new(0)),
+            area_lock,
         })
     }
 
@@ -93,6 +96,9 @@ impl WebsocketRpcClient {
     // - Send request websocket message.
     // - Receive response on `channel_receiver`.
     fn request(&self, method: &str, params: &[Value]) -> Result<Value> {
+        let _area=self
+        .area_lock
+        .lock().unwrap();
         let (id, channel_receiver) = self.send_request(method, params)?;
         self.receive_response(method, params, &id, channel_receiver)
     }
@@ -103,6 +109,9 @@ impl WebsocketRpcClient {
     ///
     /// This does not use batch JSON-RPC requests but makes multiple single JSON-RPC requests in parallel.
     fn request_batch(&self, batch_params: &[(&str, Vec<Value>)]) -> Result<Vec<Value>> {
+        let _area=self
+        .area_lock
+        .lock().unwrap();
         let mut receivers = Vec::with_capacity(batch_params.len());
 
         for (method, params) in batch_params.iter() {

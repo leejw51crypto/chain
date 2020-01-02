@@ -41,5 +41,8 @@ cp /root/chain/target/debug/chain-abci /root/disk/bin
 cp /root/chain/target/debug/dev-utils /root/disk/bin
 cp /root/chain/chain-tx-enclave/tx-validation/bin/enclave.signed.so /root/disk/bin
 cp /root/chain/chain-tx-enclave/tx-validation/bin/tx-validation-app /root/disk/bin
+mkdir /root/disk/bin/query
+cp /root/chain/chain-tx-enclave/tx-query/bin/enclave.signed.so /root/disk/bin/query
+cp /root/chain/chain-tx-enclave/tx-query/bin/tx-query-app /root/disk/bin/query
 cp /root/bin/tendermint /root/disk/bin
 echo "copied OK"

@@ -14,6 +14,7 @@ echo "app port=" $APP_PORT
 echo "compile chain"
 pwd
 
+
 cd /root/chain/chain-tx-enclave/tx-validation
 make clean
 make
@@ -21,6 +22,17 @@ ret=$?
 if [ $ret -ne 0 ]; then
 	exit -1
 fi
+cd /root
+
+cd /root/chain/chain-tx-enclave/tx-query
+make clean
+make
+ret=$?
+if [ $ret -ne 0 ]; then
+	exit -1
+fi
+cd /root
+
 	
 cd /root
 cp /root/chain/target/debug/client-rpc /root/disk/bin

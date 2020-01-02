@@ -1,2 +1,2 @@
 #!/bin/bash
-./tx-query-app  0.0.0.0:3433 tcp://127.0.0.1:25933
+LD_LIBRARY_PATH=$PWD ./tx-query-app  0.0.0.0:3443 tcp://127.0.0.1:25933

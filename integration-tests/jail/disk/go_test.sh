@@ -8,7 +8,7 @@ rm -rf /enclave-storage
 echo "copy binaries"
 mkdir /root/bin
 echo "copy tendermint config"
-cp /root/disk/bin/* /root/bin
+cp -Rf /root/disk/bin/* /root/bin
 mkdir /root/.tendermint
 mkdir /root/.tendermint/config
 cp /root/config/*  /root/.tendermint/config

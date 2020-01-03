@@ -1,5 +1,5 @@
 #!/bin/bash
-export SGX_MODE=SW
+export SGX_MODE=HW
 export NETWORK_ID=AB
 export RUSTFLAGS=-Ctarget-feature=+aes,+ssse3
 export PATH=$HOME/.cargo/bin:$HOME/bin:$PATH

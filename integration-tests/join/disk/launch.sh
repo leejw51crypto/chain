@@ -10,6 +10,13 @@ echo "activate enclave"
 nohup ./enclave.sh  > enclave.log &
 sleep 2 
 
+echo "activate query"
+cd ./query
+nohup ./query.sh  > query.log &
+cd .. 
+sleep 2 
+
+
 echo "activate abci"
 nohup ./abci.sh  > abci.log &
 sleep 2 

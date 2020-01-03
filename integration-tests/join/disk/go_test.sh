@@ -8,7 +8,7 @@ rm -rf /enclave-storage
 echo "copy binaries"
 mkdir /root/bin
 echo "copy tendermint config"
-cp /root/disk/bin/* /root/bin
+cp -Rf /root/disk/bin/* /root/bin
 mkdir /root/.tendermint
 mkdir /root/.tendermint/config
 cp /root/config/*  /root/.tendermint/config
@@ -20,6 +20,8 @@ source /opt/sgxsdk/environment
 source /root/.cargo/env
 echo "sgx mode=" $SGX_MODE
 echo "network id=" $NETWORK_ID
+echo "spid = " $SPID
+echo "ias_api_key = " $IAS_API_KEY 
 echo "path=" $PATH 
 echo "enclave storage=" $TX_ENCLAVE_STORAGE
 echo "rust flags=" $RUSTFLAGS

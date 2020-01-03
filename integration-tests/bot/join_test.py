@@ -155,7 +155,7 @@ class Program :
         print("unjail test success")
 
     ############################################################################3
-    def main (self) :
+    def main2 (self) :
         self.test_jailing()
         try :
             self.restore_wallets()
@@ -164,7 +164,7 @@ class Program :
         self.create_addresses()
         self.test_unjailing()
 
-    def main2 (self) :
+    def main (self) :
         try :
             self.restore_wallets()
         except jsonrpcclient.exceptions.JsonRpcClientError as ex:

@@ -234,6 +234,17 @@ class Program :
                 time.sleep(5)
         print(json.dumps(wallets, indent=4))
     
+    def join_node(self):
+        print("join node")
+        time.sleep(4);
+        self.rpc.wallet.sync("b")
+        node_name="node1"
+        node_pubkey=self.node1_validator_pubkey
+        node_staking_address= self.node1_address
+        print("name={} pubkey={} staking={}".format(node_name, node_pubkey,node_staking_address))
+        self.rpc.staking.join(node_name, node_pubkey, node_staking_address, "b")
+
+
 
     def main (self) :
         self.wait_for_rpc()
@@ -241,6 +252,7 @@ class Program :
         self.withdraw()
         self.transfer()
         self.deposit()
+        self.join_node()
         
 
     def read_info(self):

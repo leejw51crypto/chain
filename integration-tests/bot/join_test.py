@@ -193,8 +193,8 @@ class Program :
         tx_index=0
         print("txid={}".format(txid))
         print(transactions)
-        print("deposit to {} from utxo tx {}-index {}".format(self.node1_address1, txid, tx_index))
-        self.rpc.staking.deposit(self.node1_address1, [{'id':txid, 'index':tx_index}], "a")
+        print("deposit to {} from utxo tx {}-index {}".format(self.node2_address, txid, tx_index))
+        self.rpc.staking.deposit(self.node2_address, [{'id':txid, 'index':tx_index}], "a")
         print("done")
 
     def withdraw(self):
@@ -239,6 +239,7 @@ class Program :
         self.node1_mnemonics=data["nodes"][1]["mnemonic"]
         self.node2_mnemonics=data["nodes"][2]["mnemonic"]
         self.node2_validator_seed=data["nodes"][2]["validator_seed"]
+        self.node2_validator_pubkey= SigningKey(self.node2_validator_seed).pub_key_base64()
         
     def display_info(self):
         print("jail test current hash={}".format(CURRENT_HASH))
@@ -251,12 +252,11 @@ class Program :
         print("node1 mnemonics= {}".format(self.node1_mnemonics))
         print("node2 mnemonics= {}".format(self.node2_mnemonics))
         print("node2 validator seed= {}".format(self.node2_validator_seed))
-        pubkey= SigningKey(self.node2_validator_seed).pub_key_base64()
-        print("node2 validator pubkey= {}".format(pubkey))
+        print("node2 validator pubkey= {}".format(self.node2_validator_pubkey))
         
         
 
 p = Program()
 p.read_info()
 p.display_info()
-#p.main()
+p.main()

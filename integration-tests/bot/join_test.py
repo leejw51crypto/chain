@@ -237,9 +237,9 @@ class Program :
 
     def main (self) :
         self.wait_for_rpc()
-        #self.prepare()
-        #self.withdraw()
-        #self.transfer()
+        self.prepare()
+        self.withdraw()
+        self.transfer()
         self.deposit()
         
 

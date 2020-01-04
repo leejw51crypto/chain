@@ -59,9 +59,9 @@ class Program :
 
     def activate_sync(self):
         print("activate sync")
-        self.wallet.sync_unlock("a")
-        self.wallet.sync_unlock("b")
-        self.wallet.sync_unlock("c")
+        self.rpc.wallet.sync_unlock("a")
+        self.rpc.wallet.sync_unlock("b")
+        self.rpc.wallet.sync_unlock("c")
        
     def restore_wallets(self):
         print("restore wallets")
@@ -201,7 +201,19 @@ class Program :
         self.rpc.wallet.sync("a")
         time.sleep(2)
 
+    def wait_for_rpc(self):
+        while True:
+            try:
+                wallets= self.rpc.wallet.list()
+                break
+            except requests.exceptions.ConnectionError as ex:
+                print("connection fail {}".format(datetime.datetime.now()))
+                time.sleep(5)
+        print(json.dumps(wallets, indent=4))
+    
+
     def main (self) :
+        self.wait_for_rpc()
         self.prepare()
         self.withdraw()
         self.deposit()

@@ -181,13 +181,10 @@ class Program :
         except jsonrpcclient.exceptions.JsonRpcClientError as ex:
             print("wallet already exists={}".format(ex))
         self.create_addresses()
-        self.rpc.staking.withdraw_all_unbonded(self.node0_address1, self.node0_transfer_address,[], "a")
         self.rpc.wallet.sync_unlock("a")
-        self.rpc.wallet.sync("a")
- 
-    def main (self) :
-        self.prepare()
-        time.sleep(2)
+        self.rpc.wallet.sync_unlock("b")
+        
+    def deposit(self):
         transactions= self.rpc.wallet.transactions("a", 0,1, False)
         assert len(transactions)==1
         tx= transactions[0]
@@ -199,6 +196,16 @@ class Program :
         self.rpc.staking.deposit(self.node1_address1, [{'id':txid, 'index':tx_index}], "a")
         print("done")
 
+    def withdraw(self):
+        self.rpc.staking.withdraw_all_unbonded(self.node0_address1, self.node0_transfer_address,[], "a")
+        self.rpc.wallet.sync("a")
+        time.sleep(2)
+
+    def main (self) :
+        self.prepare()
+        self.withdraw()
+        self.deposit()
+        
 
     def read_info(self):
         print("read data")

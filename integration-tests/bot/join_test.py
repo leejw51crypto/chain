@@ -186,7 +186,7 @@ class Program :
         self.rpc.wallet.sync_unlock("b")
         
     def deposit(self):
-        transactions= self.rpc.wallet.transactions("a", 0,1, False)
+        transactions= self.rpc.wallet.transactions("b", 0,1, False)
         assert len(transactions)==1
         tx= transactions[0]
         txid= tx["transaction_id"]
@@ -195,9 +195,10 @@ class Program :
         print(transactions)
         deposit_address=self.node1_address
         print("deposit to {} from utxo tx {}-index {}".format(deposit_address, txid, tx_index))
-        self.rpc.staking.deposit(deposit_address, [{'id':txid, 'index':tx_index}], "a")
+        self.rpc.staking.deposit(deposit_address, [{'id':txid, 'index':tx_index}], "b")
         print("done")
 
+        
     def withdraw(self):
         self.rpc.staking.withdraw_all_unbonded(self.node0_address1, self.node0_transfer_address,[], "a")
         self.rpc.wallet.sync("a")
@@ -236,10 +237,10 @@ class Program :
 
     def main (self) :
         self.wait_for_rpc()
-        self.prepare()
-        self.withdraw()
-        self.transfer()
-        #self.deposit()
+        #self.prepare()
+        #self.withdraw()
+        #self.transfer()
+        self.deposit()
         
 
     def read_info(self):

@@ -8,8 +8,8 @@ src=a._gen(count=3, chain_id='test-ab', expansion_cap=50000000000000000,  root_p
 patch = jsonpatch.JsonPatch([
     {'op': 'replace', 'path': '/nodes/0/bonded_coin', 'value':   3750000000000000000},
     {'op': 'replace', 'path': '/nodes/0/unbonded_coin', 'value': 1250000000000000000},
-    {'op': 'replace', 'path': '/nodes/1/bonded_coin', 'value':   1250000000000000000},
-    {'op': 'replace', 'path': '/nodes/1/unbonded_coin', 'value': 3700000000000000000},
+    {'op': 'replace', 'path': '/nodes/1/bonded_coin', 'value':                     0},
+    {'op': 'replace', 'path': '/nodes/1/unbonded_coin', 'value':                   0},
     {'op': 'replace', 'path': '/nodes/2/bonded_coin', 'value':                     0},
     {'op': 'replace', 'path': '/nodes/2/unbonded_coin', 'value':                   0},
     {'op': 'replace', 'path': '/nodes/0/base_port', 'value':26650},

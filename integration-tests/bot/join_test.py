@@ -244,15 +244,24 @@ class Program :
         print("name={} pubkey={} staking={}".format(node_name, node_pubkey,node_staking_address))
         self.rpc.staking.join(node_name, node_pubkey, node_staking_address, "b")
 
-
+    def wait_for_council_node(self):
+        print("wait for council node")
+        while True:
+            res = self.rpc.staking.state( self.node1_address, "b")
+            print("state={}".format(res))
+            time.sleep(2)
+            if res["council_node"] != None :
+                break
+        print("join success {} became a council node".format(self.node1_address))
 
     def main (self) :
-        self.wait_for_rpc()
-        self.prepare()
-        self.withdraw()
-        self.transfer()
-        self.deposit()
-        self.join_node()
+        #self.wait_for_rpc()
+        #self.prepare()
+        #self.withdraw()
+        #self.transfer()
+        #self.deposit()
+        #self.join_node()
+        self.wait_for_council_node()
         
 
     def read_info(self):

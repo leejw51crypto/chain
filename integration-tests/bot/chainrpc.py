@@ -171,6 +171,9 @@ class Staking:
     def unjail(self, address, name=DEFAULT_WALLET):
         return call('staking_unjail', [name, get_passphrase()], fix_address(address))
 
+    def join(self, node_name, node_pubkey, node_staking_address, name=DEFAULT_WALLET):
+        return call('staking_validatorNodeJoin', [name, get_passphrase()], node_name, node_pubkey,  fix_address(node_staking_address))
+
 
 class MultiSig:
     def create_address(self, public_keys, self_public_key, required_signatures, name=DEFAULT_WALLET):

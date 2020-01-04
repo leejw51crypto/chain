@@ -203,6 +203,26 @@ class Program :
         self.rpc.wallet.sync("a")
         time.sleep(2)
 
+    def transfer(self):
+        balance_a= self.rpc.wallet.balance("a")
+        viewkey_a= self.rpc.wallet.view_key("a")
+        balance_b= self.rpc.wallet.balance("b")
+        viewkey_b= self.rpc.wallet.view_key("b")
+        print("a balance={}  viewkey={}".format(balance_a, viewkey_a))
+        print("b balance={}  viewkey={}".format(balance_b, viewkey_b))
+        print("====================================")
+        self.rpc.wallet.send(self.node1_transfer_address,balance_a, "a", [viewkey_a,viewkey_b])
+        time.sleep(5)
+        self.rpc.wallet.sync("a")
+        self.rpc.wallet.sync("b")
+        balance_a= self.rpc.wallet.balance("a")
+        viewkey_a= self.rpc.wallet.view_key("a")
+        balance_b= self.rpc.wallet.balance("b")
+        viewkey_b= self.rpc.wallet.view_key("b")
+        print("a balance={}  viewkey={}".format(balance_a, viewkey_a))
+        print("b balance={}  viewkey={}".format(balance_b, viewkey_b))
+        time.sleep(2)
+
     def wait_for_rpc(self):
         while True:
             try:
@@ -218,7 +238,8 @@ class Program :
         self.wait_for_rpc()
         self.prepare()
         self.withdraw()
-        self.deposit()
+        self.transfer()
+        #self.deposit()
         
 
     def read_info(self):

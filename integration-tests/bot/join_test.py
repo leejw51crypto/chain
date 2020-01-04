@@ -255,12 +255,12 @@ class Program :
         print("join success {} became a council node".format(self.node1_address))
 
     def main (self) :
-        #self.wait_for_rpc()
-        #self.prepare()
-        #self.withdraw()
-        #self.transfer()
-        #self.deposit()
-        #self.join_node()
+        self.wait_for_rpc()
+        self.prepare()
+        self.withdraw()
+        self.transfer()
+        self.deposit()
+        self.join_node()
         self.wait_for_council_node()
         
 

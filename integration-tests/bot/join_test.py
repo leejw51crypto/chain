@@ -193,8 +193,9 @@ class Program :
         tx_index=0
         print("txid={}".format(txid))
         print(transactions)
-        print("deposit to {} from utxo tx {}-index {}".format(self.node2_address, txid, tx_index))
-        self.rpc.staking.deposit(self.node2_address, [{'id':txid, 'index':tx_index}], "a")
+        deposit_address=self.node1_address
+        print("deposit to {} from utxo tx {}-index {}".format(deposit_address, txid, tx_index))
+        self.rpc.staking.deposit(deposit_address, [{'id':txid, 'index':tx_index}], "a")
         print("done")
 
     def withdraw(self):
@@ -228,10 +229,17 @@ class Program :
         self.node0_address= data["nodes"][0]["staking"][0]
         self.node0_address1= data["nodes"][0]["staking"][1]
         self.node0_transfer_address= data["nodes"][0]["transfer"][0]
+        self.node0_validator_seed=data["nodes"][0]["validator_seed"]
+        self.node0_validator_pubkey= SigningKey(self.node0_validator_seed).pub_key_base64()
+    
+
 
         self.node1_address= data["nodes"][1]["staking"][0]
         self.node1_address1= data["nodes"][1]["staking"][1]
         self.node1_transfer_address= data["nodes"][1]["transfer"][0]
+        self.node1_validator_seed=data["nodes"][1]["validator_seed"]
+        self.node1_validator_pubkey= SigningKey(self.node1_validator_seed).pub_key_base64()
+        
 
         self.node2_address= data["nodes"][2]["staking"][0]
 
@@ -251,6 +259,10 @@ class Program :
         print("node0 mnemonics= {}".format(self.node0_mnemonics))
         print("node1 mnemonics= {}".format(self.node1_mnemonics))
         print("node2 mnemonics= {}".format(self.node2_mnemonics))
+        print("node0 validator seed= {}".format(self.node0_validator_seed))
+        print("node0 validator pubkey= {}".format(self.node0_validator_pubkey))
+        print("node1 validator seed= {}".format(self.node1_validator_seed))
+        print("node1 validator pubkey= {}".format(self.node1_validator_pubkey))
         print("node2 validator seed= {}".format(self.node2_validator_seed))
         print("node2 validator pubkey= {}".format(self.node2_validator_pubkey))
         

@@ -1,8 +1,8 @@
 #!/bin/bash
 echo "run test"
 
-. run_open_port.sh
-. run_test_env.sh
+. ./run_open_port.sh
+. ./run_test_env.sh
 
 echo "client rpc port="$JAIL_CLIENT_RPC
 echo "chain rpc port="$JAIL_CHAIN_RPC

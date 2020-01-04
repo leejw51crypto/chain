@@ -186,15 +186,17 @@ class Program :
         self.rpc.wallet.sync("a")
  
     def main (self) :
-        #self.prepare()
+        self.prepare()
         time.sleep(2)
         transactions= self.rpc.wallet.transactions("a", 0,1, False)
         assert len(transactions)==1
         tx= transactions[0]
         txid= tx["transaction_id"]
+        tx_index=0
         print("txid={}".format(txid))
         print(transactions)
-        self.rpc.staking.deposit(self.node1_address1, [{'id':txid, 'index':0}], "a")
+        print("deposit to {} from utxo tx {}-index {}".format(self.node1_address1, txid, tx_index))
+        self.rpc.staking.deposit(self.node1_address1, [{'id':txid, 'index':tx_index}], "a")
         print("done")
 
 

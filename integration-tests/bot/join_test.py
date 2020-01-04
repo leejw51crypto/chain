@@ -7,6 +7,7 @@ import time
 import jsonrpcclient
 from chainrpc import RPC, Blockchain
 from decouple import config
+from chainbot import SigningKey
 CURRENT_HASH = config('CURRENT_HASH', '')
 class Program :
     def __init__(self) :
@@ -237,6 +238,7 @@ class Program :
         self.node0_mnemonics=data["nodes"][0]["mnemonic"]
         self.node1_mnemonics=data["nodes"][1]["mnemonic"]
         self.node2_mnemonics=data["nodes"][2]["mnemonic"]
+        self.node2_validator_seed=data["nodes"][2]["validator_seed"]
         
     def display_info(self):
         print("jail test current hash={}".format(CURRENT_HASH))
@@ -248,9 +250,13 @@ class Program :
         print("node0 mnemonics= {}".format(self.node0_mnemonics))
         print("node1 mnemonics= {}".format(self.node1_mnemonics))
         print("node2 mnemonics= {}".format(self.node2_mnemonics))
-
+        print("node2 validator seed= {}".format(self.node2_validator_seed))
+        pubkey= SigningKey(self.node2_validator_seed).pub_key_base64()
+        print("node2 validator pubkey= {}".format(pubkey))
+        
+        
 
 p = Program()
 p.read_info()
 p.display_info()
-p.main()
+#p.main()

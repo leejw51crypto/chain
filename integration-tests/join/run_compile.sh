@@ -3,6 +3,7 @@ echo "compile binaries"
 
 SRC=../jail/disk/bin
 FILE=./disk/bin
+mkdir $FILE
 cp -Rf $SRC/* $FILE
 
 echo "check binaries"

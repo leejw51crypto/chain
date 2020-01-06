@@ -254,6 +254,18 @@ class Program :
                 break
         print("join success {} became a council node".format(self.node1_address))
 
+    def wait_for_validators(self):
+        print("wait for validators")
+        while True:
+            validators=self.check_validators()
+            print("validators count={}".format(validators))
+            time.sleep(2)
+            if validators >= 2:
+                break
+        print("join success validator count {}".format(validators))
+
+
+
     def main (self) :
         self.wait_for_rpc()
         self.prepare()
@@ -262,6 +274,7 @@ class Program :
         self.deposit()
         self.join_node()
         self.wait_for_council_node()
+        self.wait_for_validators()
         
 
     def read_info(self):

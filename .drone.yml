@@ -10,7 +10,7 @@ platform:
 steps:
 - name: integration-tests
   commands:
-  - cd integration-tests/jail
+  - cd integration-tests/all
   - ./run.sh
 - name: teardown
   commands:

@@ -21,11 +21,5 @@ steps:
      - success
      - failure
 
-trigger:
-  branch:
-    - master
-    - staging
-    - trying
-  event:
-    - push
+
 

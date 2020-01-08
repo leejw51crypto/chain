@@ -89,7 +89,7 @@ class Wallet:
     def balance(self, name=DEFAULT_WALLET):
         '''Get balance of wallet
         :param name: Name of the wallet. [default: Default]'''
-        return int(call('wallet_balance', [name, get_passphrase()]))
+        return call('wallet_balance', [name, get_passphrase()])
 
     def list(self):
         return call('wallet_list')

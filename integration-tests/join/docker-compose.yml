@@ -32,3 +32,17 @@ services:
       RUST_BACKTRACE: 1
       RUST_LOG: debug    
       APP_HASH: $APP_HASH
+  chain2:
+    build: .
+    volumes:
+      - ./disk:/root/disk
+      - ./disk/config2:/root/config
+      - /nix:/nix
+    devices:
+      - /dev/isgx
+    image: chain_test2
+    command: /root/disk/go_test.sh
+    environment:
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug    
+      APP_HASH: $APP_HASH

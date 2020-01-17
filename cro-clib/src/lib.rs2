@@ -1,0 +1,128 @@
+
+use std::ffi::CStr;
+use std::os::raw::c_char;
+use std::{ptr, slice};
+use client_core::{service::HDAccountType, HDSeed, Mnemonic};
+use secstr::SecUtf8;
+pub type HDWalletPtr = *mut HDWallet;
+
+pub const SEED_LENGTH: usize = 64;
+pub const ENCKEY_LENGTH: usize = 32;
+pub const MNEMONIC_LENGTH: usize = 512;
+
+#[derive(Clone)]
+pub struct HDWallet {
+    pub seed: HDSeed,
+    pub enckey: Vec<u8>,
+}
+
+#[allow(dead_code)]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct HDWalletCreateResult {
+    pub error: i32,
+    pub mnemonic: [u8; MNEMONIC_LENGTH],
+    pub mnemonic_length: u32,
+}
+
+/// # Safety
+/// this function should not be called inside rust
+#[allow(dead_code)]
+unsafe fn get_string(src: *const c_char) -> String {
+    CStr::from_ptr(src).to_string_lossy().into_owned()
+}
+
+#[allow(dead_code)]
+fn copy_string(src: &str, dst: &mut [u8]) {
+    dst[..src.len()].copy_from_slice(&src.as_bytes()[..src.len()]);
+    dst[src.len()] = 0;
+}
+
+/// # Safety
+/// this function should not be called inside rust
+#[no_mangle]
+pub unsafe extern "C" fn create_hdwallet(
+    _name: *const c_char,
+    _passphrase: *const c_char,
+    wallet_out: *mut HDWalletPtr,
+    mnemonics: *mut u8,
+    mnemonics_length: i32,
+) -> i32 {
+    let mnemonic = Mnemonic::new();
+    let phrase = mnemonic.unsecure_phrase();
+    assert!( phrase.as_bytes().len()< mnemonics_length as usize);
+    let wallet = HDWallet {
+        seed:HDSeed::from(&mnemonic),
+        enckey:vec![],
+    };
+    let wallet_box = Box::new(wallet);
+    ptr::write(wallet_out, Box::into_raw(wallet_box));   
+    ptr::copy_nonoverlapping(phrase.as_bytes().as_ptr(), mnemonics , phrase.as_bytes().len());
+    0
+}
+
+/// # Safety
+/// this function should not be called inside rust
+#[no_mangle]
+pub unsafe extern "C" fn restore_hdwallet(
+    _name: *const c_char,
+    _passphrase: *const c_char,
+    mnemonics2: *const c_char,
+    wallet_out: *mut HDWalletPtr,
+) -> i32 {
+    let mnemonics=get_string(mnemonics2);
+    let m= SecUtf8::from(mnemonics);
+    let mnemonic = Mnemonic::from_secstr(&m).unwrap();
+    let wallet = HDWallet{
+        seed:HDSeed::from(&mnemonic),
+        enckey:vec![],
+    };
+    let wallet_box = Box::new(wallet);
+    ptr::write(wallet_out, Box::into_raw(wallet_box));
+    0
+}
+
+/// # Safety
+/// this function should not be called inside rust
+#[no_mangle]
+pub unsafe extern "C" fn create_staking_address(wallet_ptr: HDWalletPtr, _index: i32) -> i32 {
+    let _wallet = wallet_ptr.as_mut().expect("get wallet");
+    println!("create staking address");
+    0
+}
+
+/// # Safety
+/// this function should not be called inside rust
+#[no_mangle]
+pub unsafe extern "C" fn create_transfer_address(wallet_ptr: HDWalletPtr, _index: i32) -> i32 {
+    let _wallet = wallet_ptr.as_mut().expect("get wallet");
+    println!("create transfer address");
+    0
+}
+
+/// # Safety
+/// this function should not be called inside rust
+#[no_mangle]
+pub unsafe extern "C" fn create_viewkey(wallet_ptr: HDWalletPtr, _index: i32) -> i32 {
+    let _wallet = wallet_ptr.as_mut().expect("get wallet");
+    println!("create viewkey");
+    0
+}
+
+/// # Safety
+/// this function should not be called inside rust
+#[no_mangle]
+pub unsafe extern "C" fn destroy_hdwallet(hdwallet: HDWalletPtr) -> i32 {
+    Box::from_raw(hdwallet);
+    0
+}
+
+/// # Safety
+/// this function should not be called inside rust
+#[no_mangle]
+pub unsafe extern "C" fn test_array(src: *const u8, length: usize) -> i32 {
+    let rust_array: &[u8] = slice::from_raw_parts(src, length as usize);
+    println!("{:?}", rust_array);
+    println!("{}", std::str::from_utf8(&rust_array).unwrap());
+    0
+}

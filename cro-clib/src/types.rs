@@ -54,7 +54,6 @@ impl CroResult {
     }
 }
 
-#[allow(dead_code)]
 /// # Safety
 pub unsafe fn get_string(src: *const c_char) -> String {
     CStr::from_ptr(src).to_string_lossy().into_owned()

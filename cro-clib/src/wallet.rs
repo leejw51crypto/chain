@@ -1,7 +1,5 @@
 use crate::types::get_string;
-use crate::types::{
-    CroAccount, CroAddress, CroAddressPtr, CroHDWallet, CroHDWalletPtr, CroNetwork, CroResult,
-};
+use crate::types::{CroAccount, CroAddress, CroAddressPtr, CroHDWallet, CroHDWalletPtr, CroResult};
 use chain_core::init::address::RedeemAddress;
 use chain_core::init::network::Network;
 use chain_core::state::account::StakedStateAddress;
@@ -9,18 +7,12 @@ use chain_core::tx::data::address::ExtendedAddr;
 use client_common::MultiSigAddress;
 use client_core::{HDSeed, Mnemonic};
 use secstr::SecUtf8;
+use std::ffi::CString;
 use std::os::raw::c_char;
 use std::ptr;
-impl From<CroNetwork> for Network {
-    fn from(src: CroNetwork) -> Self {
-        match src {
-            CroNetwork::Mainnet => Network::Mainnet,
-            CroNetwork::Testnet => Network::Testnet,
-            CroNetwork::Devnet => Network::Devnet,
-        }
-    }
-}
 
+/// create hd wallet
+/// minimum  300 byte-length is necessary
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_create_hdwallet(
@@ -30,7 +22,9 @@ pub unsafe extern "C" fn cro_create_hdwallet(
 ) -> CroResult {
     let mnemonic = Mnemonic::new();
     let phrase = mnemonic.unsecure_phrase();
-    assert!(phrase.as_bytes().len() < mnemonics_length as usize);
+    if phrase.as_bytes().len() > mnemonics_length as usize {
+        CroResult::fail();
+    }
     let wallet = CroHDWallet {
         seed: HDSeed::from(&mnemonic),
     };
@@ -66,7 +60,7 @@ pub unsafe extern "C" fn cro_restore_hdwallet(
 /// # Safety
 pub unsafe extern "C" fn cro_create_staking_address(
     wallet_ptr: CroHDWalletPtr,
-    network: CroNetwork,
+    network: Network,
     address_out: *mut CroAddressPtr,
     index: u32,
 ) -> CroResult {
@@ -76,7 +70,7 @@ pub unsafe extern "C" fn cro_create_staking_address(
     let wallet = wallet_ptr.as_mut().expect("get wallet");
     let (public, private) = wallet
         .seed
-        .derive_key_pair(network.into(), CroAccount::Staking as u32, index)
+        .derive_key_pair(network, CroAccount::Staking as u32, index)
         .unwrap();
     let address = StakedStateAddress::BasicRedeem(RedeemAddress::from(&public));
 
@@ -108,6 +102,7 @@ pub unsafe extern "C" fn cro_print_address(address_ptr: CroAddressPtr) -> CroRes
 }
 
 /// print address information
+/// minimum byte length 100 is necessary
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_get_printed_address(
@@ -116,17 +111,17 @@ pub unsafe extern "C" fn cro_get_printed_address(
     address_output_length: u32,
 ) -> CroResult {
     let address = address_ptr.as_mut().expect("get address");
-    let address_string = address.address.to_string();
-    let mut src_string = address_string.as_bytes().to_vec();
-    src_string.push(0);
-    let src = &src_string[..];
-    assert!(src.len() < address_output_length as usize);
+    let src_string = CString::new(address.address.as_bytes()).expect("get cstring");
+    let src = src_string.to_bytes_with_nul();
+    if src.len() > address_output_length as usize {
+        return CroResult::fail();
+    }
     ptr::copy_nonoverlapping(src.as_ptr(), address_output, src.len());
-
     CroResult::success()
 }
 
 /// print address information
+/// minimum 32 length is necessary
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_get_raw_address(
@@ -145,7 +140,9 @@ pub unsafe extern "C" fn cro_get_raw_address(
     let src_bytes = address.raw.clone();
 
     let src = &src_bytes[..];
-    assert!(src.len() < address_output_length as usize);
+    if src.len() > address_output_length as usize {
+        return CroResult::fail();
+    }
     ptr::copy_nonoverlapping(src.as_ptr(), address_output, src.len());
     *address_output_length = src.len() as u32;
 
@@ -157,7 +154,7 @@ pub unsafe extern "C" fn cro_get_raw_address(
 /// # Safety
 pub unsafe extern "C" fn cro_create_transfer_address(
     wallet_ptr: CroHDWalletPtr,
-    network: CroNetwork,
+    network: Network,
     address_out: *mut CroAddressPtr,
     index: u32,
 ) -> CroResult {
@@ -167,7 +164,7 @@ pub unsafe extern "C" fn cro_create_transfer_address(
     let wallet = wallet_ptr.as_mut().expect("get wallet");
     let (public, private) = wallet
         .seed
-        .derive_key_pair(network.into(), CroAccount::Transfer as u32, index)
+        .derive_key_pair(network, CroAccount::Transfer as u32, index)
         .unwrap();
     let public_keys = vec![public.clone()];
     let multi_sig_address = MultiSigAddress::new(public_keys, public.clone(), 1).unwrap();
@@ -199,7 +196,7 @@ pub unsafe extern "C" fn cro_create_transfer_address(
 /// # Safety
 pub unsafe extern "C" fn cro_create_viewkey(
     wallet_ptr: CroHDWalletPtr,
-    network: CroNetwork,
+    network: Network,
     address_out: *mut CroAddressPtr,
     index: u32,
 ) -> CroResult {
@@ -209,7 +206,7 @@ pub unsafe extern "C" fn cro_create_viewkey(
     let wallet = wallet_ptr.as_mut().expect("get wallet");
     let (public, private) = wallet
         .seed
-        .derive_key_pair(network.into(), CroAccount::Viewkey as u32, index)
+        .derive_key_pair(network, CroAccount::Viewkey as u32, index)
         .unwrap();
     let raw: Vec<u8> = public.serialize();
     assert!(65 == raw.len());

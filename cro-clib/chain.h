@@ -7,15 +7,6 @@
 
 #define SUCCESS 0
 
-/**
- * network kinds
- */
-typedef enum CroNetwork {
-  Mainnet,
-  Testnet,
-  Devnet,
-} CroNetwork;
-
 typedef struct CroAddress CroAddress;
 
 typedef struct CroHDWallet CroHDWallet;
@@ -29,6 +20,8 @@ typedef CroHDWallet *CroHDWalletPtr;
 typedef CroAddress *CroAddressPtr;
 
 /**
+ * create hd wallet
+ * minimum  300 byte-length is necessary
  * # Safety
  */
 CroResult cro_create_hdwallet(CroHDWalletPtr *wallet_out,
@@ -40,7 +33,7 @@ CroResult cro_create_hdwallet(CroHDWalletPtr *wallet_out,
  * # Safety
  */
 CroResult cro_create_staking_address(CroHDWalletPtr wallet_ptr,
-                                     CroNetwork network,
+                                     Network network,
                                      CroAddressPtr *address_out,
                                      uint32_t index);
 
@@ -49,7 +42,7 @@ CroResult cro_create_staking_address(CroHDWalletPtr wallet_ptr,
  * # Safety
  */
 CroResult cro_create_transfer_address(CroHDWalletPtr wallet_ptr,
-                                      CroNetwork network,
+                                      Network network,
                                       CroAddressPtr *address_out,
                                       uint32_t index);
 
@@ -58,7 +51,7 @@ CroResult cro_create_transfer_address(CroHDWalletPtr wallet_ptr,
  * # Safety
  */
 CroResult cro_create_viewkey(CroHDWalletPtr wallet_ptr,
-                             CroNetwork network,
+                             Network network,
                              CroAddressPtr *address_out,
                              uint32_t index);
 
@@ -76,6 +69,7 @@ CroResult cro_destroy_hdwallet(CroHDWalletPtr hdwallet);
 
 /**
  * print address information
+ * minimum byte length 100 is necessary
  * # Safety
  */
 CroResult cro_get_printed_address(CroAddressPtr address_ptr,
@@ -84,6 +78,7 @@ CroResult cro_get_printed_address(CroAddressPtr address_ptr,
 
 /**
  * print address information
+ * minimum 32 length is necessary
  * # Safety
  */
 CroResult cro_get_raw_address(CroAddressPtr address_ptr,

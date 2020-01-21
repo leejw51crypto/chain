@@ -9,14 +9,6 @@ pub type CroAddressPtr = *mut CroAddress;
 pub const SUCCESS: i32 = 0;
 pub const FAIL: i32 = -1;
 
-/// network kinds
-#[repr(C)]
-pub enum CroNetwork {
-    Mainnet,
-    Testnet,
-    Devnet,
-}
-
 /// account types
 #[repr(C)]
 pub enum CroAccount {
@@ -57,10 +49,4 @@ impl CroResult {
 /// # Safety
 pub unsafe fn get_string(src: *const c_char) -> String {
     CStr::from_ptr(src).to_string_lossy().into_owned()
-}
-
-#[allow(dead_code)]
-pub fn copy_string(src: &str, dst: &mut [u8]) {
-    dst[..src.len()].copy_from_slice(&src.as_bytes()[..src.len()]);
-    dst[src.len()] = 0;
 }

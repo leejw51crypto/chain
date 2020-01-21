@@ -3,14 +3,16 @@
 #include <string.h>
 #include <wchar.h>
 #include <assert.h>
+#include "../chain-core.h"
 #include "../chain.h"
+
 
 void test_hdwallet_create() {
     CroHDWalletPtr w=NULL;
     char tmp[300];
     memset(tmp, 0, 300);
     cro_create_hdwallet(&w, tmp, 300);
-    printf("mnemonic=%s\n",tmp);
+    printf("mnemonic=%s (%d)\n",tmp,(int) strlen(tmp));
     CroAddressPtr a= NULL;
     cro_create_staking_address(w,Devnet, &a,0);
     cro_print_address(a);   

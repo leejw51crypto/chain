@@ -15,9 +15,54 @@ typedef struct CroResult {
   int result;
 } CroResult;
 
+typedef CroAddress *CroAddressPtr;
+
 typedef CroHDWallet *CroHDWalletPtr;
 
-typedef CroAddress *CroAddressPtr;
+/**
+ * create staking address
+ * # Safety
+ */
+CroResult cro_basic_create_staking_address(CroAddressPtr *address_out);
+
+/**
+ * create staking address
+ * # Safety
+ */
+CroResult cro_basic_create_transfer_address(CroAddressPtr *address_out);
+
+/**
+ * create viewkey, which is for encrypted tx
+ * # Safety
+ */
+CroResult cro_basic_create_viewkey(CroAddressPtr *address_out);
+
+/**
+ * restore staking address
+ * input_length: maximum size of input
+ * # Safety
+ */
+CroResult cro_basic_restore_staking_address(CroAddressPtr *address_out,
+                                            const uint8_t *input,
+                                            uint32_t input_length);
+
+/**
+ * restore staking address
+ * input_length: maximum size of input
+ * # Safety
+ */
+CroResult cro_basic_restore_transfer_address(CroAddressPtr *address_out,
+                                             const uint8_t *input,
+                                             uint32_t input_length);
+
+/**
+ * restore staking address
+ * input_length: maximum size of input
+ * # Safety
+ */
+CroResult cro_basic_restore_viewkey(CroAddressPtr *address_out,
+                                    const uint8_t *input,
+                                    uint32_t input_length);
 
 /**
  * create hd wallet
@@ -66,6 +111,12 @@ CroResult cro_destroy_address(CroAddressPtr addr);
  * # Safety
  */
 CroResult cro_destroy_hdwallet(CroHDWalletPtr hdwallet);
+
+/**
+ * print address information
+ * # Safety
+ */
+CroResult cro_export_private(CroAddressPtr address_ptr, uint8_t *dst, uint32_t *dst_length);
 
 /**
  * print address information

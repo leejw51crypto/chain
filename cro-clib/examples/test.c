@@ -6,6 +6,7 @@
 #include "../chain-core.h"
 #include "../chain.h"
 
+int test_tx();
 
 void test_hdwallet_create() {
     CroHDWalletPtr w=NULL;
@@ -144,8 +145,9 @@ void test_normal_wallet_create()
 }
 
 int main() {
-    test_hdwallet_create();
-    test_hdwallet_mnemonics();  
-    test_normal_wallet_create();
+    //test_hdwallet_create();
+    //test_hdwallet_mnemonics();  
+    //test_normal_wallet_create();
+    test_tx();
     return 0;
 }

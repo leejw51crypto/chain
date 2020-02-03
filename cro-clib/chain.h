@@ -19,6 +19,11 @@ typedef CroAddress *CroAddressPtr;
 
 typedef CroHDWallet *CroHDWalletPtr;
 
+typedef struct CroUtxo {
+  uint8_t address[100];
+  uint8_t coin[100];
+} CroUtxo;
+
 /**
  * create staking address
  * # Safety
@@ -100,6 +105,12 @@ CroResult cro_create_viewkey(CroHDWalletPtr wallet_ptr,
                              CroAddressPtr *address_out,
                              uint32_t index);
 
+CroResult cro_deposit(uint8_t network,
+                      CroAddressPtr from_ptr,
+                      const char *to_address_user,
+                      const CroUtxo *utxo,
+                      uint32_t utxo_count);
+
 /**
  * destroy address
  * # Safety
@@ -146,3 +157,30 @@ CroResult cro_print_address(CroAddressPtr address_ptr);
  * # Safety
  */
 CroResult cro_restore_hdwallet(const char *mnemonics_string, CroHDWalletPtr *wallet_out);
+
+CroResult cro_trasfer(uint8_t network,
+                      CroAddressPtr from_ptr,
+                      const char *return_address_user,
+                      const CroUtxo *spend_utxo,
+                      uint32_t spend_utxo_count,
+                      const CroUtxo *utxo,
+                      uint32_t utxo_count,
+                      const char *const *viewkeys,
+                      int32_t viewkey_count);
+
+/**
+ * staked -> staked
+ */
+CroResult cro_unbond(uint8_t network,
+                     CroAddressPtr from_ptr,
+                     const char *to_address_user,
+                     const char *amount_user);
+
+/**
+ * staked -> utxo
+ */
+CroResult cro_withdraw(uint8_t network,
+                       CroAddressPtr from_ptr,
+                       const char *to_user,
+                       const char *const *viewkeys,
+                       int32_t viewkey_count);

@@ -22,8 +22,11 @@ use crate::TransactionObfuscation;
 /// Unspent transaction output with witness data
 #[derive(Debug, Decode, Encode)]
 pub struct WitnessedUTxO {
+    /// detail of utxo location (which tx, which index)
     pub prev_txo_pointer: TxoPointer,
+    /// detail of utxo
     pub prev_tx_out: TxOut,
+    /// signature and merkle-proof
     pub witness: Option<TxInWitness>,
 }
 

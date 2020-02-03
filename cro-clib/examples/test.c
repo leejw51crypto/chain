@@ -6,6 +6,7 @@
 #include "../chain-core.h"
 #include "../chain.h"
 
+int test_tx();
 
 void test_hdwallet_create() {
     CroHDWalletPtr w=NULL;
@@ -42,6 +43,14 @@ int is_same(const char* src, const char* dst)
 {
     return 0==strncmp(src, dst, strlen(src));
 }
+int show_hex(const unsigned char* src, int length) {
+    int i;
+    for (i=0;i<length;i++) {
+        unsigned char c= src[i];
+        printf("%02X", c);
+    }
+    printf("\n");
+}
 void test_hdwallet_mnemonics()
 {
     const char* mnemonics= "math original guitar once close news cactus crime cool tank honey file endless neglect catch side cluster clay viable journey october market autumn swing";
@@ -67,8 +76,78 @@ void test_hdwallet_mnemonics()
     cro_destroy_address(a);
     cro_destroy_hdwallet(q);
 }
+
+
+void test_normal_wallet_staking()
+{
+    CroAddressPtr a= NULL;
+    CroAddressPtr b= NULL;
+    char addr_a[300];
+    char addr_b[300]; 
+    cro_basic_create_staking_address(&a);
+    cro_print_address(a);
+    cro_get_printed_address(a, addr_a, 300);
+    char privatekey[32];
+    int length =sizeof(privatekey);
+    cro_export_private(a, privatekey,&length);
+    cro_basic_restore_staking_address(&b, privatekey, length);
+    cro_print_address(b);
+    cro_get_printed_address(a, addr_b, 300);
+    assert( is_same(addr_a, addr_b));
+    cro_destroy_address(a);   
+    cro_destroy_address(b);   
+}
+
+void test_normal_wallet_transfer()
+{
+    CroAddressPtr a= NULL;
+    CroAddressPtr b= NULL;
+    char addr_a[300];
+    char addr_b[300]; 
+    cro_basic_create_transfer_address(&a);
+    cro_print_address(a);
+    cro_get_printed_address(a, addr_a, 300);
+    char privatekey[32];
+    int length =sizeof(privatekey);
+    cro_export_private(a, privatekey,&length);
+    cro_basic_restore_transfer_address(&b, privatekey, length);
+    cro_print_address(b);
+    cro_get_printed_address(a, addr_b, 300);
+    assert( is_same(addr_a, addr_b));
+    cro_destroy_address(a);   
+    cro_destroy_address(b);   
+}
+void test_normal_wallet_viewkey()
+{
+    CroAddressPtr a= NULL;
+    CroAddressPtr b= NULL;
+    char addr_a[300];
+    char addr_b[300]; 
+    cro_basic_create_viewkey(&a);
+    cro_print_address(a);
+    cro_get_printed_address(a, addr_a, 300);
+    char privatekey[32];
+    int length =sizeof(privatekey);
+    cro_export_private(a, privatekey,&length);
+    cro_basic_restore_viewkey(&b, privatekey, length);
+    cro_print_address(b);
+    cro_get_printed_address(a, addr_b, 300);
+    assert( is_same(addr_a, addr_b));
+    cro_destroy_address(a);   
+    cro_destroy_address(b);   
+}
+
+void test_normal_wallet_create() 
+{
+    test_normal_wallet_staking();
+    test_normal_wallet_transfer();
+    test_normal_wallet_viewkey();
+}
+
 int main() {
-    test_hdwallet_create();
-    test_hdwallet_mnemonics();
+    //test_hdwallet_create();
+    //test_hdwallet_mnemonics();  
+    //test_normal_wallet_create();
+    test_tx();
     return 0;
 }

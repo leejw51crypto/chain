@@ -21,9 +21,10 @@ pub unsafe extern "C" fn cro_create_hdwallet(
 ) -> CroResult {
     let mnemonic = Mnemonic::new();
     let phrase = mnemonic.unsecure_phrase();
-    if phrase.as_bytes().len() > mnemonics_length as usize {
+    if phrase.as_bytes().len() >= mnemonics_length as usize {
         return CroResult::fail();
     }
+    ptr::write_bytes(mnemonics, 0, mnemonics_length as usize);
     let wallet = CroHDWallet {
         seed: HDSeed::from(&mnemonic),
     };

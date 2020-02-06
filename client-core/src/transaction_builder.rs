@@ -7,6 +7,7 @@ pub use default_wallet_transaction_builder::DefaultWalletTransactionBuilder;
 pub use raw_transfer_transaction_builder::RawTransferTransactionBuilder;
 pub use raw_transfer_transaction_builder::WitnessedUTxO;
 pub use unauthorized_wallet_transaction_builder::UnauthorizedWalletTransactionBuilder;
+pub use raw_transfer_transaction_builder::WitnessedUTxO;
 
 use chain_core::init::coin::Coin;
 use chain_core::tx::data::address::ExtendedAddr;

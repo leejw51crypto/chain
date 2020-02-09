@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
@@ -7,71 +8,75 @@
 #include "../chain-core.h"
 #include "../chain.h"
 
-void deposit(CroAddressPtr staking)
+void print_address(CroAddressPtr a);
+void print_hex(char *tmp, int length)
 {
-    puts("deposit");
-    cro_print_address(staking);
-    CroUtxo utxo[5];
-    memset(utxo, 0, sizeof(utxo));
     int i;
-    
-    for (i=0;i<5;i++) {
-
-        char tmp[300];
-        memset(tmp, 0, sizeof(tmp));
-        sprintf(tmp,"dcro1aj3tv4z40250v9v0aextlsq4pl9qzd7zezd3v6fc392ak00zhtds3d2wyl");
-       // memset(utxo[i].address, 0, sizeof(utxo[i].address));
-        strcpy(utxo[i].address, tmp);
-        int j;
-        printf("-------------- %d\n",i);
-        printf("\n%s\n", utxo[i].address);        
-        sprintf(utxo[i].coin, "%d", i*100);
+    for (i = 0; i < length; i++)
+    {
+        printf("%X", (unsigned char)tmp[i]);
     }
-
-    cro_deposit(Devnet,staking, "0x2782feb1e457733d83bb738d18b55d91c9b1d7e6", utxo, 5);    
+    printf("\n");
 }
-
-void unbond(CroAddressPtr staking)
+int test_tx()
 {
-    printf("unbond\n");
-    cro_unbond(Devnet,staking, "0x2782feb1e457733d83bb738d18b55d91c9b1d7e6", "1000");
-}
+    const char *mnemonics = "annual dinosaur deliver hour loop food buddy lift alert obvious thank scorpion young amused climb defy erode blur drip gun require clerk beef armed";
 
-void withdraw(CroAddressPtr staking)
-{
-    printf("withdraw\n");
+    CroHDWalletPtr hdwallet = NULL;
+    CroAddressPtr staking = NULL;
+    CroAddressPtr staking2 = NULL;
+    CroAddressPtr transfer = NULL;
+    CroAddressPtr transfer2 = NULL;
+    CroAddressPtr viewkey = NULL;
+    CroAddressPtr viewkey2 = NULL;
+    CroFeePtr fee = NULL;
+    cro_create_fee_algorithm(&fee, "5", "1.0");
 
-    const char* viewkeys[2]={"02d1a53beae333dfdd18509a1016c6c0047452c1b8018d21e986e23714d15a4fe7","0286181f61cab62bb901412797e39d59914979801f18ca6b825e5802a803ce6677"};
-    cro_withdraw(Devnet,staking, "dcro1aj3tv4z40250v9v0aextlsq4pl9qzd7zezd3v6fc392ak00zhtds3d2wyl", viewkeys, 2);
-
-}
-int test_tx() {
-    const char* mnemonics= "math original guitar once close news cactus crime cool tank honey file endless neglect catch side cluster clay viable journey october market autumn swing";
-    CroHDWalletPtr hdwallet= NULL;
-    CroAddressPtr staking= NULL;
-    CroAddressPtr transfer= NULL;
-    CroAddressPtr viewkey= NULL;
-    CroAddressPtr viewkey2= NULL;
-    
     cro_restore_hdwallet(mnemonics, &hdwallet);
-    cro_create_staking_address(hdwallet, Devnet,&staking,0);    
-    cro_create_transfer_address(hdwallet, Devnet,&transfer,0);    
-    cro_create_viewkey(hdwallet, Devnet,&viewkey,0);      
-    cro_create_viewkey(hdwallet, Devnet,&viewkey2,1);      
-    cro_print_address(staking);
-    cro_print_address(transfer);
-    cro_print_address(viewkey);
-    cro_print_address(viewkey2);
-    // process
-    //deposit(staking);
-    //unbond(staking);
-    withdraw(staking);
+    cro_create_staking_address(hdwallet, Devnet, &staking, 0);
+    cro_create_staking_address(hdwallet, Devnet, &staking2, 1);
+    cro_create_transfer_address(hdwallet, Devnet, &transfer, 0);
+    cro_create_transfer_address(hdwallet, Devnet, &transfer2, 1);
+    cro_create_viewkey(hdwallet, Devnet, &viewkey, 0);
+    cro_create_viewkey(hdwallet, Devnet, &viewkey2, 1);
+    print_address(staking);
+    print_address(staking2);
+    print_address(transfer);
+    print_address(transfer2);
+    print_address(viewkey);
+    print_address(viewkey2);
 
+    CroTxPtr tx = NULL;
+    cro_create_tx(&tx);
+    // compose tx
+    cro_tx_add_txin(tx, "1483dadcae2e6e44bc3248623c7dce749f08270dc9967c6a3ba57f1ce4416b29", 0, "dcro14yj2fc3u3ssvlsfdrr6fu0qmvjx97d405jw9jnwe50ge4y6v53hqr20xzd",
+                    1000);
+    cro_tx_add_txout(tx, "dcro194f967ckya03l4pnyrxtushzmlv26lm48c3fjz0tyzf9dwdcfpsqfnpmrt", 600);
+    cro_tx_add_txout(tx, "dcro14yj2fc3u3ssvlsfdrr6fu0qmvjx97d405jw9jnwe50ge4y6v53hqr20xzd", 200);
+    cro_tx_add_viewkey(tx, "03fe7108a0c6f1dfae943d0193f56d6a5957cd391458d74016b8383c472c6c70d0");
+    cro_tx_add_viewkey(tx, "022fd255454c6f30a26cf2fb431fd92a2279f6c0e7ec013a63fc847c98de4382d3");
+    // signing
+    cro_tx_prepare_for_signing(tx, 0xab);
+    cro_tx_sign_txin(staking, tx, 0);
+    char tmp[1000];
+    unsigned int max_length = 1000;
+    cro_tx_complete_signing(tx, tmp, &max_length);
+    print_hex(tmp, max_length);
+
+    char fee_output[100];
+
+    uint64_t fee_coin = cro_estimate_fee(fee, max_length);
+    printf("bytes=%d fee=%" PRIu64 "\n", max_length, fee_coin);
+
+    // good to encrypt now
     cro_destroy_address(staking);
+    cro_destroy_address(staking2);
     cro_destroy_address(transfer);
+    cro_destroy_address(transfer2);
     cro_destroy_address(viewkey);
     cro_destroy_address(viewkey2);
     cro_destroy_hdwallet(hdwallet);
+    cro_destroy_fee_algorithm(fee);
 
     return 0;
 }

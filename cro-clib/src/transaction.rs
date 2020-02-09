@@ -1,22 +1,17 @@
+use crate::types::CroStakedState;
+use crate::types::{copy_string, get_string, CroTxPtr};
+use crate::types::{CroAddressPtr, CroResult, CroString, CroUtxo};
+use chain_core::common::{Proof, H256};
+pub use chain_core::init::network::Network;
+use chain_core::init::{address::RedeemAddress, coin::Coin, config::InitConfig};
 use chain_core::state::account::{
     CouncilNode, DepositBondTx, StakedState, StakedStateAddress, StakedStateOpAttributes,
     StakedStateOpWitness, UnbondTx, UnjailTx, WithdrawUnbondedTx,
 };
-use chain_core::tx::data::attribute::TxAttributes;
-use chain_core::tx::data::Tx;
-use client_common::{
-    seckey::derive_enckey, Error, ErrorKind, PrivateKey, PublicKey, Result, ResultExt, SecKey,
-    SignedTransaction, Storage, Transaction, TransactionInfo,
-};
-use std::str::FromStr;
-
-use crate::types::get_string;
-use crate::types::{CroAddressPtr, CroResult, CroString, CroTxOut, CroUtxo};
-use chain_core::common::{Proof, H256};
-pub use chain_core::init::network::Network;
-use chain_core::init::{address::RedeemAddress, coin::Coin, config::InitConfig};
 use chain_core::tx::data::access::{TxAccess, TxAccessPolicy};
 use chain_core::tx::data::address::ExtendedAddr;
+use chain_core::tx::data::attribute::TxAttributes;
+use chain_core::tx::data::Tx;
 use chain_core::tx::fee::{LinearFee, Milli};
 use chain_core::tx::witness::{TxInWitness, TxWitness};
 use chain_core::tx::TransactionId;
@@ -25,13 +20,38 @@ use chain_core::{
     init::coin::{sum_coins, CoinError},
     tx::data::{input::TxoPointer, output::TxOut, TxId},
 };
+use client_common::tendermint::types::AbciQueryExt;
+use client_common::tendermint::{Client, WebsocketRpcClient};
 use client_common::MultiSigAddress;
+use client_common::{
+    seckey::derive_enckey, Error, ErrorKind, PrivateKey, PublicKey, Result, ResultExt, SecKey,
+    SignedTransaction, Storage, Transaction, TransactionInfo,
+};
+use client_core::cipher::DefaultTransactionObfuscation;
 use client_core::transaction_builder::RawTransferTransactionBuilder;
 use client_core::transaction_builder::WitnessedUTxO;
 use client_core::unspent_transactions::{Operation, Sorter};
 use client_core::{TransactionObfuscation, UnspentTransactions, WalletClient};
+use parity_scale_codec::Decode;
 use std::collections::BTreeSet;
 use std::os::raw::c_char;
+use std::ptr;
+use std::str::FromStr;
+use std::string::ToString;
+
+/// # Safety
+pub unsafe fn get_string_from_array(src: &[u8]) -> String {
+    let mut n = 0;
+    for i in 0..src.len() {
+        if 0 == src[i] {
+            n = i;
+            break;
+        }
+    }
+
+    std::str::from_utf8(&src[0..n]).expect("utf8").to_string()
+}
+
 #[no_mangle]
 // utxo -> utxo
 pub unsafe extern "C" fn cro_trasfer(
@@ -85,12 +105,12 @@ pub unsafe extern "C" fn cro_trasfer(
     )]);
 
     unspent_transactions.apply_all(&[Operation::Sort(Sorter::HighestValueFirst)]);
-    let mut fees = Coin::zero();
-    let mut tx_ins_witness: Vec<TxInWitness> = vec![];
+    let fees = Coin::zero();
+    let tx_ins_witness: Vec<TxInWitness> = vec![];
     let mut tx = Tx::default();
     let tx_ins: &mut Vec<TxoPointer> = &mut tx.inputs;
-    let mut tx_outs: &mut Vec<TxOut> = &mut tx.outputs;
-    let mut attributes: &mut TxAttributes = &mut tx.attributes;
+    let tx_outs: &mut Vec<TxOut> = &mut tx.outputs;
+    let attributes: &mut TxAttributes = &mut tx.attributes;
 
     let mut spend_utxo: Vec<WitnessedUTxO> = vec![];
     for x in tx_ins {
@@ -100,7 +120,7 @@ pub unsafe extern "C" fn cro_trasfer(
             value: Coin::from_str("").unwrap(),
             valid_from: None,
         };
-        let mut newone = WitnessedUTxO {
+        let newone = WitnessedUTxO {
             prev_txo_pointer: x.clone(),
             prev_tx_out: txout.clone(),
             witness: None,
@@ -110,10 +130,8 @@ pub unsafe extern "C" fn cro_trasfer(
     assert!(spend_utxo.len() == tx.inputs.len());
 
     for x in utxo_array {
-        let coin = crate::types::get_string_from_array(&x.coin);
-        let addr = crate::types::get_string_from_array(&x.address);
-        let address = ExtendedAddr::from_str(&addr).unwrap();
-        let value = Coin::from_str(&coin).unwrap(); // carson unit
+        let address = ExtendedAddr::OrTree(x.address.clone());
+        let value = Coin::new(x.value).unwrap(); // carson unit
         let txout = TxOut {
             address,
             value,
@@ -188,27 +206,21 @@ pub unsafe extern "C" fn cro_deposit(
     let attributes = StakedStateOpAttributes::new(network);
     let transaction = DepositBondTx::new(inputs, to_address, attributes);
 
-    let mut utxos: Vec<TxOut> = vec![];
+    let utxos: Vec<TxOut> = vec![];
 
     let message: TxId = transaction.id();
     println!("cro_deposit {}", array.len());
     let mut in_witness: Vec<TxInWitness> = vec![];
     for x in array {
-        let address = &x.address;
-
-        let coin = crate::types::get_string_from_array(&x.coin);
-        let addr = crate::types::get_string_from_array(&x.address);
-
-        println!("******* {}", addr);
-        let address = ExtendedAddr::from_str(&addr).unwrap();
-        let value = Coin::from_str(&coin).unwrap(); // carson unit
+        let address = ExtendedAddr::OrTree(x.address.clone());
+        let value = Coin::new(x.value).unwrap();
 
         let txout = TxOut {
-            address,
+            address: address.clone(),
             value,
             valid_from: None,
         };
-        println!("txid={} index={}", addr, coin);
+        println!("txid={} index={}", address, value);
         let tx_in_witness: TxInWitness =
             schnorr_sign(&message, &txout, &from_public, &from_private);
         in_witness.push(tx_in_witness);
@@ -259,7 +271,7 @@ pub unsafe extern "C" fn cro_unbond(
 pub unsafe extern "C" fn cro_withdraw(
     network: u8,
     from_ptr: CroAddressPtr,
-    to_user: *const c_char,
+    _to_user: *const c_char,
     viewkeys: *const *const c_char, // viewkeys
     viewkey_count: i32,
 ) -> CroResult {
@@ -298,5 +310,51 @@ pub unsafe extern "C" fn cro_withdraw(
     );
 
     println!("viewcount {}", viewkey_count);
+    CroResult::success()
+}
+
+/// staked -> utxo
+/// tendermint_url: ws://localhost:26657/websocket
+#[no_mangle]
+pub unsafe extern "C" fn cro_get_staked_state(
+    from_ptr: CroAddressPtr,
+    tenermint_url_string: *const c_char,
+    staked_state_user: *mut CroStakedState,
+) -> CroResult {
+    let staked_state = staked_state_user.as_mut().expect("get state");
+    let from_address = from_ptr.as_mut().expect("get address");
+    let tendermint_url = get_string(tenermint_url_string);
+    println!("get staked state");
+
+    let tendermint_client = WebsocketRpcClient::new(&tendermint_url).unwrap();
+    let result = tendermint_client
+        .query("txquery", &[])
+        .unwrap()
+        .bytes()
+        .unwrap();
+    let address = std::str::from_utf8(&result).unwrap();
+    let address_args: Vec<&str> = address.split(':').collect();
+    //println!("txquery host={} port={}", address_args[0], address_args[1]);
+    let _transaction_obfuscation: DefaultTransactionObfuscation =
+        DefaultTransactionObfuscation::new(
+            address_args[0].to_string(),
+            address_args[1].to_string(),
+        );
+
+    let tendermint_client = WebsocketRpcClient::new(&tendermint_url).unwrap();
+
+    assert!(20 == from_address.raw.len());
+    let bytes = tendermint_client
+        .query("account", &from_address.raw)
+        .unwrap()
+        .bytes()
+        .unwrap();
+    let state = StakedState::decode(&mut bytes.as_slice()).unwrap();
+    staked_state.nonce = state.nonce;
+    staked_state.unbonded_from = state.unbonded_from;
+    staked_state.bonded = state.bonded.into();
+    staked_state.unbonded = state.unbonded.into();
+    println!("staked state={:?}", state);
+
     CroResult::success()
 }

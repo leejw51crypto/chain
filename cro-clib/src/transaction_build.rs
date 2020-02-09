@@ -8,14 +8,16 @@ use chain_core::tx::data::address::ExtendedAddr;
 use chain_core::tx::data::attribute::TxAttributes;
 use chain_core::tx::data::input::TxoPointer;
 use chain_core::tx::data::output::TxOut;
-use chain_core::tx::data::Tx;
 use chain_core::tx::data::TxId;
 use chain_core::tx::witness::TxInWitness;
+use chain_core::tx::witness::TxWitness;
+use chain_core::tx::PlainTxAux;
 use chain_core::tx::TransactionId;
 use client_common::MultiSigAddress;
 use client_common::{ErrorKind, Result, ResultExt};
 use client_common::{PrivateKey, PublicKey};
 use parity_scale_codec::Encode;
+use std::convert::From;
 
 use std::collections::BTreeSet;
 use std::os::raw::c_char;
@@ -31,6 +33,9 @@ pub unsafe extern "C" fn cro_create_tx(tx_out: *mut CroTxPtr) -> CroResult {
     CroResult::success()
 }
 
+/// txid_hex: txid in hex string
+/// txindex: which utxo in tx which txid_hex points
+/// addr, coin: txid_hex + txindex points this utxo (address, coin value)
 fn do_cro_tx_add_txin(
     tx: &mut CroTx,
     txid_hex: &str,
@@ -59,16 +64,18 @@ fn do_cro_tx_add_txin(
         Coin::new(coin).chain(|| (ErrorKind::DeserializationError, "Unable to decode coin"))?,
     );
 
-    tx.txin_pointer.push(txin_pointer);
+    tx.tx.inputs.push(txin_pointer);
     tx.txin_witness.push(None);
     tx.txin.push(txin);
+    assert!(tx.tx.inputs.len() == tx.txin.len());
+    assert!(tx.tx.inputs.len() == tx.txin_witness.len());
     Ok(())
 }
 
 /// add txin
 /// txid_string: 64 length hex-char , 32 bytes
 /// addr_string: transfer address
-/// cro_string: cro unit , example 0.0001
+/// coin: carson unit  for example) 1_0000_0000 carson = 1 cro, 1 carson = 0.0000_0001 cro
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_tx_add_txin(
@@ -88,6 +95,9 @@ pub unsafe extern "C" fn cro_tx_add_txin(
 }
 
 /// add txin in bytes
+/// txid: txid in raw bytes, it's 32 bytes
+/// txindex: which utxo in tx which txid_hex points
+/// addr, coin: txid_hex + txindex points this utxo (address, coin value)
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_tx_add_txin_raw(
@@ -104,13 +114,15 @@ pub unsafe extern "C" fn cro_tx_add_txin_raw(
         Coin::new(coin).expect("get coin in cro_tx_add_txin"),
     );
 
-    tx.txin_pointer.push(txin_pointer);
+    tx.tx.inputs.push(txin_pointer);
     tx.txin_witness.push(None);
     tx.txin.push(txin);
+    assert!(tx.tx.inputs.len() == tx.txin.len());
+    assert!(tx.tx.inputs.len() == tx.txin_witness.len());
     CroResult::success()
 }
 
-/// add viewkey
+/// add viewkey in string, which you can get from client-cli
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_tx_add_viewkey(
@@ -142,9 +154,6 @@ pub unsafe extern "C" fn cro_tx_add_viewkey_raw(tx_ptr: CroTxPtr, viewkey: [u8; 
 }
 
 fn do_cro_tx_prepare_for_signing(user_tx: &mut CroTx, network: u8) -> Result<()> {
-    let mut tx: Tx = Tx::default();
-    tx.inputs = user_tx.txin_pointer.clone();
-    tx.outputs = user_tx.txout.clone();
     let mut access_policies = BTreeSet::new();
     for viewkey_user in &user_tx.viewkey {
         access_policies.insert(TxAccessPolicy {
@@ -152,12 +161,13 @@ fn do_cro_tx_prepare_for_signing(user_tx: &mut CroTx, network: u8) -> Result<()>
             access: TxAccess::AllData,
         });
     }
-    tx.attributes = TxAttributes::new_with_access(network, access_policies.into_iter().collect());
-    user_tx.tx = Some(tx);
+    user_tx.tx.attributes =
+        TxAttributes::new_with_access(network, access_policies.into_iter().collect());
     Ok(())
 }
 
 /// prepare tx for signing
+/// this prepares for TxAttributes with viewkeys
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_tx_prepare_for_signing(tx_ptr: CroTxPtr, network: u8) -> CroResult {
@@ -168,7 +178,9 @@ pub unsafe extern "C" fn cro_tx_prepare_for_signing(tx_ptr: CroTxPtr, network: u
     }
 }
 
-/// extract bytes from singed tx
+/// extract bytes from signed tx
+/// this output is encrypted with tx-query-app
+/// can be broadcast to the network
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_tx_complete_signing(
@@ -177,7 +189,15 @@ pub unsafe extern "C" fn cro_tx_complete_signing(
     output_length: *mut u32,
 ) -> CroResult {
     let user_tx: &mut CroTx = tx_ptr.as_mut().expect("get tx");
-    let encoded: Vec<u8> = user_tx.tx.as_ref().expect("get tx core").encode();
+    let mut witnesses: Vec<TxInWitness> = vec![];
+    for witness in &user_tx.txin_witness {
+        if let Some(value) = witness {
+            witnesses.push(value.clone());
+        }
+    }
+    assert!(witnesses.len() == user_tx.txin_witness.len());
+    let plain_tx = PlainTxAux::new(user_tx.tx.clone(), TxWitness::from(witnesses));
+    let encoded: Vec<u8> = plain_tx.encode();
     ptr::copy_nonoverlapping(encoded.as_ptr(), output, encoded.len());
     (*output_length) = encoded.len() as u32;
     CroResult::success()
@@ -189,16 +209,10 @@ fn do_cro_tx_sign_txin(
     which_tx_in_user: u16,
 ) -> Result<()> {
     let which_tx_in: usize = which_tx_in_user as usize;
-    assert!(user_tx.tx.is_some());
     assert!(which_tx_in < user_tx.txin.len());
     assert!(which_tx_in < user_tx.txin_witness.len());
-    let tx: &mut Tx = user_tx.tx.as_mut().chain(|| {
-        (
-            ErrorKind::DeserializationError,
-            "Unable to decode hex of txid",
-        )
-    })?;
-    let txid: TxId = tx.id();
+
+    let txid: TxId = user_tx.tx.id();
     let witness: TxInWitness = schnorr_sign(&txid, &address.publickey, &address.privatekey)?;
     user_tx.txin_witness[which_tx_in] = Some(witness);
     assert!(user_tx.txin.len() == user_tx.txin_witness.len());
@@ -206,6 +220,9 @@ fn do_cro_tx_sign_txin(
 }
 
 /// sign for each txin
+/// address_ptr: privatekey which will sign
+/// tx_ptr: which tx to sign?
+/// which_tx_in_user: which txin inside tx?
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_tx_sign_txin(
@@ -221,6 +238,7 @@ pub unsafe extern "C" fn cro_tx_sign_txin(
     }
 }
 
+/// TODO: it's only for 1 of 1 , code for other multiple signers(m/n) will be added
 fn schnorr_sign(
     message: &TxId,
     public_key: &PublicKey,
@@ -248,11 +266,13 @@ fn do_cro_tx_add_txout(tx: &mut CroTx, addr: &str, coin: u64) -> Result<()> {
         })?,
         Coin::new(coin).chain(|| (ErrorKind::DeserializationError, "Unable to decode coin"))?,
     );
-    tx.txout.push(txout);
+    tx.tx.outputs.push(txout);
     Ok(())
 }
 
-/// add txout
+/// add txout , this makes utxo
+/// addr_string: which address in string?
+/// coin: value to send in carson unit , 1 carson= 0.0000_0001 cro
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_tx_add_txout(
@@ -269,6 +289,8 @@ pub unsafe extern "C" fn cro_tx_add_txout(
 }
 
 /// add txout with bytes
+/// addr: which address in bytes
+/// coin: value to send in carson unit , 1 carson= 0.0000_0001 cro
 #[no_mangle]
 /// # Safety
 pub unsafe extern "C" fn cro_tx_add_txout_raw(
@@ -281,7 +303,7 @@ pub unsafe extern "C" fn cro_tx_add_txout_raw(
         ExtendedAddr::OrTree(addr),
         Coin::new(coin).expect("get coin in cro_tx_add_txout_raw"),
     );
-    tx.txout.push(txout);
+    tx.tx.outputs.push(txout);
     CroResult::success()
 }
 

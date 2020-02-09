@@ -27,12 +27,18 @@ typedef CroHDWallet *CroHDWalletPtr;
 
 typedef CroTx *CroTxPtr;
 
+/**
+ * value: carson unit  for example) 1_0000_0000 carson = 1 cro, 1 carson = 0.0000_0001 cro
+ */
 typedef struct CroUtxo {
   uint8_t address[32];
   uint64_t value;
   uint64_t valid_from;
 } CroUtxo;
 
+/**
+ * TODO: other states (jailed, unjail) will be added
+ */
 typedef struct CroStakedState {
   uint64_t nonce;
   uint64_t bonded;
@@ -218,7 +224,7 @@ CroResult cro_trasfer(uint8_t network,
  * add txin
  * txid_string: 64 length hex-char , 32 bytes
  * addr_string: transfer address
- * cro_string: cro unit , example 0.0001
+ * coin: carson unit  for example) 1_0000_0000 carson = 1 cro, 1 carson = 0.0000_0001 cro
  * # Safety
  */
 CroResult cro_tx_add_txin(CroTxPtr tx_ptr,
@@ -229,6 +235,9 @@ CroResult cro_tx_add_txin(CroTxPtr tx_ptr,
 
 /**
  * add txin in bytes
+ * txid: txid in raw bytes, it's 32 bytes
+ * txindex: which utxo in tx which txid_hex points
+ * addr, coin: txid_hex + txindex points this utxo (address, coin value)
  * # Safety
  */
 CroResult cro_tx_add_txin_raw(CroTxPtr tx_ptr,
@@ -238,19 +247,23 @@ CroResult cro_tx_add_txin_raw(CroTxPtr tx_ptr,
                               uint64_t coin);
 
 /**
- * add txout
+ * add txout , this makes utxo
+ * addr_string: which address in string?
+ * coin: value to send in carson unit , 1 carson= 0.0000_0001 cro
  * # Safety
  */
 CroResult cro_tx_add_txout(CroTxPtr tx_ptr, const char *addr_string, uint64_t coin);
 
 /**
  * add txout with bytes
+ * addr: which address in bytes
+ * coin: value to send in carson unit , 1 carson= 0.0000_0001 cro
  * # Safety
  */
 CroResult cro_tx_add_txout_raw(CroTxPtr tx_ptr, uint8_t addr[32], uint64_t coin);
 
 /**
- * add viewkey
+ * add viewkey in string, which you can get from client-cli
  * # Safety
  */
 CroResult cro_tx_add_viewkey(CroTxPtr tx_ptr, const char *viewkey_string);
@@ -262,19 +275,25 @@ CroResult cro_tx_add_viewkey(CroTxPtr tx_ptr, const char *viewkey_string);
 CroResult cro_tx_add_viewkey_raw(CroTxPtr tx_ptr, uint8_t viewkey[33]);
 
 /**
- * extract bytes from singed tx
+ * extract bytes from signed tx
+ * this output is encrypted with tx-query-app
+ * can be broadcast to the network
  * # Safety
  */
 CroResult cro_tx_complete_signing(CroTxPtr tx_ptr, uint8_t *output, uint32_t *output_length);
 
 /**
  * prepare tx for signing
+ * this prepares for TxAttributes with viewkeys
  * # Safety
  */
 CroResult cro_tx_prepare_for_signing(CroTxPtr tx_ptr, uint8_t network);
 
 /**
  * sign for each txin
+ * address_ptr: privatekey which will sign
+ * tx_ptr: which tx to sign?
+ * which_tx_in_user: which txin inside tx?
  * # Safety
  */
 CroResult cro_tx_sign_txin(CroAddressPtr address_ptr, CroTxPtr tx_ptr, uint16_t which_tx_in_user);

@@ -1,10 +1,8 @@
-use chain_core::tx::data::input::TxoPointer;
 use chain_core::tx::data::output::TxOut;
 use chain_core::tx::data::Tx;
 use chain_core::tx::fee::{LinearFee, Milli};
 use chain_core::tx::witness::TxInWitness;
 use client_common::{PrivateKey, PublicKey};
-use client_core::transaction_builder::WitnessedUTxO;
 use client_core::HDSeed;
 use std::ffi::CStr;
 use std::os::raw::c_char;
@@ -42,6 +40,7 @@ pub struct CroAddress {
     pub address: String,
 }
 
+/// TODO: other states (jailed, unjail) will be added
 #[repr(C)]
 #[derive(Clone)]
 pub struct CroStakedState {
@@ -77,6 +76,7 @@ pub unsafe fn get_string(src: *const c_char) -> String {
     CStr::from_ptr(src).to_string_lossy().into_owned()
 }
 
+/// value: carson unit  for example) 1_0000_0000 carson = 1 cro, 1 carson = 0.0000_0001 cro
 #[repr(C)]
 pub struct CroUtxo {
     pub address: [u8; 32], // holder
@@ -86,19 +86,11 @@ pub struct CroUtxo {
 
 #[derive(Clone, Default)]
 pub struct CroTx {
-    // out amount - in amount = fee
-    // in
-    // if signed, these 3 counts are the same
-    pub txin_pointer: Vec<TxoPointer>,          // which utxo?
-    pub txin_witness: Vec<Option<TxInWitness>>, // sinature
-    pub txin: Vec<TxOut>,                       // utxo which will be consumed
-    // out
-    pub txout: Vec<TxOut>, // new utxo
-    // viewkeys which can view thix tx
+    pub txin: Vec<TxOut>,
+    pub txin_witness: Vec<Option<TxInWitness>>,
     pub viewkey: Vec<secp256k1::PublicKey>,
-
-    // core tx
-    pub tx: Option<Tx>,
+    // contains TxoPointer(in), TxOut(out), attribites(viewkey)
+    pub tx: Tx,
 }
 
 #[derive(Clone)]

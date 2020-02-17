@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import time
 from chainrpc import RPC
 from chainbot import SigningKey
 from common import UnixStreamXMLRPCClient, wait_for_validators, wait_for_port, wait_for_blocks, wait_for_tx, wait_for_blocktime, stop_node
@@ -43,6 +44,7 @@ wait_for_validators(rpc, 3)
 enckey = rpc.wallet.restore(TARGET_NODE_MNEMONIC, name='target')
 
 print('Stop', TARGET_NODE)
+time.sleep(5)  # FIXME, remove after adr-001 implemented
 stop_node(supervisor, TARGET_NODE)
 
 print('Waiting for', MISSED_BLOCK_THRESHOLD + 3, 'blocks')
@@ -51,7 +53,7 @@ wait_for_blocks(rpc, MISSED_BLOCK_THRESHOLD + 3)
 assert len(rpc.chain.validators()['validators']) == 2
 
 addr = rpc.address.list(enckey=enckey, name='target')[0]
-punishment = rpc.staking.state(addr)['punishment']
+punishment = rpc.staking.state(addr, enckey=enckey, name='target')['punishment']
 print('punishment', punishment)
 assert punishment['kind'] == 'NonLive'
 print('slash amount', punishment['slash_amount'])

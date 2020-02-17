@@ -286,7 +286,6 @@ impl ChainEnv {
             storage,
             account_storage,
             None,
-            None,
         )
     }
 

@@ -1,9 +1,16 @@
 use sgx_types::*;
 
+use chain_core::common::H256;
+use chain_core::state::account::DepositBondTx;
+use chain_core::state::account::StakedState;
+use chain_core::tx::TxEnclaveAux;
 use chain_core::tx::TxObfuscated;
 use chain_tx_validation::Error;
-use enclave_protocol::{IntraEnclaveRequest, IntraEnclaveResponse, IntraEnclaveResponseOk};
+use enclave_protocol::{
+    IntraEnclaveRequest, IntraEnclaveResponse, IntraEnclaveResponseOk, VerifyOk,
+};
 use parity_scale_codec::{Decode, Encode};
+use sled::Tree;
 use std::mem::size_of;
 
 extern "C" {
@@ -24,17 +31,24 @@ extern "C" {
 
 }
 
-pub fn check_initchain(eid: sgx_enclave_id_t, chain_hex_id: u8) -> Result<(), ()> {
+pub fn check_initchain(
+    eid: sgx_enclave_id_t,
+    chain_hex_id: u8,
+    last_app_hash: Option<H256>,
+) -> Result<(), Option<H256>> {
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let result = unsafe { ecall_initchain(eid, &mut retval, chain_hex_id) };
     if retval == sgx_status_t::SGX_SUCCESS && result == retval {
         Ok(())
     } else {
-        Err(())
+        Err(last_app_hash)
     }
 }
 
-pub fn end_block(eid: sgx_enclave_id_t, request: IntraEnclaveRequest) -> IntraEnclaveResponse {
+pub fn end_block(
+    eid: sgx_enclave_id_t,
+    request: IntraEnclaveRequest,
+) -> Result<Option<Box<[u8; 256]>>, ()> {
     let request_buf: Vec<u8> = request.encode();
     // Buffer size: Result(1)+Result(1)+Enum(1)+Option(1)+Box(0)+TxFilter(256)
     let mut response_buf: Vec<u8> = vec![0u8; 260];
@@ -53,14 +67,11 @@ pub fn end_block(eid: sgx_enclave_id_t, request: IntraEnclaveRequest) -> IntraEn
     if retval == sgx_status_t::SGX_SUCCESS && result == retval {
         let response = IntraEnclaveResponse::decode(&mut response_buf.as_slice());
         match response {
-            Ok(resp) => resp,
-            Err(e) => {
-                log::error!("endblock response failed: {:?}", e);
-                Err(Error::EnclaveRejected)
-            }
+            Ok(Ok(IntraEnclaveResponseOk::EndBlock(maybe_filter))) => Ok(maybe_filter),
+            _ => Err(()),
         }
     } else {
-        Err(Error::EnclaveRejected)
+        Err(())
     }
 }
 
@@ -109,7 +120,11 @@ pub fn encrypt_tx(
     }
 }
 
-pub fn check_tx(eid: sgx_enclave_id_t, request: IntraEnclaveRequest) -> IntraEnclaveResponse {
+pub fn check_tx(
+    eid: sgx_enclave_id_t,
+    request: IntraEnclaveRequest,
+    txdb: &mut Tree,
+) -> Result<VerifyOk, Error> {
     let request_buf: Vec<u8> = request.encode();
     let response_len = size_of::<sgx_sealed_data_t>() + request_buf.len();
     let mut response_buf: Vec<u8> = vec![0u8; response_len];
@@ -127,10 +142,64 @@ pub fn check_tx(eid: sgx_enclave_id_t, request: IntraEnclaveRequest) -> IntraEnc
     };
     if retval == sgx_status_t::SGX_SUCCESS && result == retval {
         let response = IntraEnclaveResponse::decode(&mut response_buf.as_slice());
-        match response {
-            Ok(resp) => resp,
-            Err(e) => {
-                log::error!("check tx response failed: {:?}", e);
+        match (request, response) {
+            (
+                IntraEnclaveRequest::ValidateTx { request, .. },
+                Ok(Ok(IntraEnclaveResponseOk::TxWithOutputs {
+                    paid_fee,
+                    sealed_tx,
+                })),
+            ) => {
+                let _ = txdb
+                    .insert(&request.tx.tx_id(), sealed_tx.clone())
+                    .map_err(|e| {
+                        log::error!("insert tx id to db failed: {:?}", e);
+                        Error::IoError
+                    })?;
+                if let Some(mut account) = request.account {
+                    account.withdraw();
+                    Ok((paid_fee, Some(account), Some(Box::new(sealed_tx))))
+                } else {
+                    Ok((paid_fee, None, Some(Box::new(sealed_tx))))
+                }
+            }
+            (
+                IntraEnclaveRequest::ValidateTx { request, .. },
+                Ok(Ok(IntraEnclaveResponseOk::DepositStakeTx { input_coins })),
+            ) => {
+                let deposit_amount =
+                    (input_coins - request.info.min_fee_computed.to_coin()).expect("init");
+                let account = match (request.account, request.tx) {
+                    (Some(mut a), _) => {
+                        a.deposit(deposit_amount);
+                        Some(a)
+                    }
+                    (
+                        None,
+                        TxEnclaveAux::DepositStakeTx {
+                            tx:
+                                DepositBondTx {
+                                    to_staked_account, ..
+                                },
+                            ..
+                        },
+                    ) => Some(StakedState::new_init_bonded(
+                        deposit_amount,
+                        request.info.previous_block_time,
+                        to_staked_account,
+                        None,
+                    )),
+                    (_, _) => unreachable!("one shouldn't call this with other variants"),
+                };
+                let fee = request.info.min_fee_computed;
+                Ok((fee, account, None))
+            }
+            (_, Ok(Err(e))) => {
+                log::error!("get error response: {:?}", e);
+                Err(e)
+            }
+            (_req, _resp) => {
+                log::error!("unsupported or error response");
                 Err(Error::EnclaveRejected)
             }
         }

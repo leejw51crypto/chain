@@ -2,16 +2,17 @@ use log::info;
 use std::fs::File;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+#[cfg(not(feature = "mock-validation"))]
+use zmq::{Context, REQ};
 
 use chain_abci::app::ChainNodeApp;
-#[cfg(any(feature = "mock-validation", not(target_os = "linux")))]
+#[cfg(feature = "mock-validation")]
 use chain_abci::enclave_bridge::mock::MockClient;
-#[cfg(all(not(feature = "mock-validation"), target_os = "linux"))]
-use chain_abci::enclave_bridge::real::TxValidationApp;
+#[cfg(not(feature = "mock-validation"))]
+use chain_abci::enclave_bridge::ZmqEnclaveClient;
 use chain_core::init::network::{get_network, get_network_id, init_chain_id};
-use chain_storage::account::AccountStorage;
-use chain_storage::{Storage, StorageConfig, StorageType};
-#[cfg(any(feature = "mock-validation", not(target_os = "linux")))]
+use chain_storage::{StorageConfig, StorageType};
+#[cfg(feature = "mock-validation")]
 use log::warn;
 use serde::Deserialize;
 use std::io::BufReader;
@@ -119,7 +120,7 @@ pub struct AbciOpt {
     #[structopt(
         short = "e",
         long = "enclave_server",
-        help = "Connection string (e.g. ipc://enclave.socket or tcp://127.0.0.1:25933) on which ZeroMQ server wrapper around the transaction validation enclave will listen."
+        help = "Connection string (e.g. ipc://enclave.socket or tcp://127.0.0.1:25933) for ZeroMQ server wrapper around the transaction validation enclave."
     )]
     enclave_server: Option<String>,
     #[structopt(
@@ -131,25 +132,24 @@ pub struct AbciOpt {
 }
 
 /// normal
-#[cfg(all(not(feature = "mock-validation"), target_os = "linux"))]
-fn get_enclave_proxy() -> TxValidationApp {
-    TxValidationApp::default()
+#[cfg(not(feature = "mock-validation"))]
+fn get_enclave_proxy(config: &Config) -> ZmqEnclaveClient {
+    let ctx = Context::new();
+    let socket = ctx.socket(REQ).expect("failed to init zmq context");
+    let endpoint = config.enclave_server.as_ref().unwrap().as_str();
+    socket
+        .connect(endpoint)
+        .expect("failed to connect to enclave zmq wrapper");
+    ZmqEnclaveClient::new(socket)
 }
 
 /// for development
-#[cfg(any(feature = "mock-validation", not(target_os = "linux")))]
-fn get_enclave_proxy() -> MockClient {
+#[cfg(feature = "mock-validation")]
+fn get_enclave_proxy(_config: &Config) -> MockClient {
     warn!("Using mock (non-enclave) infrastructure");
     MockClient::new(get_network_id())
 }
 
-#[cfg(feature = "sgx-test")]
-fn main() {
-    // Teaclave SGX SDK doesn't work with Rust unit testing facility
-    chain_abci::enclave_bridge::real::test::test_sealing();
-}
-
-#[cfg(not(feature = "sgx-test"))]
 fn main() {
     env_logger::init();
     let opt = AbciOpt::from_args();
@@ -173,26 +173,20 @@ fn main() {
         get_network(),
         get_network_id()
     );
-    let tx_validator = get_enclave_proxy();
+    let proxy = get_enclave_proxy(&config);
 
     let host = config.host.parse().expect("invalid host");
     let addr = SocketAddr::new(host, config.port);
-    let storage = Storage::new(&StorageConfig::new(&opt.data, StorageType::Node));
     info!("starting up");
     abci::run(
         addr,
-        ChainNodeApp::new_with_storage(
-            tx_validator,
+        ChainNodeApp::new(
+            proxy,
             &config.genesis_app_hash.unwrap(),
             &config.chain_id.unwrap(),
-            storage,
-            AccountStorage::new(
-                Storage::new(&StorageConfig::new(&opt.data, StorageType::AccountTrie)),
-                20,
-            )
-            .expect("account db"),
+            &StorageConfig::new(&opt.data, StorageType::Node),
+            &StorageConfig::new(&opt.data, StorageType::AccountTrie),
             config.tx_query,
-            config.enclave_server,
         ),
     );
 }

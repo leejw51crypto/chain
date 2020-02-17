@@ -428,14 +428,12 @@ dependencies = [
  "bit-vec 0.6.1",
  "blake2",
  "byteorder",
- "cc",
  "chain-core",
  "chain-storage",
  "chain-tx-filter",
  "chain-tx-validation",
  "digest 0.8.1",
  "enclave-protocol",
- "enclave-u-common",
  "env_logger 0.7.1",
  "hex 0.4.1",
  "integer-encoding",
@@ -451,8 +449,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_yaml",
- "sgx_types",
- "sgx_urts",
  "sha3",
  "starling",
  "structopt",
@@ -632,7 +628,7 @@ dependencies = [
  "parity-scale-codec",
  "quickcheck",
  "rand 0.7.3",
- "rust-argon2 0.8.1",
+ "rust-argon2 0.8.0",
  "secp256k1zkp",
  "secstr",
  "serde",
@@ -784,8 +780,6 @@ dependencies = [
  "client-common",
  "client-core",
  "hex 0.4.1",
- "parity-scale-codec",
- "secp256k1zkp",
  "secstr",
 ]
 
@@ -1168,9 +1162,9 @@ dependencies = [
 
 [[package]]
 name = "fixed"
-version = "0.5.3"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cac0bfdb3b63583c3abbfc9e0ee65c8259516647bcf8c73b46fd3c196071c2c"
+checksum = "03ad808bcc4bd75ba1f5173e5bb9570f990f47749cf6bc282a6a62e6bd46db03"
 dependencies = [
  "typenum",
 ]
@@ -2821,9 +2815,9 @@ dependencies = [
 
 [[package]]
 name = "rust-argon2"
-version = "0.8.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13d93898abbc08f4122732299b5cc3e81052c18c6218045eba4a80e02a086a42"
+checksum = "375368e03ae25fdbe75c19884c72b8dd235c2f5e5858dc88ea8f0a85aeeb2d51"
 dependencies = [
  "base64 0.11.0",
  "blake2b_simd",
@@ -3023,9 +3017,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.48"
+version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9371ade75d4c2d6cb154141b9752cf3781ec9c05e0e5cf35060e1e70ee7b9c25"
+checksum = "15913895b61e0be854afd32fd4163fcd2a3df34142cf2cb961b310ce694cbf90"
 dependencies = [
  "itoa",
  "ryu",
@@ -3262,9 +3256,9 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "sled"
-version = "0.31.0"
+version = "0.30.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fb6824dde66ad33bf20c6e8476f5b82b871bc8bc3c129a10ea2f7dae5060fa3"
+checksum = "2eb8c32cb0e34e67ad74fae1a77f4635d0cc7ffc873088a0136f3c4849336d71"
 dependencies = [
  "crc32fast",
  "crossbeam-epoch",
@@ -3569,18 +3563,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.11"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee14bf8e6767ab4c687c9e8bc003879e042a96fd67a3ba5934eadb6536bef4db"
+checksum = "205684fd018ca14432b12cce6ea3d46763311a571c3d294e71ba3f01adcf1aad"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.11"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7b51e1fbc44b5a0840be594fbc0f960be09050f2617e61e6aa43bef97cd3ef4"
+checksum = "57e4d2e50ca050ed44fb58309bdce3efa79948f84f9993ad1978de5eebdce5a7"
 dependencies = [
  "proc-macro2 1.0.8",
  "quote 1.0.2",
@@ -3877,6 +3871,8 @@ version = "0.3.0"
 dependencies = [
  "cc",
  "chain-core",
+ "client-common",
+ "client-core",
  "enclave-protocol",
  "enclave-u-common",
  "env_logger 0.7.1",
@@ -3916,6 +3912,25 @@ dependencies = [
  "webpki-roots",
  "yasna 0.3.1 (git+https://github.com/mesalock-linux/yasna.rs-sgx)",
  "zeroize 1.1.0",
+]
+
+[[package]]
+name = "tx-validation-app"
+version = "0.3.0"
+dependencies = [
+ "cc",
+ "chain-core",
+ "chain-tx-validation",
+ "enclave-protocol",
+ "enclave-u-common",
+ "env_logger 0.7.1",
+ "log 0.4.8",
+ "parity-scale-codec",
+ "secp256k1zkp",
+ "sgx_types",
+ "sgx_urts",
+ "sled",
+ "zmq",
 ]
 
 [[package]]

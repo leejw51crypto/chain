@@ -29,10 +29,8 @@ id_ecdsa
 
 # drone cache
 /drone
-/.drone.secret
+/.drone.env
 
 # integration tests temparary artifacts
 /integration-tests/*.so
 /integration-tests/bot/.venv
-
-**/chain-abci/Enclave_u.*

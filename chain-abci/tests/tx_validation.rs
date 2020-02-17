@@ -35,7 +35,7 @@ use chain_core::tx::{TxAux, TxEnclaveAux};
 use chain_storage::account::AccountStorage;
 use chain_storage::account::AccountWrapper;
 use chain_storage::account::StarlingFixedKey;
-use chain_storage::{Storage, COL_ENCLAVE_TX, COL_TX_META, NUM_COLUMNS};
+use chain_storage::{Storage, COL_TX_META, NUM_COLUMNS};
 use chain_tx_validation::{
     verify_bonded_deposit, verify_transfer, verify_unbonded_withdraw, ChainInfo, Error,
     NodeChecker, TxWithOutputs,
@@ -170,6 +170,7 @@ impl NodeChecker for NodeInfoWrap {
 
 fn prepate_init_tx(
     timelocked: bool,
+    mock_client: &mut MockClient,
 ) -> (
     Arc<dyn KeyValueDB>,
     TxoPointer,
@@ -188,12 +189,9 @@ fn prepate_init_tx(
     let old_tx_id = old_tx.id();
 
     let mut inittx = db.transaction();
-    // FIXME: https://github.com/crypto-com/chain/issues/885
-    inittx.put(
-        COL_ENCLAVE_TX,
-        &old_tx_id[..],
-        &TxWithOutputs::Transfer(old_tx).encode(),
-    );
+    mock_client
+        .local_tx_store
+        .insert(old_tx_id, TxWithOutputs::Transfer(old_tx));
 
     inittx.put(
         COL_TX_META,
@@ -207,6 +205,7 @@ fn prepate_init_tx(
 
 fn prepare_app_valid_transfer_tx(
     timelocked: bool,
+    mock_client: &mut MockClient,
 ) -> (
     Arc<dyn KeyValueDB>,
     TxEnclaveAux,
@@ -216,7 +215,7 @@ fn prepare_app_valid_transfer_tx(
     SecretKey,
     AccountStorage,
 ) {
-    let (db, txp, addr, merkle_tree, secret_key) = prepate_init_tx(timelocked);
+    let (db, txp, addr, merkle_tree, secret_key) = prepate_init_tx(timelocked, mock_client);
     let secp = Secp256k1::new();
     let mut tx = Tx::new();
     tx.add_input(txp);
@@ -646,6 +645,7 @@ fn test_account_withdraw_verify_fail() {
 
 fn prepare_app_valid_deposit_tx(
     timelocked: bool,
+    mock_client: &mut MockClient,
 ) -> (
     Arc<dyn KeyValueDB>,
     TxEnclaveAux,
@@ -654,7 +654,7 @@ fn prepare_app_valid_deposit_tx(
     SecretKey,
     AccountStorage,
 ) {
-    let (db, txp, _, merkle_tree, secret_key) = prepate_init_tx(timelocked);
+    let (db, txp, _, merkle_tree, secret_key) = prepate_init_tx(timelocked, mock_client);
     let secp = Secp256k1::new();
     let sk2 = SecretKey::from_slice(&[0x11; 32]).expect("32 bytes, within curve order");
     let pk2 = PublicKey::from_secret_key(&secp, &sk2);
@@ -690,7 +690,7 @@ const DEFAULT_CHAIN_ID: u8 = 0;
 #[test]
 fn existing_utxo_input_tx_should_verify() {
     let mut mock_bridge = get_enclave_bridge_mock();
-    let (db, txaux, _, _, _, _, accounts) = prepare_app_valid_transfer_tx(false);
+    let (db, txaux, _, _, _, _, accounts) = prepare_app_valid_transfer_tx(false, &mut mock_bridge);
     let storage = Storage::new_db(db);
     let extra_info = get_chain_info_enc(&txaux);
     let last_account_root_hash = [0u8; 32];
@@ -703,7 +703,7 @@ fn existing_utxo_input_tx_should_verify() {
         &accounts,
     );
     assert!(result.is_ok());
-    let (db, txaux, _, _, _, accounts) = prepare_app_valid_deposit_tx(false);
+    let (db, txaux, _, _, _, accounts) = prepare_app_valid_deposit_tx(false, &mut mock_bridge);
     let storage = Storage::new_db(db);
     let result = verify_enclave_tx(
         &mut mock_bridge,
@@ -730,7 +730,8 @@ where
 #[test]
 fn test_deposit_verify_fail() {
     let mut mock_bridge = get_enclave_bridge_mock();
-    let (db, txaux, tx, witness, secret_key, accounts) = prepare_app_valid_deposit_tx(false);
+    let (db, txaux, tx, witness, secret_key, accounts) =
+        prepare_app_valid_deposit_tx(false, &mut mock_bridge);
     let storage = Storage::new_db(db.clone());
     let extra_info = get_chain_info_enc(&txaux);
     let last_account_root_hash = [0u8; 32];
@@ -1020,7 +1021,7 @@ fn replace_tx_payload(
 fn test_transfer_verify_fail() {
     let mut mock_bridge = get_enclave_bridge_mock();
     let (db, txaux, tx, witness, merkle_tree, secret_key, accounts) =
-        prepare_app_valid_transfer_tx(false);
+        prepare_app_valid_transfer_tx(false, &mut mock_bridge);
     let storage = Storage::new_db(db.clone());
     let extra_info = get_chain_info_enc(&txaux);
     let last_account_root_hash = [0u8; 32];
@@ -1311,7 +1312,8 @@ fn test_transfer_verify_fail() {
     }
     // OutputInTimelock
     {
-        let (db, txaux, tx, witness, _, _, accounts) = prepare_app_valid_transfer_tx(true);
+        let (db, txaux, tx, witness, _, _, accounts) =
+            prepare_app_valid_transfer_tx(true, &mut mock_bridge);
         let storage = Storage::new_db(db);
         let addr = get_address(&Secp256k1::new(), &secret_key).0;
         let input_tx = get_old_tx(addr, true);

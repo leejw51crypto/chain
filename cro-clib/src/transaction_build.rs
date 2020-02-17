@@ -11,9 +11,9 @@ use chain_core::tx::data::output::TxOut;
 use chain_core::tx::data::TxId;
 use chain_core::tx::witness::TxInWitness;
 use chain_core::tx::witness::TxWitness;
-use chain_core::tx::PlainTxAux;
 use chain_core::tx::TransactionId;
 use client_common::MultiSigAddress;
+use client_common::SignedTransaction;
 use client_common::{ErrorKind, Result, ResultExt};
 use client_common::{PrivateKey, PublicKey};
 use client_core::transaction_builder::WitnessedUTxO;
@@ -151,7 +151,8 @@ pub unsafe extern "C" fn cro_tx_add_viewkey(
         return CroResult::fail();
     }
     assert!(33 == hex.len());
-    let pubkey: secp256k1::PublicKey = secp256k1::PublicKey::from_slice(&hex[..]).unwrap();
+    let pubkey: secp256k1::PublicKey =
+        secp256k1::PublicKey::from_slice(&hex[..]).expect("get public key");
 
     let policy = TxAccessPolicy {
         view_key: pubkey,
@@ -167,7 +168,8 @@ pub unsafe extern "C" fn cro_tx_add_viewkey(
 /// # Safety
 pub unsafe extern "C" fn cro_tx_add_viewkey_raw(tx_ptr: CroTxPtr, viewkey: [u8; 33]) -> CroResult {
     let tx = tx_ptr.as_mut().expect("get tx");
-    let pubkey: secp256k1::PublicKey = secp256k1::PublicKey::from_slice(&viewkey).unwrap();
+    let pubkey: secp256k1::PublicKey =
+        secp256k1::PublicKey::from_slice(&viewkey).expect("get public key");
     let policy = TxAccessPolicy {
         view_key: pubkey,
         access: TxAccess::AllData,
@@ -195,8 +197,10 @@ pub unsafe extern "C" fn cro_tx_complete_signing(
         }
     }
     assert!(witnesses.len() == user_tx.txin.len());
-    let plain_tx = PlainTxAux::new(user_tx.tx.clone(), TxWitness::from(witnesses));
-    let encoded: Vec<u8> = plain_tx.encode();
+    //let plain_tx = PlainTxAux::new(user_tx.tx.clone(), TxWitness::from(witnesses));
+    let signed_transaction =
+        SignedTransaction::TransferTransaction(user_tx.tx.clone(), TxWitness::from(witnesses));
+    let encoded: Vec<u8> = signed_transaction.encode();
     ptr::copy_nonoverlapping(encoded.as_ptr(), output, encoded.len());
     (*output_length) = encoded.len() as u32;
     CroResult::success()
@@ -235,7 +239,7 @@ pub unsafe extern "C" fn cro_tx_sign_txin(
 }
 
 /// TODO: it's only for 1 of 1 , code for other multiple signers(m/n) will be added
-fn schnorr_sign(
+pub fn schnorr_sign(
     message: &TxId,
     public_key: &PublicKey,
     private_key: &PrivateKey,

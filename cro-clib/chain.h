@@ -9,6 +9,8 @@
 
 typedef struct CroAddress CroAddress;
 
+typedef struct CroDepositTx CroDepositTx;
+
 typedef struct CroFee CroFee;
 
 typedef struct CroHDWallet CroHDWallet;
@@ -26,6 +28,18 @@ typedef CroFee *CroFeePtr;
 typedef CroHDWallet *CroHDWalletPtr;
 
 typedef CroTx *CroTxPtr;
+
+typedef CroDepositTx *CroDepositTxPtr;
+
+/**
+ * TODO: other states (jailed, unjail) will be added
+ */
+typedef struct CroStakedState {
+  uint64_t nonce;
+  uint64_t bonded;
+  uint64_t unbonded;
+  uint64_t unbonded_from;
+} CroStakedState;
 
 /**
  * create staking address
@@ -65,6 +79,16 @@ CroResult cro_basic_restore_transfer_address(CroAddressPtr *address_out, const u
  * # Safety
  */
 CroResult cro_basic_restore_viewkey(CroAddressPtr *address_out, const uint8_t *input);
+
+/**
+ * staked -> utxo
+ * tendermint_url: ws://localhost:26657/websocket
+ * user_data: tx data to send
+ * # Safety
+ */
+CroResult cro_broadcast(const char *tenermint_url_string,
+                        const uint8_t *user_data,
+                        uint32_t data_length);
 
 /**
  * create fee algorithm
@@ -108,6 +132,14 @@ CroResult cro_create_transfer_address(CroHDWalletPtr wallet_ptr,
 CroResult cro_create_tx(CroTxPtr *tx_out, uint8_t network);
 
 /**
+ * create deposit tx
+ * # Safety
+ */
+CroResult cro_create_tx_deposit(CroDepositTxPtr *tx_out,
+                                uint8_t network,
+                                const char *to_address_user);
+
+/**
  * create viewkey, which is for encrypted tx
  * # Safety
  */
@@ -141,11 +173,36 @@ CroResult cro_destroy_hdwallet(CroHDWalletPtr hdwallet);
 CroResult cro_destroy_tx(CroTxPtr tx);
 
 /**
+ * destroy tx
+ * # Safety
+ */
+CroResult cro_destroy_tx_deposit(CroDepositTxPtr tx);
+
+/**
+ * tendermint_url_string: default "ws://localhost:26657/websocket"
+ * signed_transaction_user: signed tx encoded to encrypt
+ * output: encrypted result will be written
+ * # Safety
+ */
+CroResult cro_encrypt(const char *tenermint_url_string,
+                      const uint8_t *signed_transaction_user,
+                      uint32_t signed_transaction_length,
+                      uint8_t *output,
+                      uint32_t *output_length);
+
+/**
  * estimate fee
  * tx_payload_size: in bytes
  * # Safety
  */
 uint64_t cro_estimate_fee(CroFeePtr fee_ptr, uint32_t tx_payload_size);
+
+/**
+ * estimate fee after encryption
+ * tx_payload_size: in bytes
+ * # Safety
+ */
+uint64_t cro_estimate_fee_after_encrypt(CroFeePtr fee_ptr, uint32_t tx_payload_size);
 
 /**
  * export privatekey as raw bytes
@@ -173,6 +230,16 @@ CroResult cro_get_printed_address(CroAddressPtr address_ptr,
                                   uint32_t address_output_length);
 
 /**
+ * staked -> utxo
+ * tenermint_url_string: ws://localhost:26657/websocket
+ * staked_state_user: retrieved state will be written
+ * # Safety
+ */
+CroResult cro_get_staked_state(CroAddressPtr from_ptr,
+                               const char *tenermint_url_string,
+                               CroStakedState *staked_state_user);
+
+/**
  * # Safety
  */
 CroResult cro_restore_hdwallet(const char *mnemonics_string, CroHDWalletPtr *wallet_out);
@@ -189,6 +256,19 @@ CroResult cro_tx_add_txin(CroTxPtr tx_ptr,
                           uint16_t txindex,
                           const char *addr_string,
                           uint64_t coin);
+
+/**
+ * add txin
+ * txid_string: 64 length hex-char , 32 bytes
+ * addr_string: transfer address
+ * coin: carson unit  for example) 1_0000_0000 carson = 1 cro, 1 carson = 0.0000_0001 cro
+ * # Safety
+ */
+CroResult cro_tx_add_txin_deposit(CroDepositTxPtr tx_ptr,
+                                  const char *txid_string,
+                                  uint16_t txindex,
+                                  const char *addr_string,
+                                  uint64_t coin);
 
 /**
  * add txin in bytes
@@ -240,6 +320,16 @@ CroResult cro_tx_add_viewkey_raw(CroTxPtr tx_ptr, uint8_t viewkey[33]);
 CroResult cro_tx_complete_signing(CroTxPtr tx_ptr, uint8_t *output, uint32_t *output_length);
 
 /**
+ * tx_ptr: tx TxoPointer
+ * output: minimum 1000 bytes
+ * output_length: actual tx length
+ * # Safety
+ */
+CroResult cro_tx_complete_signing_deposit(CroDepositTxPtr tx_ptr,
+                                          uint8_t *output,
+                                          uint32_t *output_length);
+
+/**
  * sign for each txin
  * address_ptr: privatekey which will sign
  * tx_ptr: which tx to sign?
@@ -247,3 +337,51 @@ CroResult cro_tx_complete_signing(CroTxPtr tx_ptr, uint8_t *output, uint32_t *ou
  * # Safety
  */
 CroResult cro_tx_sign_txin(CroAddressPtr address_ptr, CroTxPtr tx_ptr, uint16_t which_tx_in_user);
+
+/**
+ * sign for each txin
+ * address_ptr: privatekey which will sign
+ * tx_ptr: which tx to sign?
+ * which_tx_in_user: which txin inside tx?
+ * # Safety
+ */
+CroResult cro_tx_sign_txin_deposit(CroAddressPtr address_ptr,
+                                   CroDepositTxPtr tx_ptr,
+                                   uint16_t which_tx_in_user);
+
+/**
+ * staked -> staked
+ * network: networkid
+ * nonce: nonce of the staked state, use cro_get_staked_state to get this nonce
+ * from_ptr: staking address
+ * to_address_user:staking address
+ * amount: carson unit   1 carson= 0.0000_0001 cro
+ * output: signed tx encoded
+ * # Safety
+ */
+CroResult cro_unbond(uint8_t network,
+                     uint64_t nonce,
+                     CroAddressPtr from_ptr,
+                     const char *to_address_user,
+                     uint64_t amount,
+                     uint8_t *output,
+                     uint32_t *output_length);
+
+/**
+ * staked -> utxo
+ * tendermint_url_string:  "ws://localhost:26657/websocket"
+ * network: network-id 0xab
+ * from_ptr: staking address
+ * to_ptr: transfer address
+ * viewkeys: viewkey list, this is string list
+ * output: minimum 1000 bytes, signed tx encoded
+ * # Safety
+ */
+CroResult cro_withdraw(const char *tenermint_url_string,
+                       uint8_t network,
+                       CroAddressPtr from_ptr,
+                       CroAddressPtr to_ptr,
+                       const char *const *viewkeys,
+                       int32_t viewkey_count,
+                       uint8_t *output,
+                       uint32_t *output_length);

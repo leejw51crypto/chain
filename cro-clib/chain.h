@@ -240,6 +240,26 @@ CroResult cro_get_staked_state(CroAddressPtr from_ptr,
                                CroStakedState *staked_state_user);
 
 /**
+ * staked -> staked
+ * network: networkid
+ * nonce: nonce of the staked state, use cro_get_staked_state to get this nonce
+ * from_ptr: staking address
+ * to_address_user:staking address
+ * amount: carson unit   1 carson= 0.0000_0001 cro
+ * output: signed tx encoded
+ * # Safety
+ */
+CroResult cro_join(uint8_t network,
+                   uint64_t nonce,
+                   CroAddressPtr from_ptr,
+                   const char *to_address_user,
+                   const char *validator_name_user,
+                   const char *validator_contact_user,
+                   const char *validator_pubkey_user,
+                   uint8_t *output,
+                   uint32_t *output_length);
+
+/**
  * # Safety
  */
 CroResult cro_restore_hdwallet(const char *mnemonics_string, CroHDWalletPtr *wallet_out);
@@ -366,6 +386,23 @@ CroResult cro_unbond(uint8_t network,
                      uint64_t amount,
                      uint8_t *output,
                      uint32_t *output_length);
+
+/**
+ * staked -> staked
+ * network: networkid
+ * nonce: nonce of the staked state, use cro_get_staked_state to get this nonce
+ * from_ptr: staking address
+ * to_address_user:staking address
+ * amount: carson unit   1 carson= 0.0000_0001 cro
+ * output: signed tx encoded
+ * # Safety
+ */
+CroResult cro_unjai(uint8_t network,
+                    uint64_t nonce,
+                    CroAddressPtr from_ptr,
+                    const char *to_address_user,
+                    uint8_t *output,
+                    uint32_t *output_length);
 
 /**
  * staked -> utxo

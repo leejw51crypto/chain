@@ -5,8 +5,8 @@ authors = ["jongwhan lee <jonghwan@crypto.com>"]
 edition = "2018"
 
 [lib]
-name = "cro_clib"
-crate-type =["cdylib"]
+name = "cro_ioslib"
+crate-type = ["staticlib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

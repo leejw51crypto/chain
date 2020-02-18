@@ -8,7 +8,6 @@ edition = "2018"
 
 [features]
 default = ["serde", "bech32", "hex", "base64", "secp256k1zkp/serde", "secp256k1zkp/std"]
-mesalock_sgx = ["sgx_tstd", "secp256k1zkp/sgx"]
 
 
 [dependencies]
@@ -21,7 +20,6 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 blake2 = { version = "0.8", default-features = false }
 parity-scale-codec = { features = ["derive"], default-features = false, version = "1.1" }
 base64 = { version = "0.11", optional = true }
-sgx_tstd = { rev = "v1.1.0", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
 static_assertions = { version = "1.1.0", default-features = false}
 bech32 = { version = "0.7.2", optional = true }
 aead = "0.2"

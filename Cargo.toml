@@ -1,11 +1,8 @@
 [workspace]
 
 members = [
-    "chain-abci",
     "chain-core",
     "chain-storage",
-    "chain-tx-filter",
-    "chain-tx-validation",
     "client-cli",
     "client-common",
     "client-core",
@@ -13,25 +10,6 @@ members = [
     "client-rpc",
     "test-common",
     "dev-utils",
-    "enclave-protocol",
-    "chain-tx-enclave/tx-validation/enclave",
-    "chain-tx-enclave/tx-query/app",
-    "chain-tx-enclave/tx-query/enclave",
     "cro-clib",
 ]
 
-default-members = [
-    "chain-abci",
-    "chain-core",
-    "chain-storage",
-    "chain-tx-filter",
-    "chain-tx-validation",
-    "client-cli",
-    "client-common",
-    "client-core",
-    "client-network",
-    "client-rpc",
-    "test-common",
-    "dev-utils",
-    "enclave-protocol",
-]

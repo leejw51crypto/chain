@@ -9,7 +9,7 @@
 #include "../chain.h"
 
 //ret 1: continue, 0: stop
-int32_t progress(uint64_t current, uint64_t start, uint64_t end, uint64_t  user_data)
+int32_t progress(uint64_t current, uint64_t start, uint64_t end, void*  user_data)
 {
     double gap= 0;
     double rate=0;
@@ -44,7 +44,7 @@ void sync()
     const char* req_template = "{\"jsonrpc\": \"2.0\", \"method\": \"sync\", \"params\": [{\"name\":\"%s\", \"passphrase\":\"%s\",\"enckey\":\"%s\"}], \"id\": 1}";
     char req[BUFSIZE];
     sprintf(req, req_template, name, passphrase, enckey);
-    uint64_t user_data=0x2020;
+    void* user_data=0x2020;
 
     CroResult retcode = cro_jsonrpc_call("./.storage", "ws://localhost:26657/websocket", 0xab, req, buf, sizeof(buf), &progress, user_data);
     if (retcode.result == 0) {

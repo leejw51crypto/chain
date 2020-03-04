@@ -45,7 +45,7 @@ typedef struct CroStakedState {
  * current, start, end, userdata
  * return: 1: continue, 0: stop
  */
-typedef int32_t (*ProgressCallback)(uint64_t, uint64_t, uint64_t, uint64_t);
+typedef int32_t (*ProgressCallback)(uint64_t, uint64_t, uint64_t, const void*);
 
 /**
  * create staking address
@@ -302,7 +302,7 @@ CroResult cro_jsonrpc_call(const char *storage_dir,
                            char *buf,
                            uintptr_t buf_size,
                            ProgressCallback progress_callback,
-                           uint64_t user_data);
+                           const void *user_data);
 
 /**
  * # Safety

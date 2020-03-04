@@ -1,5 +1,5 @@
 use jsonrpc_core::IoHandler;
-use std::ffi::{CStr, CString};
+use std::ffi::{CStr, CString, c_void};
 use std::os::raw::c_char;
 
 use chain_core::tx::fee::LinearFee;
@@ -116,7 +116,7 @@ fn do_jsonrpc_call(
     network_id: u8,
     json_request: &str,
     progress_callback: ProgressCallback,
-    user_data: u64,
+    user_data: *const c_void,
 ) -> Result<String> {
     let mut io = IoHandler::new();
     let storage = SledStorage::new(storage_dir)?;
@@ -128,10 +128,16 @@ fn do_jsonrpc_call(
     let multisig_rpc = MultiSigRpcImpl::new(wallet_client.clone());
     let transaction_rpc = TransactionRpcImpl::new(network_id);
     let staking_rpc = StakingRpcImpl::new(wallet_client.clone(), ops_client, network_id);
-    let sync_callback = SyncCallback {
-        user_data,
-        user_callback: progress_callback,
+
+
+    let dummy= |current, start, end| {
+        (progress_callback)(current, start, end,user_data)        
+      };
+    let sync_callback = SyncCallback {        
+        user_callback: dummy,
     };
+
+    
     let sync_rpc = SyncRpcImpl::new(syncer_config, Some(sync_callback));
     let wallet_rpc = WalletRpcImpl::new(wallet_client, network_id);
 
@@ -174,7 +180,7 @@ pub unsafe extern "C" fn cro_jsonrpc_call(
     buf: *mut c_char,
     buf_size: usize,
     progress_callback: ProgressCallback,
-    user_data: u64,
+    user_data: *const c_void,
 ) -> CroResult {
     let res = do_jsonrpc_call(
         CStr::from_ptr(storage_dir)

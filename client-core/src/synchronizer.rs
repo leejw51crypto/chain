@@ -8,6 +8,7 @@ use std::time;
 
 use client_common::tendermint::Client;
 use client_common::{SecKey, Storage};
+use crate::wallet::syncer::SyncCallback;
 
 use crate::wallet::syncer::{ObfuscationSyncerConfig, ProgressReport, WalletSyncer};
 use crate::TransactionObfuscation;
@@ -41,10 +42,9 @@ impl PollingSynchronizer {
 
 impl PollingSynchronizer {
     /// Spawns polling synchronizer in a thread
-    pub fn spawn<S: Storage + 'static, C: Client + 'static, O: TransactionObfuscation + 'static>(
-        &mut self,
-        config: ObfuscationSyncerConfig<S, C, O>,
-    ) {
+    pub fn spawn<S: Storage + 'static, C: Client + 'static, O: TransactionObfuscation + 'static,F>(
+        &mut self,    config: ObfuscationSyncerConfig<S, C, O>, )     where F: Fn(u64, u64, u64)->i32,
+    {
         log::info!("Spawning polling synchronizer");
         let wallets = self.wallets.clone();
         let progress = self.progress.clone();
@@ -63,12 +63,13 @@ impl PollingSynchronizer {
                     .clone();
 
                 for (name, enckey) in wallets_to_synchronize.iter() {
-                    let result = WalletSyncer::with_obfuscation_config(
+                    let result = 
+                    WalletSyncer::with_obfuscation_config(
                         config.clone(),
                         Some(sender.clone()),
                         name.clone(),
                         enckey.clone(),
-                        None,
+                        None as Option<SyncCallback<F>>,
                     )
                     .and_then(|syncer| syncer.sync());
                     if let Err(e) = result {

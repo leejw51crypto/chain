@@ -106,15 +106,18 @@ pub struct SyncerConfig<S: SecureStorage, C: Client> {
     block_height_ensure: u64,
 }
 
+/// current, start, end 
+/// ret: 1: continue,  0: stop
 #[derive(Clone)]
-pub struct SyncCallback {
-    pub user_data: u64,
-    pub user_callback: extern "C" fn(u64, u64, u64, u64) -> i32,
+pub struct SyncCallback<F>  where F: Fn(u64, u64, u64)->i32 {    
+    pub user_callback: F,
 }
 
 /// Wallet Syncer
 #[derive(Clone)]
-pub struct WalletSyncer<S: SecureStorage, C: Client, D: TxDecryptor> {
+pub struct WalletSyncer<S: SecureStorage, C: Client, D: TxDecryptor,F: Fn(u64, u64, u64)->i32> 
+
+{
     // common
     storage: S,
     client: C,
@@ -127,14 +130,15 @@ pub struct WalletSyncer<S: SecureStorage, C: Client, D: TxDecryptor> {
     decryptor: D,
     name: String,
     enckey: SecKey,
-    progress_callback: Option<SyncCallback>,
+    progress_callback: Option<SyncCallback<F>>,
 }
 
-impl<S, C, D> WalletSyncer<S, C, D>
+impl<S, C, D,F> WalletSyncer<S, C, D,F>
 where
     S: SecureStorage,
     C: Client,
     D: TxDecryptor,
+    F: Fn(u64, u64, u64)->i32,
 {
     /// Construct with common config
     pub fn with_config(
@@ -143,8 +147,8 @@ where
         progress_reporter: Option<Sender<ProgressReport>>,
         name: String,
         enckey: SecKey,
-        progress_callback: Option<SyncCallback>,
-    ) -> WalletSyncer<S, C, D> {
+        progress_callback: Option<SyncCallback<F>>,
+    ) -> WalletSyncer<S, C, D,F> {
         Self {
             storage: config.storage,
             client: config.client,
@@ -184,11 +188,12 @@ fn load_view_key<S: SecureStorage>(storage: &S, name: &str, enckey: &SecKey) -> 
         })
 }
 
-impl<S, C, O> WalletSyncer<S, C, TxObfuscationDecryptor<O>>
+impl<S, C, O,F> WalletSyncer<S, C, TxObfuscationDecryptor<O>,F>
 where
     S: SecureStorage,
     C: Client,
     O: TransactionObfuscation,
+    F: Fn(u64, u64, u64)->i32,
 {
     /// Construct with obfuscation config
     pub fn with_obfuscation_config(
@@ -196,10 +201,12 @@ where
         progress_reporter: Option<Sender<ProgressReport>>,
         name: String,
         enckey: SecKey,
-        progress_callback: Option<SyncCallback>,
-    ) -> Result<WalletSyncer<S, C, TxObfuscationDecryptor<O>>>
+        progress_callback: Option<SyncCallback<F>>,
+    ) -> Result<WalletSyncer<S, C, TxObfuscationDecryptor<O>,F>>
     where
         O: TransactionObfuscation,
+        F: Fn(u64, u64, u64)->i32
+    
     {
         let decryptor = TxObfuscationDecryptor::new(
             config.obfuscation,
@@ -223,18 +230,22 @@ where
 }
 
 /// Sync wallet state from blocks.
-struct WalletSyncerImpl<'a, S: SecureStorage, C: Client, D: TxDecryptor> {
-    env: &'a WalletSyncer<S, C, D>,
+struct WalletSyncerImpl<'a, S: SecureStorage, C: Client, D: TxDecryptor, F>
+where F: Fn(u64, u64, u64)->i32
+{
+    env: &'a WalletSyncer<S, C, D,F>,
 
     // cached state
     wallet: Wallet,
     sync_state: SyncState,
     wallet_state: WalletState,
-    progress_callback: Option<SyncCallback>,
+    progress_callback: Option<SyncCallback<F>>,
 }
 
-impl<'a, S: SecureStorage, C: Client, D: TxDecryptor> WalletSyncerImpl<'a, S, C, D> {
-    fn new(env: &'a WalletSyncer<S, C, D>) -> Result<Self> {
+impl<'a, S: SecureStorage, C: Client, D: TxDecryptor,F> WalletSyncerImpl<'a, S, C, D,F>
+where F: Fn(u64, u64, u64)->i32
+{
+    fn new(env: &'a WalletSyncer<S, C, D,F>) -> Result<Self> {
         let wallet = service::load_wallet(&env.storage, &env.name, &env.enckey)?
             .err_kind(ErrorKind::InvalidInput, || {
                 format!("wallet not found: {}", env.name)
@@ -255,7 +266,7 @@ impl<'a, S: SecureStorage, C: Client, D: TxDecryptor> WalletSyncerImpl<'a, S, C,
             wallet,
             sync_state,
             wallet_state,
-            progress_callback: env.progress_callback.clone(),
+            progress_callback: env.progress_callback,
         })
     }
 
@@ -404,8 +415,7 @@ impl<'a, S: SecureStorage, C: Client, D: TxDecryptor> WalletSyncerImpl<'a, S, C,
                     let ret = (delegator.user_callback)(
                         block.block_height,
                         start,
-                        end,
-                        delegator.user_data,
+                        end,                        
                     );
                     if 0 == ret {
                         break;

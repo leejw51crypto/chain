@@ -5,6 +5,7 @@ use client_common::{PrivateKey, PublicKey};
 use client_core::transaction_builder::WitnessedUTxO;
 use client_core::HDSeed;
 use std::ffi::CStr;
+use std::ffi::c_void;
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 pub type CroHDWalletPtr = *mut CroHDWallet;
@@ -98,4 +99,4 @@ impl Default for CroFee {
 
 /// current, start, end, userdata
 /// return: 1: continue, 0: stop
-pub type ProgressCallback = extern "C" fn(u64, u64, u64, u64) -> i32;
+pub type ProgressCallback = extern "C" fn(u64, u64, u64,  *const c_void) -> i32;

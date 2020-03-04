@@ -109,7 +109,7 @@ pub struct SyncerConfig<S: SecureStorage, C: Client> {
 #[derive(Clone)]
 pub struct SyncCallback {
     pub user_data: u64,
-    pub user_callback: extern "C" fn(u64, u64, u64, u64) -> i32,
+    pub user_callback:  fn(u64, u64, u64, u64) -> i32,
 }
 
 /// Wallet Syncer

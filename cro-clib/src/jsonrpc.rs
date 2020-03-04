@@ -128,9 +128,13 @@ fn do_jsonrpc_call(
     let multisig_rpc = MultiSigRpcImpl::new(wallet_client.clone());
     let transaction_rpc = TransactionRpcImpl::new(network_id);
     let staking_rpc = StakingRpcImpl::new(wallet_client.clone(), ops_client, network_id);
+    let dummy= |a,b,c,d| {
+        println!("{} {} {} {}",a,b,c,d);
+        1
+      };
     let sync_callback = SyncCallback {
         user_data,
-        user_callback: progress_callback,
+        user_callback: dummy,
     };
     let sync_rpc = SyncRpcImpl::new(syncer_config, Some(sync_callback));
     let wallet_rpc = WalletRpcImpl::new(wallet_client, network_id);

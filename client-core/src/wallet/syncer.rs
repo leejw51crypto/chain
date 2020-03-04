@@ -239,7 +239,7 @@ where F: Fn(u64, u64, u64)->i32
     wallet: Wallet,
     sync_state: SyncState,
     wallet_state: WalletState,
-    progress_callback: Option<SyncCallback<F>>,
+    progress_callback: &'a Option<SyncCallback<F>>,
 }
 
 impl<'a, S: SecureStorage, C: Client, D: TxDecryptor,F> WalletSyncerImpl<'a, S, C, D,F>
@@ -260,13 +260,16 @@ where F: Fn(u64, u64, u64)->i32
 
         let wallet_state =
             service::load_wallet_state(&env.storage, &env.name, &env.enckey)?.unwrap_or_default();
+        
+            
 
         Ok(Self {
             env,
             wallet,
             sync_state,
             wallet_state,
-            progress_callback: env.progress_callback,
+            //progress_callback: env.progress_callback,
+            progress_callback: &env.progress_callback,
         })
     }
 

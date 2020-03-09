@@ -19,6 +19,9 @@
                                 <rect key="frame" x="99" y="194" width="156" height="49"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="create wallet"/>
+                                <connections>
+                                    <action selector="click_create_wallet:" destination="BYZ-38-t0r" eventType="touchDown" id="Xd5-lD-PBa"/>
+                                </connections>
                             </button>
                             <textField opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="PfT-vX-BSm">
                                 <rect key="frame" x="136" y="74" width="233" height="34"/>

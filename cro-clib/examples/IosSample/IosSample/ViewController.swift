@@ -15,6 +15,9 @@ class ViewController: UIViewController {
         // Do any additional setup after loading the view.
     }
 
-
+    @IBAction func click_create_wallet(_ sender: Any) {
+        print("click wallet")
+    }
+    
 }
 

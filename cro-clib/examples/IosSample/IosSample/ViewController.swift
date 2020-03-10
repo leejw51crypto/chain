@@ -17,12 +17,23 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
     }
+    
+    func getDocumentsDirectory() -> URL {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let documentsDirectory = paths[0]
+        return documentsDirectory
+    }
 
     @IBAction func click_create_wallet(_ sender: Any) {
-        var name = wallet_name.text!
-        var passphrase = wallet_passphrase.text!
-        var mnemonics = wallet_mnemonics.text!;
+        let name = wallet_name.text!
+        let  passphrase = wallet_passphrase.text!
+        let mnemonics = wallet_mnemonics.text!
+        let doc = getDocumentsDirectory()
+        let storage = String(format:"%@.storage",doc.absoluteString)
+        print("document \(doc)")
+        print("storage \(storage)")
         print("click wallet = \(name)  passphrase=\(passphrase) mnemonics=\(mnemonics	)")
+        restore_wallet(name, passphrase, mnemonics)
     }
     
     @IBAction func click_create_sync(_ sender: Any) {

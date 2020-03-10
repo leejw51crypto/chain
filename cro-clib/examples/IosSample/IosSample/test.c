@@ -62,6 +62,11 @@ int show_hex(const unsigned char *src, int length)
     printf("\n");
     return 0;
 }
+
+void restore_wallet(const char* name, const char* passphrase, const char* mnemonics)
+{
+    printf("restore %s %s %s\n", name, passphrase, mnemonics);
+}
 void test_hdwallet_mnemonics()
 {
     const char *mnemonics = "math original guitar once close news cactus crime cool tank honey file endless neglect catch side cluster clay viable journey october market autumn swing";

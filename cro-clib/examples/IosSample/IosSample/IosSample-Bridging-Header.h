@@ -4,3 +4,6 @@
 
 #include "chain-core.h"
 #include "chain.h"
+
+
+void restore_wallet(const char* name, const char* passphrase, const char* mnemonics);

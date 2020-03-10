@@ -18,9 +18,9 @@ class ViewController: UIViewController {
     @IBOutlet weak var tendermint_url: UITextField!
     @IBOutlet weak var wallet_name: UITextField!
     @IBOutlet weak var wallet_passphrase: UITextField!
-    @IBOutlet weak var wallet_enckey: UITextView!
+    @IBOutlet weak var wallet_enckey: UITextField!
     
-    @IBOutlet weak var wallet_mnemonics: UITextView!
+    @IBOutlet weak var wallet_mnemonics: UITextField!
     @IBOutlet weak var wallet_progress: UIProgressView!
     
     func save() throws {

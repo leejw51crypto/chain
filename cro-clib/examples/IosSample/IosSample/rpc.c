@@ -8,6 +8,25 @@
 #include "chain-core.h"
 #include "chain.h"
 
+
+uint64_t g_current;
+uint64_t g_start;
+uint64_t g_end;
+float g_rate;
+int g_stop=0;
+
+
+
+float get_rate()
+{
+    return g_rate;
+}
+
+void stop_sync()
+{
+    g_stop=1;
+}
+
 //ret 1: continue, 0: stop
 int32_t progress(uint64_t current, uint64_t start, uint64_t end, const void*  user_data)
 {
@@ -15,11 +34,17 @@ int32_t progress(uint64_t current, uint64_t start, uint64_t end, const void*  us
     double rate=0;
     if (end>start) {
         gap= end- start;
-        rate= (current-start)/ gap*100.0;
+        rate= (current-start)/ gap*1.0;
     }
     char* user= (char*)user_data;
+    
+    // save
+    g_current= current;
+    g_start = start;
+    g_end = end;
+    g_rate = rate;
     printf("%8.2lf  progress current=%lu  start= %lu ~ end=%lu   user= %s\n",rate, current,start, end, user);
-    return 1;
+    return !g_stop;
 }
 
 void show_wallets()
@@ -83,6 +108,7 @@ void restore_wallet(const char* tendermint_url, const char* storage, const char*
 
 void sync_wallet(const char* tendermint_url, const char* storage, const char* name, const char* passphrase, const char* enckey, const char* mnemonics)
 {
+    g_stop= 0;
     const int BUFSIZE=1000;
     char buf[BUFSIZE];
     const char* req_template = "{\"jsonrpc\": \"2.0\", \"method\": \"sync\", \"params\": [{\"name\":\"%s\", \"passphrase\":\"%s\",\"enckey\":\"%s\"}], \"id\": 1}";

@@ -29,7 +29,7 @@
                                 <nil key="highlightedColor"/>
                             </label>
                             <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="Txq-7P-juO">
-                                <rect key="frame" x="32" y="640" width="351" height="144"/>
+                                <rect key="frame" x="32" y="703" width="351" height="81"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
                                 <color key="textColor" systemColor="labelColor" cocoaTouchSystemColor="darkTextColor"/>
@@ -116,6 +116,10 @@
                                     <action selector="click_default:" destination="BYZ-38-t0r" eventType="touchDown" id="uAs-zC-NKV"/>
                                 </connections>
                             </button>
+                            <progressView opaque="NO" contentMode="scaleToFill" verticalHuggingPriority="750" fixedFrame="YES" progressViewStyle="bar" translatesAutoresizingMaskIntoConstraints="NO" id="tu4-Pd-53N">
+                                <rect key="frame" x="20" y="674" width="374" height="3"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                            </progressView>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
@@ -126,6 +130,7 @@
                         <outlet property="wallet_mnemonics" destination="O04-XH-sLM" id="qjP-cj-8Kd"/>
                         <outlet property="wallet_name" destination="PfT-vX-BSm" id="6Bg-YG-W4c"/>
                         <outlet property="wallet_passphrase" destination="CH1-Oa-bU7" id="Jf8-62-PXy"/>
+                        <outlet property="wallet_progress" destination="tu4-Pd-53N" id="CRO-QP-Q8a"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>

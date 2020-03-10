@@ -13,6 +13,7 @@ class ViewController: UIViewController {
     var filename: URL?
     var my_filename = "info1.json"
     var my_storage = "storage"
+    var doing_sync:Bool = false
     
     @IBOutlet weak var tendermint_url: UITextField!
     @IBOutlet weak var wallet_name: UITextField!
@@ -20,6 +21,7 @@ class ViewController: UIViewController {
     @IBOutlet weak var wallet_enckey: UITextView!
     
     @IBOutlet weak var wallet_mnemonics: UITextView!
+    @IBOutlet weak var wallet_progress: UIProgressView!
     
     func save() throws {
         let jsonEncoder = JSONEncoder()
@@ -85,7 +87,14 @@ class ViewController: UIViewController {
     }
     
     @IBAction func click_create_sync(_ sender: Any) {
+        if doing_sync {
+            stop_sync()
+            return
+        }
+        
+        
         print("click sync")
+        let tendermint = tendermint_url.text
         let name = wallet_name.text!
         let passphrase = wallet_passphrase.text!
         let mnemonics = wallet_mnemonics.text!
@@ -93,14 +102,37 @@ class ViewController: UIViewController {
         let storage = getDocumentsDirectory().appendingPathComponent(my_storage).path
         print("storage \(storage)")
         print("click wallet = \(name)  passphrase=\(passphrase) mnemonics=\(mnemonics    )")
-
+        
         my_data.tendermint = tendermint_url.text
         my_data.name = name
         my_data.passphras = passphrase
         my_data.enckey = enckey
         my_data.mnemonics = mnemonics
-
-        sync_wallet(tendermint_url.text, storage, name, passphrase, enckey, mnemonics)
+        
+        
+        doing_sync = true
+        
+        DispatchQueue.global(qos: .background).async {
+            
+            sync_wallet(tendermint, storage, name, passphrase, enckey, mnemonics)
+            
+            DispatchQueue.main.async {
+                print("stop sync")
+                self.doing_sync = false
+            }
+        }
+        
+        
+        DispatchQueue.global(qos: .background).async {
+            while (self.doing_sync) {
+                usleep(50000);
+                DispatchQueue.main.async {
+                    print("update ui thread done")
+                    self.wallet_progress.progress = get_rate()
+                }
+            }
+        }
+        
     }
     @IBAction func click_default(_ sender: Any) {
         do {

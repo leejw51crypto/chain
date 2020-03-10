@@ -17,6 +17,7 @@
 		8C2C22BD24163F7F003667B1 /* rpc.c in Sources */ = {isa = PBXBuildFile; fileRef = 8C2C22B824163F7F003667B1 /* rpc.c */; };
 		8C2C22BE24163F7F003667B1 /* tx.c in Sources */ = {isa = PBXBuildFile; fileRef = 8C2C22B924163F7F003667B1 /* tx.c */; };
 		8C2C22BF24163F7F003667B1 /* test.c in Sources */ = {isa = PBXBuildFile; fileRef = 8C2C22BB24163F7F003667B1 /* test.c */; };
+		8C2C22C4241778D1003667B1 /* MyData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2C22C3241778D1003667B1 /* MyData.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +36,7 @@
 		8C2C22B924163F7F003667B1 /* tx.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = tx.c; sourceTree = "<group>"; };
 		8C2C22BA24163F7F003667B1 /* chain-core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "chain-core.h"; sourceTree = "<group>"; };
 		8C2C22BB24163F7F003667B1 /* test.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = test.c; sourceTree = "<group>"; };
+		8C2C22C3241778D1003667B1 /* MyData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyData.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,6 +84,7 @@
 				8C2C22AC24163EDF003667B1 /* LaunchScreen.storyboard */,
 				8C2C22AF24163EDF003667B1 /* Info.plist */,
 				8C2C22B524163F7C003667B1 /* IosSample-Bridging-Header.h */,
+				8C2C22C3241778D1003667B1 /* MyData.swift */,
 			);
 			path = IosSample;
 			sourceTree = "<group>";
@@ -163,6 +166,7 @@
 				8C2C22A424163EDD003667B1 /* SceneDelegate.swift in Sources */,
 				8C2C22BF24163F7F003667B1 /* test.c in Sources */,
 				8C2C22BE24163F7F003667B1 /* tx.c in Sources */,
+				8C2C22C4241778D1003667B1 /* MyData.swift in Sources */,
 				8C2C22BD24163F7F003667B1 /* rpc.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

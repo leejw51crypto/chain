@@ -6,4 +6,4 @@
 #include "chain.h"
 
 
-void restore_wallet(const char* name, const char* passphrase, const char* mnemonics);
+void restore_wallet(const char* tendermint_url, const char* storage,  const char* name, const char* passphrase, const char* enckey, const char* mnemonics);

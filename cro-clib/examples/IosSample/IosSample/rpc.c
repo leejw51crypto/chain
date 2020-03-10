@@ -56,6 +56,31 @@ void sync()
 }
 
 
+  
+void restore_wallet(const char* tendermint_url, const char* storage, const char* name, const char* passphrase, const char* enckey, const char* mnemonics)
+{
+    printf("restore %s %s %s %s %s %s\n", tendermint_url, storage, name, passphrase, enckey, mnemonics);
+    const int BUFSIZE=1000;
+    char buf[BUFSIZE];
+   
+    const char* user="ios-user";
+    const char* wallet_req = "{\"jsonrpc\": \"2.0\", \"method\": \"wallet_list\", \"params\": [], \"id\": 1}";
+    const char* wallet_restore_req = "{\"jsonrpc\": \"2.0\", \"method\": \"wallet_restore\", \"params\": [{\"name\":\"%s\", \"passphrase\":\"%s\"}, \"%s\"], \"id\": 2}";
+    char tmp[BUFSIZE];
+    sprintf(tmp ,wallet_restore_req, name, passphrase, mnemonics);
+    printf("sync with context\n");
+    CroJsonRpcPtr rpc= NULL;
+    cro_create_jsonrpc(&rpc, storage, tendermint_url, 0xab, &progress);
+    cro_run_jsonrpc(rpc, wallet_req, buf, sizeof(buf), user);
+    printf("response: %s\n", buf);
+    cro_run_jsonrpc(rpc, tmp, buf, sizeof(buf), user);
+    printf("response: %s\n", buf);
+   
+    cro_destroy_jsonrpc(rpc);
+    printf("OK\n");
+
+}
+
 void context_sync()
 {
     const int BUFSIZE=1000;

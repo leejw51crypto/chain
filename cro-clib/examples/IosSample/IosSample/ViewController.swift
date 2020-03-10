@@ -11,6 +11,8 @@ import UIKit
 class ViewController: UIViewController {
     var my_data: MyData = MyData()
     var filename: URL?
+    var my_filename = "info1.json"
+    var my_storage = "storage"
     
     @IBOutlet weak var tendermint_url: UITextField!
     @IBOutlet weak var wallet_name: UITextField!
@@ -38,7 +40,7 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         do {
-            filename=getDocumentsDirectory().appendingPathComponent("info.txt")
+            filename=getDocumentsDirectory().appendingPathComponent(my_filename)
             try load()
             tendermint_url.text = my_data.tendermint
             wallet_name.text = my_data.name
@@ -62,7 +64,7 @@ class ViewController: UIViewController {
         let  passphrase = wallet_passphrase.text!
         let mnemonics = wallet_mnemonics.text!
         let enckey = wallet_enckey.text!
-        let storage = getDocumentsDirectory().appendingPathComponent("disk").path
+        let storage = getDocumentsDirectory().appendingPathComponent(my_storage).path
         print("storage \(storage)")
         print("click wallet = \(name)  passphrase=\(passphrase) mnemonics=\(mnemonics	)")
         

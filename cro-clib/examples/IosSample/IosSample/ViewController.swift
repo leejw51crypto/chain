@@ -82,27 +82,25 @@ class ViewController: UIViewController {
         }
         
         restore_wallet(tendermint_url.text, storage, name, passphrase, enckey, mnemonics)
-        
-        /*let str = "Super long string here"
-         let filename = getDocumentsDirectory().appendingPathComponent("output.txt")
-         print("filename=\(filename)")
-         
-         do {
-         try str.write(to: filename, atomically: true, encoding: String.Encoding.utf8)
-         } catch {
-         // failed to write file – bad permissions, bad filename, missing permissions, or more likely it can't be converted to the encoding
-         print("fail to write")
-         }
-         
-         do {
-         let text2 = try String(contentsOf: filename, encoding: .utf8)
-         print("read = \(text2)")
-         }
-         catch {/* error handling here */}*/
     }
     
     @IBAction func click_create_sync(_ sender: Any) {
         print("click sync")
+        let name = wallet_name.text!
+        let passphrase = wallet_passphrase.text!
+        let mnemonics = wallet_mnemonics.text!
+        let enckey = wallet_enckey.text!
+        let storage = getDocumentsDirectory().appendingPathComponent(my_storage).path
+        print("storage \(storage)")
+        print("click wallet = \(name)  passphrase=\(passphrase) mnemonics=\(mnemonics    )")
+
+        my_data.tendermint = tendermint_url.text
+        my_data.name = name
+        my_data.passphras = passphrase
+        my_data.enckey = enckey
+        my_data.mnemonics = mnemonics
+
+        sync_wallet(tendermint_url.text, storage, name, passphrase, enckey, mnemonics)
     }
     @IBAction func click_default(_ sender: Any) {
         do {

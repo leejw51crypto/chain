@@ -39,9 +39,18 @@ where
         let mut storage_key = root_hash.clone().to_vec();
         storage_key.extend(name.as_bytes().iter());
 
-        self.storage
-            .set_secure(KEYSPACE, storage_key, multi_sig_address.encode(), enckey)?;
+        // key: roothash     data: mutl-sig-address
+        //self.storage
+        //    .set_secure(KEYSPACE, storage_key, multi_sig_address.encode(), enckey)?;
 
+        let index = format!("core_wallet_{}_multisigaddress",  name);
+        self.storage.set(
+            index.clone(),
+            root_hash.clone().to_vec(),
+            multi_sig_address.encode(),
+        );
+
+        
         Ok((root_hash, multi_sig_address))
     }
 

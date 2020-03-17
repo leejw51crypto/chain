@@ -360,11 +360,26 @@ where
         public_key: &PublicKey,
         private_key: &PrivateKey,
     ) -> Result<()> {
+        let public_index = format!("{}_{}_private", KEYSPACE, name);
+        self.storage.set(
+            public_index.clone(),
+            public_key.serialize(),
+            private_key.serialize(),
+        );
+        if let Ok(value) = self.storage.get(public_index.clone(), public_key.serialize()) {
+            if let Some(raw_value) = value {
+                println!("private= {}", hex::encode(raw_value));
+            }
+        }
+
+        Ok(())
+
+        /*
         self.modify_wallet(name, enckey, move |wallet| {
             wallet
                 .key_pairs
                 .insert(public_key.clone(), private_key.clone());
-        })
+        })*/
     }
 
     /// Adds a public key to given wallet
@@ -429,6 +444,7 @@ where
     where
         F: Fn(&mut Wallet),
     {
+        assert!(false);
         self.storage
             .fetch_and_update_secure(KEYSPACE, name, enckey, move |value| {
                 let mut wallet_bytes = value.chain(|| {
@@ -451,9 +467,39 @@ where
 
     /// Adds a multi-sig address to given wallet
     pub fn add_root_hash(&self, name: &str, enckey: &SecKey, root_hash: H256) -> Result<()> {
-        self.modify_wallet(name, enckey, move |wallet| {
+        let index = format!("{}_{}_info", KEYSPACE, name);
+        let mut index_value: u64 = 0;
+        if let Ok(value) = self.storage.get(index.clone(), "roothashindex".as_bytes()) {
+            if let Some(raw_value) = value {
+                let mut v: [u8; 8] = [0; 8];
+                v.copy_from_slice(&raw_value);
+                index_value = u64::from_be_bytes(v);
+            }
+        }
+
+        let roothash_index = format!("{}_{}_roothash", KEYSPACE, name);
+        self.storage.set(
+            roothash_index,
+            format!("{}", index_value),
+            root_hash.to_vec(),
+        );
+        println!("{} {}", index_value, hex::encode(&root_hash));
+
+          // increase
+          index_value = index_value + 1;
+          self.storage.set(
+              index.clone(),
+              "roothashindex".as_bytes(),
+              index_value.to_be_bytes().to_vec(),
+          );
+          println!("**************   {}", index_value);
+
+
+
+        /*self.modify_wallet(name, enckey, move |wallet| {
             wallet.root_hashes.insert(root_hash);
-        })
+        })*/
+        Ok(())
     }
 
     /// Retrieves names of all the stored wallets

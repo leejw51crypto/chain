@@ -360,13 +360,20 @@ where
         public_key: &PublicKey,
         private_key: &PrivateKey,
     ) -> Result<()> {
-        let public_index = format!("{}_{}_private", KEYSPACE, name);
-        self.storage.set(
-            public_index.clone(),
+        let private_keyspace = format!("{}_{}_private", KEYSPACE, name);
+
+        // key: public_key
+        // value: private_key
+        self.storage.set_secure(
+            private_keyspace.clone(),
             public_key.serialize(),
             private_key.serialize(),
-        );
-        if let Ok(value) = self.storage.get(public_index.clone(), public_key.serialize()) {
+            enckey,
+        )?;
+        if let Ok(value) = self
+            .storage
+            .get_secure(private_keyspace.clone(), public_key.serialize(), enckey)
+        {
             if let Some(raw_value) = value {
                 println!("private= {}", hex::encode(raw_value));
             }
@@ -393,9 +400,9 @@ where
             wallet.public_keys.insert(public_key.clone());
         })*/
 
-        let index = format!("{}_{}_info", KEYSPACE, name);
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         let mut index_value: u64 = 0;
-        if let Ok(value) = self.storage.get(index.clone(), "index".as_bytes()) {
+        if let Ok(value) = self.storage.get(info_keyspace.clone(), "index".as_bytes()) {
             if let Some(raw_value) = value {
                 let mut v: [u8; 8] = [0; 8];
                 v.copy_from_slice(&raw_value);
@@ -404,21 +411,23 @@ where
         }
         // use it
 
-        let public_index = format!("{}_{}_public", KEYSPACE, name);
+        // key: index
+        // value: publickey
+        let public_keyspace = format!("{}_{}_public", KEYSPACE, name);
         self.storage.set(
-            public_index,
+            public_keyspace,
             format!("{}", index_value),
             public_key.serialize(),
-        );
+        )?;
         println!("{} {}", index_value, hex::encode(&public_key.serialize()));
 
         // increase
         index_value = index_value + 1;
         self.storage.set(
-            index.clone(),
+            info_keyspace.clone(),
             "index".as_bytes(),
             index_value.to_be_bytes().to_vec(),
-        );
+        )?;
         println!("**************   {}", index_value);
         Ok(())
 
@@ -467,9 +476,12 @@ where
 
     /// Adds a multi-sig address to given wallet
     pub fn add_root_hash(&self, name: &str, enckey: &SecKey, root_hash: H256) -> Result<()> {
-        let index = format!("{}_{}_info", KEYSPACE, name);
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         let mut index_value: u64 = 0;
-        if let Ok(value) = self.storage.get(index.clone(), "roothashindex".as_bytes()) {
+        if let Ok(value) = self
+            .storage
+            .get(info_keyspace.clone(), "roothashindex".as_bytes())
+        {
             if let Some(raw_value) = value {
                 let mut v: [u8; 8] = [0; 8];
                 v.copy_from_slice(&raw_value);
@@ -477,24 +489,25 @@ where
             }
         }
 
-        let roothash_index = format!("{}_{}_roothash", KEYSPACE, name);
-        self.storage.set(
-            roothash_index,
+        // key: index
+        // value: roothash
+        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        self.storage.set_secure(
+            roothash_keyspace,
             format!("{}", index_value),
             root_hash.to_vec(),
-        );
+            enckey,
+        )?;
         println!("{} {}", index_value, hex::encode(&root_hash));
 
-          // increase
-          index_value = index_value + 1;
-          self.storage.set(
-              index.clone(),
-              "roothashindex".as_bytes(),
-              index_value.to_be_bytes().to_vec(),
-          );
-          println!("**************   {}", index_value);
-
-
+        // increase
+        index_value = index_value + 1;
+        self.storage.set(
+            info_keyspace.clone(),
+            "roothashindex".as_bytes(),
+            index_value.to_be_bytes().to_vec(),
+        )?;
+        println!("**************   {}", index_value);
 
         /*self.modify_wallet(name, enckey, move |wallet| {
             wallet.root_hashes.insert(root_hash);

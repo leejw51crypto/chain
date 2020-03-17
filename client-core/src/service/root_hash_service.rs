@@ -43,14 +43,16 @@ where
         //self.storage
         //    .set_secure(KEYSPACE, storage_key, multi_sig_address.encode(), enckey)?;
 
-        let index = format!("core_wallet_{}_multisigaddress",  name);
-        self.storage.set(
-            index.clone(),
+        // key: roothash
+        // value: multisig address info
+        let keyspace_multisigaddress = format!("core_wallet_{}_multisigaddress", name);
+        self.storage.set_secure(
+            keyspace_multisigaddress,
             root_hash.clone().to_vec(),
             multi_sig_address.encode(),
-        );
+            enckey
+        )?;
 
-        
         Ok((root_hash, multi_sig_address))
     }
 

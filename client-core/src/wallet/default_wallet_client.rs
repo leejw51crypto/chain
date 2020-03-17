@@ -530,8 +530,14 @@ where
         self.wallet_service
             .add_key_pairs(name, enckey, &public_key, &private_key)?;
         let duration2 = start.elapsed();
-       
-        let ret=self.new_multisig_transfer_address(name, enckey, vec![public_key.clone()], public_key, 1);
+
+        let ret = self.new_multisig_transfer_address(
+            name,
+            enckey,
+            vec![public_key.clone()],
+            public_key,
+            1,
+        );
         println!("total time {:?} ", duration2);
 
         ret

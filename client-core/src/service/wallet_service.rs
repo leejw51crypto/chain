@@ -374,9 +374,43 @@ where
         enckey: &SecKey,
         public_key: &PublicKey,
     ) -> Result<()> {
-        self.modify_wallet(name, enckey, move |wallet| {
+        /* self.modify_wallet(name, enckey, move |wallet| {
             wallet.public_keys.insert(public_key.clone());
-        })
+        })*/
+
+        let index = format!("{}_{}_info", KEYSPACE, name);
+        let mut index_value: u64 = 0;
+        if let Ok(value) = self.storage.get(index.clone(), "index".as_bytes()) {
+            if let Some(raw_value) = value {
+                let mut v: [u8; 8] = [0; 8];
+                v.copy_from_slice(&raw_value);
+                index_value = u64::from_be_bytes(v);
+            }
+        }
+        // use it
+
+        let public_index = format!("{}_{}_public", KEYSPACE, name);
+        self.storage.set(
+            public_index,
+            format!("{}", index_value),
+            public_key.serialize(),
+        );
+        println!("{} {}", index_value, hex::encode(&public_key.serialize()));
+
+        // increase
+        index_value = index_value + 1;
+        self.storage.set(
+            index.clone(),
+            "index".as_bytes(),
+            index_value.to_be_bytes().to_vec(),
+        );
+        println!("**************   {}", index_value);
+        Ok(())
+
+        /*self.storage
+            .set(KEYSPACE, name, enckey, move |value| {
+                let mut wallet_bytes = value.chain(|| {
+        */
     }
 
     /// Adds a public key corresponding to a staking address to given wallet

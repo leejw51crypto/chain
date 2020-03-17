@@ -1,4 +1,5 @@
 use bit_vec::BitVec;
+use std::time::{Instant};
 use indexmap::IndexSet;
 use parity_scale_codec::Encode;
 use secp256k1::schnorrsig::SchnorrSignature;
@@ -58,6 +59,7 @@ where
     tendermint_client: C,
     transaction_builder: T,
     block_height_ensure: Option<u64>,
+    
 }
 
 impl<S, C, T> DefaultWalletClient<S, C, T>
@@ -84,6 +86,7 @@ where
             tendermint_client,
             transaction_builder,
             block_height_ensure,
+            
         }
     }
 }
@@ -510,7 +513,8 @@ where
         )))
     }
 
-    fn new_transfer_address(&self, name: &str, enckey: &SecKey) -> Result<ExtendedAddr> {
+    fn new_transfer_address( &self, name: &str, enckey: &SecKey) -> Result<ExtendedAddr> {
+        let start = Instant::now();
         let (public_key, private_key) = if self.hd_key_service.has_wallet(name)? {
             self.hd_key_service
                 .generate_keypair(name, enckey, HDAccountType::Transfer)?
@@ -520,7 +524,8 @@ where
 
             (public_key, private_key)
         };
-
+        let duration = start.elapsed();
+        println!("get key time {:?} ", duration);
         self.wallet_service
             .add_public_key(name, enckey, &public_key)?;
 
@@ -528,6 +533,7 @@ where
             .add_key_pairs(name, enckey, &public_key, &private_key)?;
 
         self.new_multisig_transfer_address(name, enckey, vec![public_key.clone()], public_key, 1)
+   
     }
 
     fn new_watch_staking_address(
@@ -579,7 +585,6 @@ where
                 .new_root_hash(name, public_keys, self_public_key, m, enckey)?;
 
         self.wallet_service.add_root_hash(name, enckey, root_hash)?;
-
         Ok(multi_sig_address.into())
     }
 

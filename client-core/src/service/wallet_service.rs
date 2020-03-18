@@ -360,7 +360,7 @@ where
         public_key: &PublicKey,
         private_key: &PrivateKey,
     ) -> Result<()> {
-        let private_keyspace = format!("{}_{}_private", KEYSPACE, name);
+        let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
 
         // key: public_key
         // value: private_key
@@ -370,9 +370,9 @@ where
             private_key.serialize(),
             enckey,
         )?;
-        if let Ok(value) = self
-            .storage
-            .get_secure(private_keyspace.clone(), public_key.serialize(), enckey)
+        if let Ok(value) =
+            self.storage
+                .get_secure(private_keyspace.clone(), public_key.serialize(), enckey)
         {
             if let Some(raw_value) = value {
                 println!("private= {}", hex::encode(raw_value));
@@ -402,7 +402,10 @@ where
 
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         let mut index_value: u64 = 0;
-        if let Ok(value) = self.storage.get(info_keyspace.clone(), "index".as_bytes()) {
+        if let Ok(value) = self
+            .storage
+            .get(info_keyspace.clone(), "publickeyindex".as_bytes())
+        {
             if let Some(raw_value) = value {
                 let mut v: [u8; 8] = [0; 8];
                 v.copy_from_slice(&raw_value);
@@ -413,7 +416,7 @@ where
 
         // key: index
         // value: publickey
-        let public_keyspace = format!("{}_{}_public", KEYSPACE, name);
+        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
         self.storage.set(
             public_keyspace,
             format!("{}", index_value),
@@ -425,7 +428,7 @@ where
         index_value = index_value + 1;
         self.storage.set(
             info_keyspace.clone(),
-            "index".as_bytes(),
+            "publickeyindex".as_bytes(),
             index_value.to_be_bytes().to_vec(),
         )?;
         println!("**************   {}", index_value);
@@ -444,11 +447,43 @@ where
         enckey: &SecKey,
         staking_key: &PublicKey,
     ) -> Result<()> {
-        self.modify_wallet(name, enckey, move |wallet| {
-            wallet.staking_keys.insert(staking_key.clone());
-        })
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let mut index_value: u64 = 0;
+        if let Ok(value) = self
+            .storage
+            .get(info_keyspace.clone(), "stakingkeyindex".as_bytes())
+        {
+            if let Some(raw_value) = value {
+                let mut v: [u8; 8] = [0; 8];
+                v.copy_from_slice(&raw_value);
+                index_value = u64::from_be_bytes(v);
+            }
+        }
+
+        // key: index
+        // value: stakingkey
+        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        self.storage.set(
+            stakingkey_keyspace,
+            format!("{}", index_value),
+            staking_key.serialize(),
+        )?;
+
+        // increase
+        index_value = index_value + 1;
+        self.storage.set(
+            info_keyspace.clone(),
+            "stakingkeyindex".as_bytes(),
+            index_value.to_be_bytes().to_vec(),
+        )?;
+
+        //   self.modify_wallet(name, enckey, move |wallet| {
+        //     wallet.staking_keys.insert(staking_key.clone());
+        // })
+        Ok(())
     }
 
+    /*
     fn modify_wallet<F>(&self, name: &str, enckey: &SecKey, f: F) -> Result<()>
     where
         F: Fn(&mut Wallet),
@@ -472,7 +507,7 @@ where
                 Ok(Some(wallet.encode()))
             })
             .map(|_| ())
-    }
+    }*/
 
     /// Adds a multi-sig address to given wallet
     pub fn add_root_hash(&self, name: &str, enckey: &SecKey, root_hash: H256) -> Result<()> {

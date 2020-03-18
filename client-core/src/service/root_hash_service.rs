@@ -50,7 +50,7 @@ where
             keyspace_multisigaddress,
             root_hash.clone().to_vec(),
             multi_sig_address.encode(),
-            enckey
+            enckey,
         )?;
 
         Ok((root_hash, multi_sig_address))

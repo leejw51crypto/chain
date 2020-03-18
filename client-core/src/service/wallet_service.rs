@@ -466,6 +466,16 @@ where
             staking_key.serialize(),
         )?;
 
+        // roothashset
+        let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
+        self.storage.set(
+            stakingkeyset_keyspace,
+            staking_key.serialize(),
+            name.as_bytes().to_vec(),
+        )?;
+
+
+
         // increase
         index_value = index_value + 1;
         self.write_number(&info_keyspace, "stakingkeyindex", index_value)?;

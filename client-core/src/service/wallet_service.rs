@@ -547,6 +547,15 @@ where
         )?;
         println!("{} {}", index_value, hex::encode(&root_hash));
 
+        // roothashset
+        let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
+        self.storage.set(
+            roothashset_keyspace,
+            root_hash.to_vec(),
+            name.as_bytes().to_vec(),
+        )?;
+
+
         // increase
         index_value = index_value + 1;
         self.write_number(&info_keyspace, "roothashindex", index_value)?;
@@ -597,11 +606,13 @@ where
         let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
         let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
         let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
         self.storage.clear(info_keyspace)?;
         self.storage.clear(roothash_keyspace)?;
+        self.storage.clear(roothashset_keyspace)?;
         self.storage.clear(stakingkey_keyspace)?;
         self.storage.clear(public_keyspace)?;
-        self.storage.clear(private_keyspace)?;
+        self.storage.clear(private_keyspace)?;        
         Ok(())
     }
     /// Delete the key

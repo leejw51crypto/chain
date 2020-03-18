@@ -16,7 +16,7 @@ use secstr::SecUtf8;
 use serde::de::{self, Visitor};
 use serde::export::PhantomData;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
+use std::str;
 /// Key space of wallet
 const KEYSPACE: &str = "core_wallet";
 
@@ -307,7 +307,34 @@ where
             ));
         }
 
-        self.set_wallet(name, enckey, Wallet::new(view_key))
+        self.set_wallet(name, enckey, Wallet::new(view_key));
+
+        let mut index_value: u64 = self.read_number(KEYSPACE, "walletindex")?;
+
+        // key: index
+        // value: walletname
+        let wallet_keyspace = format!("{}_walletname", KEYSPACE);
+        self.storage.set(
+            wallet_keyspace.clone(),
+            format!("{}", index_value),
+            name.as_bytes().to_vec(),
+        )?;
+
+        assert!(
+            self.read_string(&wallet_keyspace, &format!("{}", index_value))
+                .unwrap()
+                == name
+        );
+        println!("create wallet {} {}", index_value, name);
+
+        // increase
+        index_value = index_value + 1;
+        println!("write index value {}", index_value);
+        self.write_number(KEYSPACE, "walletindex", index_value)?;
+
+        assert!(self.read_number(KEYSPACE, "walletindex")? == index_value);
+        println!("OK");
+        Ok(())
     }
 
     /// Returns view key of wallet
@@ -480,7 +507,17 @@ where
             let index_value: u64 = u64::from_be_bytes(v);
             return Ok(index_value);
         }
-        Err(Error::new(ErrorKind::InvalidInput, "read_number"))
+        Ok(0)
+    }
+
+    fn read_string(&self, keyspace: &str, key: &str) -> Result<String> {
+        let value = self.storage.get(keyspace, key.as_bytes())?;
+        if let Some(raw_value) = value {
+            let ret = str::from_utf8(&raw_value).unwrap();
+            println!("read_string {} {}", key, ret);
+            return Ok(ret.to_string());
+        }
+        Ok("".to_string())
     }
 
     fn write_number(&self, keyspace: &str, key: &str, value: u64) -> Result<()> {
@@ -534,14 +571,27 @@ where
 
     /// Clears all storage
     pub fn clear(&self) -> Result<()> {
-        self.storage.clear(KEYSPACE)
+        let mut index_value: u64 = self.read_number(KEYSPACE, "walletindex")?;
+        println!("wallet number {}", index_value);
+
+        let wallet_keyspace = format!("{}_walletname", KEYSPACE);
+        for i in 0..index_value {
+            let wallet_name = self
+                .read_string(&wallet_keyspace, &format!("{}", i))
+                .unwrap();
+            println!("processing {} = {}", i, wallet_name); //  let self.storage.get( wallet_keyspace,
+                                                            //    format!("{}", index_value)).unwrap();
+            self.delete_wallet_keyspace(&wallet_name).unwrap();
+        }
+        self.write_number(KEYSPACE, "wallet_index", 0)?;
+        self.storage.clear(KEYSPACE).unwrap();
+        println!("remove all  {}", KEYSPACE);
+        Ok(())
     }
 
-    /// Delete the key
-    pub fn delete(&self, name: &str, enckey: &SecKey) -> Result<Wallet> {
-        let wallet = self.get_wallet(name, enckey)?;
+    fn delete_wallet_keyspace(&self, name: &str) -> Result<()> {
         self.storage.delete(KEYSPACE, name)?;
-
+        assert!(self.storage.get(KEYSPACE, name)?.is_none());
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
         let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
@@ -552,6 +602,14 @@ where
         self.storage.clear(stakingkey_keyspace)?;
         self.storage.clear(public_keyspace)?;
         self.storage.clear(private_keyspace)?;
+        Ok(())
+    }
+    /// Delete the key
+    pub fn delete(&self, name: &str, enckey: &SecKey) -> Result<Wallet> {
+        println!("delete wallet {}", name);
+        let wallet = self.get_wallet(name, enckey)?;
+        self.storage.delete(KEYSPACE, name)?;
+        self.delete_wallet_keyspace(name)?;
         Ok(wallet)
     }
 }

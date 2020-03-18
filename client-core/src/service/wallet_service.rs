@@ -401,18 +401,7 @@ where
         })*/
 
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        let mut index_value: u64 = 0;
-        if let Ok(value) = self
-            .storage
-            .get(info_keyspace.clone(), "publickeyindex".as_bytes())
-        {
-            if let Some(raw_value) = value {
-                let mut v: [u8; 8] = [0; 8];
-                v.copy_from_slice(&raw_value);
-                index_value = u64::from_be_bytes(v);
-            }
-        }
-        // use it
+        let mut index_value: u64 = self.read_number(&info_keyspace, "publickeyindex")?;
 
         // key: index
         // value: publickey
@@ -426,18 +415,9 @@ where
 
         // increase
         index_value = index_value + 1;
-        self.storage.set(
-            info_keyspace.clone(),
-            "publickeyindex".as_bytes(),
-            index_value.to_be_bytes().to_vec(),
-        )?;
-        println!("**************   {}", index_value);
-        Ok(())
+        self.write_number(&info_keyspace, "publickeyindex", index_value)?;
 
-        /*self.storage
-            .set(KEYSPACE, name, enckey, move |value| {
-                let mut wallet_bytes = value.chain(|| {
-        */
+        Ok(())
     }
 
     /// Adds a public key corresponding to a staking address to given wallet
@@ -448,17 +428,7 @@ where
         staking_key: &PublicKey,
     ) -> Result<()> {
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        let mut index_value: u64 = 0;
-        if let Ok(value) = self
-            .storage
-            .get(info_keyspace.clone(), "stakingkeyindex".as_bytes())
-        {
-            if let Some(raw_value) = value {
-                let mut v: [u8; 8] = [0; 8];
-                v.copy_from_slice(&raw_value);
-                index_value = u64::from_be_bytes(v);
-            }
-        }
+        let mut index_value: u64 = self.read_number(&info_keyspace, "stakingkeyindex")?;
 
         // key: index
         // value: stakingkey
@@ -471,15 +441,8 @@ where
 
         // increase
         index_value = index_value + 1;
-        self.storage.set(
-            info_keyspace.clone(),
-            "stakingkeyindex".as_bytes(),
-            index_value.to_be_bytes().to_vec(),
-        )?;
+        self.write_number(&info_keyspace, "stakingkeyindex", index_value)?;
 
-        //   self.modify_wallet(name, enckey, move |wallet| {
-        //     wallet.staking_keys.insert(staking_key.clone());
-        // })
         Ok(())
     }
 
@@ -509,20 +472,32 @@ where
             .map(|_| ())
     }*/
 
+    fn read_number(&self, keyspace: &str, key: &str) -> Result<u64> {
+        let value = self.storage.get(keyspace, key.as_bytes())?;
+        if let Some(raw_value) = value {
+            let mut v: [u8; 8] = [0; 8];
+            v.copy_from_slice(&raw_value);
+            let index_value: u64 = u64::from_be_bytes(v);
+            return Ok(index_value);
+        }
+        Err(Error::new(ErrorKind::InvalidInput, "read_number"))
+    }
+
+    fn write_number(&self, keyspace: &str, key: &str, value: u64) -> Result<()> {
+        self.storage
+            .set(
+                keyspace.clone(),
+                key.as_bytes(),
+                value.to_be_bytes().to_vec(),
+            )
+            .expect("write storage");
+        Ok(())
+    }
+
     /// Adds a multi-sig address to given wallet
     pub fn add_root_hash(&self, name: &str, enckey: &SecKey, root_hash: H256) -> Result<()> {
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        let mut index_value: u64 = 0;
-        if let Ok(value) = self
-            .storage
-            .get(info_keyspace.clone(), "roothashindex".as_bytes())
-        {
-            if let Some(raw_value) = value {
-                let mut v: [u8; 8] = [0; 8];
-                v.copy_from_slice(&raw_value);
-                index_value = u64::from_be_bytes(v);
-            }
-        }
+        let mut index_value: u64 = self.read_number(&info_keyspace, "roothashindex")?;
 
         // key: index
         // value: roothash
@@ -537,16 +512,7 @@ where
 
         // increase
         index_value = index_value + 1;
-        self.storage.set(
-            info_keyspace.clone(),
-            "roothashindex".as_bytes(),
-            index_value.to_be_bytes().to_vec(),
-        )?;
-        println!("**************   {}", index_value);
-
-        /*self.modify_wallet(name, enckey, move |wallet| {
-            wallet.root_hashes.insert(root_hash);
-        })*/
+        self.write_number(&info_keyspace, "roothashindex", index_value)?;
         Ok(())
     }
 
@@ -575,6 +541,17 @@ where
     pub fn delete(&self, name: &str, enckey: &SecKey) -> Result<Wallet> {
         let wallet = self.get_wallet(name, enckey)?;
         self.storage.delete(KEYSPACE, name)?;
+
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
+        let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
+        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        self.storage.clear(info_keyspace)?;
+        self.storage.clear(roothash_keyspace)?;
+        self.storage.clear(stakingkey_keyspace)?;
+        self.storage.clear(public_keyspace)?;
+        self.storage.clear(private_keyspace)?;
         Ok(wallet)
     }
 }

@@ -310,9 +310,14 @@ where
             ));
         }
 
-        self.set_wallet(name, enckey, Wallet::new(view_key));
+        self.set_wallet(name, enckey, Wallet::new(view_key.clone()));
 
         let mut index_value: u64 = self.read_number(KEYSPACE, "walletindex")?;
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        // key: "viewkey"
+        // value: view-key
+        self.storage
+            .set(info_keyspace, "viewkey", view_key.serialize())?;
 
         // key: index
         // value: walletname

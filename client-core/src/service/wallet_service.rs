@@ -347,8 +347,8 @@ where
 
     /// Returns view key of wallet
     pub fn view_key(&self, name: &str, enckey: &SecKey) -> Result<PublicKey> {
-        let wallet = self.get_wallet(name, enckey)?;
-        Ok(wallet.view_key)
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        self.read_pubkey(&info_keyspace, "viewkey")
     }
 
     /// Returns all public keys stored in a wallet
@@ -452,7 +452,7 @@ where
         assert!(roothash_count == ret.len() as u64);
         Ok(ret)
 
-        //Ok(self.get_wallet(name, enckey)?.transfer_addresses())
+        
     }
 
     /// Adds a (public_key, private_key) pair to given wallet
@@ -558,6 +558,15 @@ where
             return Ok(index_value);
         }
         Ok(0)
+    }
+
+    fn read_pubkey(&self, keyspace: &str, key: &str) -> Result<PublicKey> {
+        let value = self.storage.get(keyspace, key.as_bytes())?;
+        if let Some(raw_value) = value {
+            let pubkey = PublicKey::deserialize_from(&raw_value)?;
+             return Ok(pubkey);
+        }
+        return Err(Error::new(ErrorKind::InvalidInput, "read pubkey error"));
     }
 
     fn read_string(&self, keyspace: &str, key: &str) -> Result<String> {

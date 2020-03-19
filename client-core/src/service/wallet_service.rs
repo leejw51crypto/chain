@@ -153,25 +153,6 @@ fn read_number<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Resu
     Ok(0)
 }
 
-fn read_pubkey<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Result<PublicKey> {
-    let value = storage.get(keyspace, key.as_bytes())?;
-    if let Some(raw_value) = value {
-        let pubkey = PublicKey::deserialize_from(&raw_value)?;
-        return Ok(pubkey);
-    }
-    return Err(Error::new(ErrorKind::InvalidInput, "read pubkey error"));
-}
-
-fn read_string<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Result<String> {
-    let value = storage.get(keyspace, key.as_bytes())?;
-    if let Some(raw_value) = value {
-        let ret = str::from_utf8(&raw_value).unwrap();
-        println!("read_string {} {}", key, ret);
-        return Ok(ret.to_string());
-    }
-    Ok("".to_string())
-}
-
 fn write_number<S: SecureStorage>(
     storage: &S,
     keyspace: &str,
@@ -186,6 +167,37 @@ fn write_number<S: SecureStorage>(
         )
         .expect("write storage");
     Ok(())
+}
+
+fn read_pubkey<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Result<PublicKey> {
+    let value = storage.get(keyspace, key.as_bytes())?;
+    if let Some(raw_value) = value {
+        let pubkey = PublicKey::deserialize_from(&raw_value)?;
+        return Ok(pubkey);
+    }
+    return Err(Error::new(ErrorKind::InvalidInput, "read pubkey error"));
+}
+
+fn write_pubkey<S: SecureStorage>(
+    storage: &S,
+    keyspace: &str,
+    key: &str,
+    value: &PublicKey,
+) -> Result<()> {
+    storage
+        .set(keyspace.clone(), key.as_bytes(), value.serialize())
+        .expect("write pubkey");
+    Ok(())
+}
+
+fn read_string<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Result<String> {
+    let value = storage.get(keyspace, key.as_bytes())?;
+    if let Some(raw_value) = value {
+        let ret = str::from_utf8(&raw_value).unwrap();
+        println!("read_string {} {}", key, ret);
+        return Ok(ret.to_string());
+    }
+    Ok("".to_string())
 }
 
 /// Load wallet from storage
@@ -241,8 +253,7 @@ where
         self.storage.save_secure(KEYSPACE, name, enckey, wallet);
 
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        self.storage
-            .set(info_keyspace, "viewkey", wallet.view_key.serialize())?;
+        write_pubkey(&self.storage, &info_keyspace, "viewkey", &wallet.view_key);
 
         for (pubkey, prikey) in &wallet.key_pairs {
             self.add_key_pairs(&name, &enckey, &pubkey, &prikey)?
@@ -359,8 +370,7 @@ where
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         // key: "viewkey"
         // value: view-key
-        self.storage
-            .set(info_keyspace, "viewkey", view_key.serialize())?;
+        write_pubkey(&self.storage, &info_keyspace, "viewkey", &view_key)?;
 
         // key: index
         // value: walletname
@@ -532,12 +542,12 @@ where
         // key: index
         // value: publickey
         let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
-        self.storage.set(
-            public_keyspace,
-            format!("{}", index_value),
-            public_key.serialize(),
-        )?;
-        println!("{} {}", index_value, hex::encode(&public_key.serialize()));
+        write_pubkey(
+            &self.storage,
+            &public_keyspace,
+            &format!("{}", index_value),
+            &public_key,
+        );
 
         // increase
         index_value = index_value + 1;
@@ -559,22 +569,25 @@ where
         // key: index
         // value: stakingkey
         let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
-        self.storage.set(
-            stakingkey_keyspace,
-            format!("{}", index_value),
-            staking_key.serialize(),
-        )?;
+        write_pubkey(
+            &self.storage,
+            &stakingkey_keyspace,
+            &format!("{}", index_value),
+            &staking_key,
+        );
 
         // stakingkey set
         // key: redeem address (20 bytes)
         // value: staking key (<-publickey)
         let redeemaddress = RedeemAddress::from(staking_key).to_string();
         let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
-        self.storage.set(
-            stakingkeyset_keyspace,
-            redeemaddress.as_bytes(),
-            staking_key.serialize(),
-        )?;
+
+        write_pubkey(
+            &self.storage,
+            &stakingkeyset_keyspace,
+            &redeemaddress,
+            &staking_key,
+        );
 
         // increase
         index_value = index_value + 1;

@@ -177,33 +177,6 @@ impl Wallet {
             .map(ExtendedAddr::OrTree)
             .collect()
     }
-
-    /// find staking key
-    pub fn find_staking_key(&self, redeem_address: &RedeemAddress) -> Option<&PublicKey> {
-        self.staking_keys
-            .iter()
-            .find(|staking_key| &RedeemAddress::from(*staking_key) == redeem_address)
-    }
-
-    /// find private key
-    pub fn find_private_key(&self, public_key: &PublicKey) -> Option<&PrivateKey> {
-        self.key_pairs.get(public_key)
-    }
-
-    /// add key pair
-    pub fn add_key_pair(&mut self, public_key: &PublicKey, private_key: &PrivateKey) {
-        self.key_pairs
-            .insert(public_key.clone(), private_key.clone());
-    }
-
-    /// find root hash
-    pub fn find_root_hash(&self, address: &ExtendedAddr) -> Option<&H256> {
-        match address {
-            ExtendedAddr::OrTree(ref root_hash) => {
-                self.root_hashes.iter().find(|hash| hash == &root_hash)
-            }
-        }
-    }
 }
 
 /// Load wallet from storage

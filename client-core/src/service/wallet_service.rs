@@ -74,7 +74,7 @@ pub struct WalletInfo {
 }
 
 /// Wallet meta data
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Wallet {
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,
@@ -209,29 +209,51 @@ pub fn load_wallet<S: SecureStorage>(
     let mut wallet: Option<Wallet> = storage.load_secure(KEYSPACE, name, enckey)?;
 
     if let Some(value) = wallet {
-        let mut new_wallet= value.clone();
+        let mut new_wallet = value.clone();
         // storage -> wallet
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        new_wallet.view_key= read_pubkey(storage,&info_keyspace, "viewkey")?;
+        new_wallet.view_key = read_pubkey(storage, &info_keyspace, "viewkey")?;
 
         // pubkey
         let publickey_count: u64 = read_number(storage, &info_keyspace, "publickeyindex")?;
+        let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
 
-        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);        
+        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
         for i in 0..publickey_count {
             let pubkey = read_pubkey(storage, &public_keyspace, &format!("{}", i))?;
-            new_wallet.public_keys.insert(pubkey);
+            new_wallet.public_keys.insert(pubkey.clone());
+
+            if let Ok(value) =
+                storage.get_secure(private_keyspace.clone(), pubkey.serialize(), enckey)
+            {
+                if let Some(raw_value) = value {
+                    let privatekey = PrivateKey::deserialize_from(&raw_value).unwrap();
+                    new_wallet.key_pairs.insert(pubkey, privatekey);
+                }
+            }
         }
 
         // stakingkey
         let stakingkey_count: u64 = read_number(storage, &info_keyspace, "stakingkeyindex")?;
 
-        let staking_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);        
+        let staking_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
         for i in 0..stakingkey_count {
             let stakingkey = read_pubkey(storage, &staking_keyspace, &format!("{}", i))?;
             new_wallet.staking_keys.insert(stakingkey);
         }
 
+        // roothash
+        let roothash_count: u64 = read_number(storage, &info_keyspace, "roothashindex")?;
+        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let mut ret: IndexSet<H256> = IndexSet::<H256>::new();
+        for i in 0..roothash_count {
+            let value = storage.get(&roothash_keyspace, format!("{}", i))?;
+            if let Some(raw_value) = value {
+                let mut roothash_found: H256 = H256::default();
+                roothash_found.copy_from_slice(&raw_value);
+                new_wallet.root_hashes.insert(roothash_found);
+            }
+        }
 
         return Ok(Some(new_wallet));
     }

@@ -466,11 +466,14 @@ where
             staking_key.serialize(),
         )?;
 
-        // roothashset
+        // stakingkey set
+        // key: redeem address (20 bytes)
+        // value: staking key (<-publickey)
+        let redeemaddress = RedeemAddress::from(staking_key).to_string();
         let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
         self.storage.set(
             stakingkeyset_keyspace,
-            staking_key.serialize(),
+            redeemaddress.as_bytes(),
             name.as_bytes().to_vec(),
         )?;
 
@@ -610,6 +613,7 @@ where
         assert!(self.storage.get(KEYSPACE, name)?.is_none());
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
         let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
         let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
         let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
@@ -619,6 +623,7 @@ where
         self.storage.clear(roothash_keyspace)?;
         self.storage.clear(roothashset_keyspace)?;
         self.storage.clear(stakingkey_keyspace)?;
+        self.storage.clear(stakingkeyset_keyspace)?;
         self.storage.clear(public_keyspace)?;
         self.storage.clear(private_keyspace)?;
         self.storage.clear(multisigaddress_keyspace)?;

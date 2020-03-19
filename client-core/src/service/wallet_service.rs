@@ -266,22 +266,23 @@ where
         enckey: &SecKey,
         redeem_address: &RedeemAddress,
     ) -> Result<Option<PublicKey>> {
-
         let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
 
-        let value = self.storage.get(stakingkeyset_keyspace, redeem_address.to_string().as_bytes())?;
+        let value = self.storage.get(
+            stakingkeyset_keyspace,
+            redeem_address.to_string().as_bytes(),
+        )?;
         if let Some(raw_value) = value {
-            let pubkey= PublicKey::deserialize_from(&raw_value)?;           
+            let pubkey = PublicKey::deserialize_from(&raw_value)?;
             return Ok(Some(pubkey));
         }
 
         return Err(Error::new(ErrorKind::InvalidInput, "staking_key not found"));
 
-        
-/*        Ok(self
-            .get_wallet(name, enckey)?
-            .find_staking_key(redeem_address)
-            .cloned())*/
+        /*        Ok(self
+        .get_wallet(name, enckey)?
+        .find_staking_key(redeem_address)
+        .cloned())*/
     }
 
     /// Finds private_key corresponding to given public_key
@@ -291,27 +292,24 @@ where
         enckey: &SecKey,
         public_key: &PublicKey,
     ) -> Result<Option<PrivateKey>> {
-
         let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
 
         // key: public_key
         // value: private_key
-        let value=self.storage.get_secure(
-            private_keyspace.clone(),
-            public_key.serialize(),            
-            enckey,
-        )?;
+        let value =
+            self.storage
+                .get_secure(private_keyspace.clone(), public_key.serialize(), enckey)?;
         if let Some(raw_value) = value {
-            let privatekey= PrivateKey::deserialize_from(&raw_value)?;           
+            let privatekey = PrivateKey::deserialize_from(&raw_value)?;
             return Ok(Some(privatekey));
         }
 
         return Err(Error::new(ErrorKind::InvalidInput, "private_key not found"));
 
         /*Ok(self
-            .get_wallet(name, enckey)?
-            .find_private_key(public_key)
-            .cloned())*/
+        .get_wallet(name, enckey)?
+        .find_private_key(public_key)
+        .cloned())*/
     }
 
     /// Checks if root hash exists in current wallet and returns root hash if exists
@@ -321,10 +319,28 @@ where
         enckey: &SecKey,
         address: &ExtendedAddr,
     ) -> Result<Option<H256>> {
+        /*match address {
+            ExtendedAddr::OrTree(ref root_hash) => {
+        //        self.root_hashes.iter().find(|hash| hash == &root_hash)
+            }
+        }*/
+        if let ExtendedAddr::OrTree(ref root_hash) = address {
+            // roothashset
+            let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
+            let value = self.storage.get(roothashset_keyspace, root_hash.to_vec())?;
+            if let Some(raw_value) = value {
+                let mut roothash_found: H256 = H256::default();
+                roothash_found.copy_from_slice(&raw_value);
+                return Ok(Some(roothash_found));
+            }
+        }
+
+        return Err(Error::new(ErrorKind::InvalidInput, "private_key not found"));
+        /*
         Ok(self
             .get_wallet(name, enckey)?
             .find_root_hash(address)
-            .copied())
+            .copied())*/
     }
 
     /// Creates a new wallet and returns wallet ID

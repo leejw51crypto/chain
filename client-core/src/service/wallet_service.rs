@@ -241,14 +241,11 @@ where
     ) -> Result<Option<PublicKey>> {
         let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
 
-        if let Ok(value)=self.read_pubkey(&stakingkeyset_keyspace,
-        &redeem_address.to_string()) {
+        if let Ok(value) = self.read_pubkey(&stakingkeyset_keyspace, &redeem_address.to_string()) {
             Ok(Some(value))
-        }
-        else {
+        } else {
             Err(Error::new(ErrorKind::InvalidInput, "finding staking"))
         }
-        
     }
 
     /// Finds private_key corresponding to given public_key
@@ -357,11 +354,8 @@ where
         let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
         for i in 0..publickey_count {
-            let value = self.storage.get(&public_keyspace, format!("{}", i))?;
-            if let Some(raw_value) = value {
-                let pubkey = PublicKey::deserialize_from(&raw_value)?;
-                ret.insert(pubkey);
-            }
+            let pubkey = self.read_pubkey(&public_keyspace, &format!("{}", i))?;
+            ret.insert(pubkey);
         }
         assert!(publickey_count == ret.len() as u64);
         Ok(ret)
@@ -375,11 +369,8 @@ where
         let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
         for i in 0..staking_count {
-            let value = self.storage.get(&stakingkey_keyspace, format!("{}", i))?;
-            if let Some(raw_value) = value {
-                let pubkey = PublicKey::deserialize_from(&raw_value)?;
-                ret.insert(pubkey);
-            }
+            let pubkey = self.read_pubkey(&stakingkey_keyspace, &format!("{}", i))?;
+            ret.insert(pubkey);
         }
         assert!(staking_count == ret.len() as u64);
         Ok(ret)
@@ -449,8 +440,6 @@ where
         }
         assert!(roothash_count == ret.len() as u64);
         Ok(ret)
-
-        
     }
 
     /// Adds a (public_key, private_key) pair to given wallet
@@ -562,7 +551,7 @@ where
         let value = self.storage.get(keyspace, key.as_bytes())?;
         if let Some(raw_value) = value {
             let pubkey = PublicKey::deserialize_from(&raw_value)?;
-             return Ok(pubkey);
+            return Ok(pubkey);
         }
         return Err(Error::new(ErrorKind::InvalidInput, "read pubkey error"));
     }

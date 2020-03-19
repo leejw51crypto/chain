@@ -362,8 +362,6 @@ where
         }
         assert!(publickey_count == ret.len() as u64);
         Ok(ret)
-        //let wallet = self.get_wallet(name, enckey)?;
-        //Ok(wallet.public_keys)
     }
 
     /// Returns all public keys corresponding to staking addresses stored in a wallet
@@ -384,15 +382,25 @@ where
         }
         assert!(staking_count == ret.len() as u64);
         Ok(ret)
-
-        //let wallet = self.get_wallet(name, enckey)?;
-        //Ok(wallet.staking_keys)
     }
 
     /// Returns all multi-sig addresses stored in a wallet
     pub fn root_hashes(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<H256>> {
-        let wallet = self.get_wallet(name, enckey)?;
-        Ok(wallet.root_hashes)
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let mut roothash_count: u64 = self.read_number(&info_keyspace, "roothashindex")?;
+
+        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let mut ret: IndexSet<H256> = IndexSet::<H256>::new();
+        for i in 0..roothash_count {
+            let value = self.storage.get(&roothash_keyspace, format!("{}", i))?;
+            if let Some(raw_value) = value {
+                let mut roothash_found: H256 = H256::default();
+                roothash_found.copy_from_slice(&raw_value);
+                ret.insert(roothash_found);
+            }
+        }
+        assert!(roothash_count == ret.len() as u64);
+        Ok(ret)
     }
 
     /// Returns all staking addresses stored in a wallet
@@ -584,11 +592,10 @@ where
         // key: index
         // value: roothash
         let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
-        self.storage.set_secure(
+        self.storage.set(
             roothash_keyspace,
             format!("{}", index_value),
             root_hash.to_vec(),
-            enckey,
         )?;
         println!("{} {}", index_value, hex::encode(&root_hash));
 

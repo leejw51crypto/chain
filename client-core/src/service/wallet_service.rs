@@ -222,9 +222,33 @@ where
     pub fn save_wallet(&self, name: &str, enckey: &SecKey, wallet: &Wallet) -> Result<()> {
         self.storage.save_secure(KEYSPACE, name, enckey, wallet);
 
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        self.storage
+            .set(info_keyspace, "viewkey", wallet.view_key.serialize())?;
+
         for (pubkey, prikey) in &wallet.key_pairs {
             self.add_key_pairs(&name, &enckey, &pubkey, &prikey)?
         }
+
+        // pubkey
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        self.write_number(&info_keyspace, "publickeyindex", 0)?;
+        for public_key in wallet.public_keys.iter() {
+            self.add_public_key(name, enckey, public_key);
+        }
+
+        // stakingkey
+        self.write_number(&info_keyspace, "stakingkeyindex", 0)?;
+        for public_key in wallet.public_keys.iter() {
+            self.add_staking_key(name, enckey, public_key);
+        }
+
+        // root hash
+        self.write_number(&info_keyspace, "roothashindex", 0)?;
+        for root_hash in wallet.root_hashes.iter() {
+            self.add_root_hash(name, enckey, root_hash);
+        }
+
         Ok(())
     }
 

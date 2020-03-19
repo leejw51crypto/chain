@@ -368,8 +368,25 @@ where
 
     /// Returns all public keys corresponding to staking addresses stored in a wallet
     pub fn staking_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
-        let wallet = self.get_wallet(name, enckey)?;
-        Ok(wallet.staking_keys)
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let mut staking_count: u64 = self.read_number(&info_keyspace, "stakingkeyindex")?;
+
+        let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
+        let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
+        for i in 0..staking_count {
+            let value = self
+                .storage
+                .get(&stakingkeyset_keyspace, format!("{}", i))?;
+            if let Some(raw_value) = value {
+                let pubkey = PublicKey::deserialize_from(&raw_value)?;
+                ret.insert(pubkey);
+            }
+        }
+        assert!(staking_count == ret.len() as u64);
+        Ok(ret)
+
+        //let wallet = self.get_wallet(name, enckey)?;
+        //Ok(wallet.staking_keys)
     }
 
     /// Returns all multi-sig addresses stored in a wallet

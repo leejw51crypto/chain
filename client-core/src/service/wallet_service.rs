@@ -266,10 +266,22 @@ where
         enckey: &SecKey,
         redeem_address: &RedeemAddress,
     ) -> Result<Option<PublicKey>> {
-        Ok(self
+
+        let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
+
+        let value = self.storage.get(stakingkeyset_keyspace, redeem_address.to_string().as_bytes())?;
+        if let Some(raw_value) = value {
+            let pubkey= PublicKey::deserialize_from(&raw_value)?;           
+            return Ok(Some(pubkey));
+        }
+
+        return Err(Error::new(ErrorKind::InvalidInput, "staking_key not found"));
+
+        
+/*        Ok(self
             .get_wallet(name, enckey)?
             .find_staking_key(redeem_address)
-            .cloned())
+            .cloned())*/
     }
 
     /// Finds private_key corresponding to given public_key
@@ -474,7 +486,7 @@ where
         self.storage.set(
             stakingkeyset_keyspace,
             redeemaddress.as_bytes(),
-            name.as_bytes().to_vec(),
+            staking_key.serialize(),
         )?;
 
         // increase

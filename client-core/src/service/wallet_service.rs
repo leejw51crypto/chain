@@ -188,16 +188,6 @@ pub fn load_wallet<S: SecureStorage>(
     storage.load_secure(KEYSPACE, name, enckey)
 }
 
-/// Save wallet to storage
-pub fn save_wallet<S: SecureStorage>(
-    storage: &S,
-    name: &str,
-    enckey: &SecKey,
-    wallet: &Wallet,
-) -> Result<()> {
-    storage.save_secure(KEYSPACE, name, enckey, wallet)
-}
-
 /// Maintains mapping `wallet-name -> wallet-details`
 #[derive(Debug, Default, Clone)]
 pub struct WalletService<T: Storage> {
@@ -221,15 +211,27 @@ where
     }
 
     /// Get the wallet state from storage
+    // storage -> wallet
     pub fn get_wallet_state(&self, name: &str, enckey: &SecKey) -> Result<WalletState> {
         load_wallet_state(&self.storage, name, enckey)?.err_kind(ErrorKind::InvalidInput, || {
             format!("WalletState with name ({}) not found", name)
         })
     }
 
+    /// Save wallet to storage
+    pub fn save_wallet(&self, name: &str, enckey: &SecKey, wallet: &Wallet) -> Result<()> {
+        self.storage.save_secure(KEYSPACE, name, enckey, wallet);
+
+        for (pubkey, prikey) in &wallet.key_pairs {
+            self.add_key_pairs(&name, &enckey, &pubkey, &prikey)?
+        }
+        Ok(())
+    }
+
     /// Store the wallet to storage
+    // wallet -> storage
     pub fn set_wallet(&self, name: &str, enckey: &SecKey, wallet: Wallet) -> Result<()> {
-        save_wallet(&self.storage, name, enckey, &wallet)
+        self.save_wallet(name, enckey, &wallet)
     }
 
     /// Finds staking key corresponding to given redeem address

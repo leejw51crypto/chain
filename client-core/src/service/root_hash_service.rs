@@ -45,9 +45,9 @@ where
 
         // key: roothash
         // value: multisig address info
-        let keyspace_multisigaddress = format!("core_wallet_{}_multisigaddress", name);
+        let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
         self.storage.set_secure(
-            keyspace_multisigaddress,
+            multisigaddress_keyspace,
             root_hash.clone().to_vec(),
             multi_sig_address.encode(),
             enckey,
@@ -62,9 +62,9 @@ where
         storage_key.extend(name.as_bytes().iter());
         self.storage.get_secure(KEYSPACE, &storage_key, enckey)?;
         self.storage.delete(KEYSPACE, &storage_key)?;*/
-        let keyspace_multisigaddress = format!("core_wallet_{}_multisigaddress", name);
+        let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
         self.storage
-            .delete(keyspace_multisigaddress, root_hash.clone().to_vec())?;
+            .delete(multisigaddress_keyspace, root_hash.clone().to_vec())?;
         Ok(())
     }
 
@@ -111,10 +111,10 @@ where
             .storage
             .get_secure(KEYSPACE, storage_key, enckey)?
             .chain(|| (ErrorKind::InvalidInput, "Address not found"))?;*/
-        let keyspace_multisigaddress = format!("core_wallet_{}_multisigaddress", name);
+        let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
         let address_bytes = self
             .storage
-            .get_secure(keyspace_multisigaddress, root_hash.clone().to_vec(), enckey)?
+            .get_secure(multisigaddress_keyspace, root_hash.clone().to_vec(), enckey)?
             .chain(|| (ErrorKind::InvalidInput, "Address not found"))?;
 
         MultiSigAddress::decode(&mut address_bytes.as_slice()).chain(|| {

@@ -474,8 +474,6 @@ where
             name.as_bytes().to_vec(),
         )?;
 
-
-
         // increase
         index_value = index_value + 1;
         self.write_number(&info_keyspace, "stakingkeyindex", index_value)?;
@@ -565,7 +563,6 @@ where
             name.as_bytes().to_vec(),
         )?;
 
-
         // increase
         index_value = index_value + 1;
         self.write_number(&info_keyspace, "roothashindex", index_value)?;
@@ -617,12 +614,14 @@ where
         let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
         let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
         let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
+        let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
         self.storage.clear(info_keyspace)?;
         self.storage.clear(roothash_keyspace)?;
         self.storage.clear(roothashset_keyspace)?;
         self.storage.clear(stakingkey_keyspace)?;
         self.storage.clear(public_keyspace)?;
-        self.storage.clear(private_keyspace)?;        
+        self.storage.clear(private_keyspace)?;
+        self.storage.clear(multisigaddress_keyspace)?;
         Ok(())
     }
     /// Delete the key

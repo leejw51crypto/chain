@@ -671,12 +671,10 @@ where
         Ok(())
     }
     /// Delete the key
-    pub fn delete(&self, name: &str, enckey: &SecKey) -> Result<Wallet> {
-        println!("delete wallet {}", name);
-        let wallet = self.get_wallet(name, enckey)?;
+    pub fn delete(&self, name: &str, enckey: &SecKey) -> Result<()> {
         self.storage.delete(KEYSPACE, name)?;
         self.delete_wallet_keyspace(name)?;
-        Ok(wallet)
+        Ok(())
     }
 }
 

@@ -361,10 +361,6 @@ where
         }
         self.key_service.delete_wallet_private_key(name, &enckey)?;
 
-        for root_hash in wallet.root_hashes.iter() {
-            self.root_hash_service
-                .delete_root_hash(name, root_hash, &enckey)?;
-        }
         Ok(())
     }
 

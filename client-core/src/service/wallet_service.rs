@@ -412,7 +412,21 @@ where
         name: &str,
         enckey: &SecKey,
     ) -> Result<IndexSet<StakedStateAddress>> {
-        Ok(self.get_wallet(name, enckey)?.staking_addresses())
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let staking_count: u64 = self.read_number(&info_keyspace, "stakingkeyindex")?;
+
+        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        let mut ret: IndexSet<StakedStateAddress> = IndexSet::<StakedStateAddress>::new();
+        for i in 0..staking_count {
+            let value = self.storage.get(&stakingkey_keyspace, format!("{}", i))?;
+            if let Some(raw_value) = value {
+                let pubkey = PublicKey::deserialize_from(&raw_value)?;
+                let staked = StakedStateAddress::BasicRedeem(RedeemAddress::from(&pubkey));
+                ret.insert(staked);
+            }
+        }
+        assert!(staking_count == ret.len() as u64);
+        Ok(ret)
     }
 
     /// Returns all tree addresses stored in a wallet

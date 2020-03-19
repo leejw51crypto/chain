@@ -246,7 +246,7 @@ where
         // root hash
         self.write_number(&info_keyspace, "roothashindex", 0)?;
         for root_hash in wallet.root_hashes.iter() {
-            self.add_root_hash(name, enckey, root_hash);
+            self.add_root_hash(name, enckey, root_hash.clone());
         }
 
         Ok(())

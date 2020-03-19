@@ -483,13 +483,6 @@ where
         }
 
         Ok(())
-
-        /*
-        self.modify_wallet(name, enckey, move |wallet| {
-            wallet
-                .key_pairs
-                .insert(public_key.clone(), private_key.clone());
-        })*/
     }
 
     /// Adds a public key to given wallet
@@ -499,10 +492,6 @@ where
         enckey: &SecKey,
         public_key: &PublicKey,
     ) -> Result<()> {
-        /* self.modify_wallet(name, enckey, move |wallet| {
-            wallet.public_keys.insert(public_key.clone());
-        })*/
-
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         let mut index_value: u64 = self.read_number(&info_keyspace, "publickeyindex")?;
 
@@ -559,32 +548,6 @@ where
 
         Ok(())
     }
-
-    /*
-    fn modify_wallet<F>(&self, name: &str, enckey: &SecKey, f: F) -> Result<()>
-    where
-        F: Fn(&mut Wallet),
-    {
-        assert!(false);
-        self.storage
-            .fetch_and_update_secure(KEYSPACE, name, enckey, move |value| {
-                let mut wallet_bytes = value.chain(|| {
-                    (
-                        ErrorKind::InvalidInput,
-                        format!("Wallet with name ({}) not found", name),
-                    )
-                })?;
-                let mut wallet = Wallet::decode(&mut wallet_bytes).chain(|| {
-                    (
-                        ErrorKind::DeserializationError,
-                        format!("Unable to deserialize wallet with name {}", name),
-                    )
-                })?;
-                f(&mut wallet);
-                Ok(Some(wallet.encode()))
-            })
-            .map(|_| ())
-    }*/
 
     fn read_number(&self, keyspace: &str, key: &str) -> Result<u64> {
         let value = self.storage.get(keyspace, key.as_bytes())?;

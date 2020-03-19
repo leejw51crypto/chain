@@ -291,10 +291,27 @@ where
         enckey: &SecKey,
         public_key: &PublicKey,
     ) -> Result<Option<PrivateKey>> {
-        Ok(self
+
+        let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
+
+        // key: public_key
+        // value: private_key
+        let value=self.storage.get_secure(
+            private_keyspace.clone(),
+            public_key.serialize(),            
+            enckey,
+        )?;
+        if let Some(raw_value) = value {
+            let privatekey= PrivateKey::deserialize_from(&raw_value)?;           
+            return Ok(Some(privatekey));
+        }
+
+        return Err(Error::new(ErrorKind::InvalidInput, "private_key not found"));
+
+        /*Ok(self
             .get_wallet(name, enckey)?
             .find_private_key(public_key)
-            .cloned())
+            .cloned())*/
     }
 
     /// Checks if root hash exists in current wallet and returns root hash if exists

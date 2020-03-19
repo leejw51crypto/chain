@@ -91,23 +91,6 @@ pub struct Wallet {
 impl Encode for Wallet {
     fn encode_to<W: Output>(&self, dest: &mut W) {
         self.view_key.encode_to(dest);
-        (self.key_pairs.len() as u64).encode_to(dest);
-        for (key, value) in self.key_pairs.iter() {
-            key.encode_to(dest);
-            value.encode_to(dest);
-        }
-        (self.public_keys.len() as u64).encode_to(dest);
-        for key in self.public_keys.iter() {
-            key.encode_to(dest);
-        }
-        (self.staking_keys.len() as u64).encode_to(dest);
-        for key in self.staking_keys.iter() {
-            key.encode_to(dest);
-        }
-        (self.root_hashes.len() as u64).encode_to(dest);
-        for hash in self.root_hashes.iter() {
-            hash.encode_to(dest);
-        }
     }
 }
 
@@ -115,29 +98,9 @@ impl Decode for Wallet {
     fn decode<I: Input>(input: &mut I) -> std::result::Result<Self, parity_scale_codec::Error> {
         let view_key = PublicKey::decode(input)?;
         let mut key_pairs = BTreeMap::new();
-        let len = u64::decode(input)?;
-        for _ in 0..len {
-            let key = PublicKey::decode(input)?;
-            let value = PrivateKey::decode(input)?;
-            key_pairs.insert(key, value);
-        }
-        let len = u64::decode(input)?;
-        let mut public_keys = IndexSet::with_capacity(len as usize);
-        for _ in 0..len {
-            public_keys.insert(PublicKey::decode(input)?);
-        }
-
-        let len = u64::decode(input)?;
-        let mut staking_keys = IndexSet::with_capacity(len as usize);
-        for _ in 0..len {
-            staking_keys.insert(PublicKey::decode(input)?);
-        }
-
-        let len = u64::decode(input)?;
-        let mut root_hashes = IndexSet::with_capacity(len as usize);
-        for _ in 0..len {
-            root_hashes.insert(H256::decode(input)?);
-        }
+        let mut public_keys = IndexSet::new();
+        let mut staking_keys = IndexSet::new();
+        let mut root_hashes = IndexSet::new();
 
         Ok(Wallet {
             view_key,
@@ -185,7 +148,16 @@ pub fn load_wallet<S: SecureStorage>(
     name: &str,
     enckey: &SecKey,
 ) -> Result<Option<Wallet>> {
-    storage.load_secure(KEYSPACE, name, enckey)
+    let mut wallet: Option<Wallet> = storage.load_secure(KEYSPACE, name, enckey)?;
+
+    if let Some(value) = wallet {
+        // storage -> wallet
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+
+        return Ok(Some(value));
+    }
+
+    return Ok(None);
 }
 
 /// Maintains mapping `wallet-name -> wallet-details`

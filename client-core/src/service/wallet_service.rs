@@ -74,7 +74,7 @@ pub struct WalletInfo {
 }
 
 /// Wallet meta data
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Wallet {
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,
@@ -209,10 +209,31 @@ pub fn load_wallet<S: SecureStorage>(
     let mut wallet: Option<Wallet> = storage.load_secure(KEYSPACE, name, enckey)?;
 
     if let Some(value) = wallet {
+        let mut new_wallet= value.clone();
         // storage -> wallet
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        new_wallet.view_key= read_pubkey(storage,&info_keyspace, "viewkey")?;
 
-        return Ok(Some(value));
+        // pubkey
+        let publickey_count: u64 = read_number(storage, &info_keyspace, "publickeyindex")?;
+
+        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);        
+        for i in 0..publickey_count {
+            let pubkey = read_pubkey(storage, &public_keyspace, &format!("{}", i))?;
+            new_wallet.public_keys.insert(pubkey);
+        }
+
+        // stakingkey
+        let stakingkey_count: u64 = read_number(storage, &info_keyspace, "stakingkeyindex")?;
+
+        let staking_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);        
+        for i in 0..stakingkey_count {
+            let stakingkey = read_pubkey(storage, &staking_keyspace, &format!("{}", i))?;
+            new_wallet.staking_keys.insert(stakingkey);
+        }
+
+
+        return Ok(Some(new_wallet));
     }
 
     return Ok(None);

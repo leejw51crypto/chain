@@ -458,6 +458,7 @@ where
         enckey: &SecKey,
         address_type: Option<AddressType>,
     ) -> Result<PublicKey> {
+        println!("new publickey****************");
         let (public_key, private_key) = if self.hd_key_service.has_wallet(name)? {
             self.hd_key_service.generate_keypair(
                 name,

@@ -801,6 +801,7 @@ pub mod tests {
             .list_staking_addresses(wallet_request.clone())
             .unwrap()[0]
             .clone();
+        println!("old_staking_address = {}", old_staking_address.to_string());
         let old_transfer_address = wallet_rpc
             .list_transfer_addresses(wallet_request.clone())
             .unwrap()[0]

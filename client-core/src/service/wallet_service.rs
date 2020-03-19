@@ -251,11 +251,6 @@ where
         }
 
         return Err(Error::new(ErrorKind::InvalidInput, "staking_key not found"));
-
-        /*        Ok(self
-        .get_wallet(name, enckey)?
-        .find_staking_key(redeem_address)
-        .cloned())*/
     }
 
     /// Finds private_key corresponding to given public_key
@@ -278,11 +273,6 @@ where
         }
 
         return Err(Error::new(ErrorKind::InvalidInput, "private_key not found"));
-
-        /*Ok(self
-        .get_wallet(name, enckey)?
-        .find_private_key(public_key)
-        .cloned())*/
     }
 
     /// Checks if root hash exists in current wallet and returns root hash if exists
@@ -309,11 +299,6 @@ where
         }
 
         return Err(Error::new(ErrorKind::InvalidInput, "private_key not found"));
-        /*
-        Ok(self
-            .get_wallet(name, enckey)?
-            .find_root_hash(address)
-            .copied())*/
     }
 
     /// Creates a new wallet and returns wallet ID

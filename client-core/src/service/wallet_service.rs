@@ -241,16 +241,14 @@ where
     ) -> Result<Option<PublicKey>> {
         let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
 
-        let value = self.storage.get(
-            stakingkeyset_keyspace,
-            redeem_address.to_string().as_bytes(),
-        )?;
-        if let Some(raw_value) = value {
-            let pubkey = PublicKey::deserialize_from(&raw_value)?;
-            return Ok(Some(pubkey));
+        if let Ok(value)=self.read_pubkey(&stakingkeyset_keyspace,
+        &redeem_address.to_string()) {
+            Ok(Some(value))
         }
-
-        return Err(Error::new(ErrorKind::InvalidInput, "staking_key not found"));
+        else {
+            Err(Error::new(ErrorKind::InvalidInput, "finding staking"))
+        }
+        
     }
 
     /// Finds private_key corresponding to given public_key

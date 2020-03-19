@@ -435,7 +435,24 @@ where
         name: &str,
         enckey: &SecKey,
     ) -> Result<IndexSet<ExtendedAddr>> {
-        Ok(self.get_wallet(name, enckey)?.transfer_addresses())
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let roothash_count: u64 = self.read_number(&info_keyspace, "roothashindex")?;
+
+        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let mut ret: IndexSet<ExtendedAddr> = IndexSet::<ExtendedAddr>::new();
+        for i in 0..roothash_count {
+            let value = self.storage.get(&roothash_keyspace, format!("{}", i))?;
+            if let Some(raw_value) = value {
+                let mut roothash_found: H256 = H256::default();
+                roothash_found.copy_from_slice(&raw_value);
+                let extended_addr = ExtendedAddr::OrTree(roothash_found);
+                ret.insert(extended_addr);
+            }
+        }
+        assert!(roothash_count == ret.len() as u64);
+        Ok(ret)
+
+        //Ok(self.get_wallet(name, enckey)?.transfer_addresses())
     }
 
     /// Adds a (public_key, private_key) pair to given wallet

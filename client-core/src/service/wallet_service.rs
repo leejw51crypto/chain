@@ -354,7 +354,7 @@ where
     /// Returns all public keys stored in a wallet
     pub fn public_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        let mut publickey_count: u64 = self.read_number(&info_keyspace, "publickeyindex")?;
+        let publickey_count: u64 = self.read_number(&info_keyspace, "publickeyindex")?;
 
         let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
@@ -372,14 +372,12 @@ where
     /// Returns all public keys corresponding to staking addresses stored in a wallet
     pub fn staking_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        let mut staking_count: u64 = self.read_number(&info_keyspace, "stakingkeyindex")?;
+        let staking_count: u64 = self.read_number(&info_keyspace, "stakingkeyindex")?;
 
-        let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
+        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
         for i in 0..staking_count {
-            let value = self
-                .storage
-                .get(&stakingkeyset_keyspace, format!("{}", i))?;
+            let value = self.storage.get(&stakingkey_keyspace, format!("{}", i))?;
             if let Some(raw_value) = value {
                 let pubkey = PublicKey::deserialize_from(&raw_value)?;
                 ret.insert(pubkey);
@@ -392,7 +390,7 @@ where
     /// Returns all multi-sig addresses stored in a wallet
     pub fn root_hashes(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<H256>> {
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        let mut roothash_count: u64 = self.read_number(&info_keyspace, "roothashindex")?;
+        let roothash_count: u64 = self.read_number(&info_keyspace, "roothashindex")?;
 
         let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
         let mut ret: IndexSet<H256> = IndexSet::<H256>::new();

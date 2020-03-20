@@ -1,10 +1,10 @@
 use parity_scale_codec::{Decode, Encode};
 
+use super::wallet_service::get_multisig_keyspace;
 use chain_core::common::{Proof, H256};
 use chain_core::tx::witness::tree::RawXOnlyPubkey;
 use client_common::MultiSigAddress;
 use client_common::{ErrorKind, PublicKey, Result, ResultExt, SecKey, SecureStorage, Storage};
-
 const KEYSPACE: &str = "core_root_hash";
 
 /// Maintains mapping `multi-sig-public-key -> multi-sig address`
@@ -39,7 +39,7 @@ where
 
         // key: roothash
         // value: multisig address info
-        let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
+        let multisigaddress_keyspace = get_multisig_keyspace(name);
         self.storage.set_secure(
             multisigaddress_keyspace,
             root_hash.clone().to_vec(),
@@ -52,7 +52,7 @@ where
 
     /// delete root hash
     pub fn delete_root_hash(&self, name: &str, root_hash: &H256, _enckey: &SecKey) -> Result<()> {
-        let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
+        let multisigaddress_keyspace = get_multisig_keyspace(name);
         self.storage
             .delete(multisigaddress_keyspace, root_hash.clone().to_vec())?;
         Ok(())
@@ -95,13 +95,7 @@ where
         root_hash: &H256,
         enckey: &SecKey,
     ) -> Result<MultiSigAddress> {
-        /*let mut storage_key = root_hash.to_vec();
-        storage_key.extend(name.as_bytes().iter());
-        let address_bytes = self
-            .storage
-            .get_secure(KEYSPACE, storage_key, enckey)?
-            .chain(|| (ErrorKind::InvalidInput, "Address not found"))?;*/
-        let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
+        let multisigaddress_keyspace = get_multisig_keyspace(name);
         let address_bytes = self
             .storage
             .get_secure(multisigaddress_keyspace, root_hash.clone().to_vec(), enckey)?

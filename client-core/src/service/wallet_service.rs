@@ -20,6 +20,42 @@ use std::str;
 /// Key space of wallet
 const KEYSPACE: &str = "core_wallet";
 
+fn get_public_keyspace(name: &str) -> String {
+    format!("{}_{}_publickey", KEYSPACE, name)
+}
+
+fn get_staking_keyspace(name: &str) -> String {
+    format!("{}_{}_stakingkey", KEYSPACE, name)
+}
+
+fn get_stakingkeyset_keyspace(name: &str) -> String {
+    format!("{}_{}_stakingkey_set", KEYSPACE, name)
+}
+
+fn get_private_keyspace(name: &str) -> String {
+    format!("{}_{}_privatekey", KEYSPACE, name)
+}
+
+fn get_roothash_keyspace(name: &str) -> String {
+    format!("{}_{}_roothash", KEYSPACE, name)
+}
+
+fn get_roothashset_keyspace(name: &str) -> String {
+    format!("{}_{}_roothash_set", KEYSPACE, name)
+}
+
+pub fn get_multisig_keyspace(name: &str) -> String {
+    format!("{}_{}_multisigaddress", KEYSPACE, name)
+}
+
+fn get_info_keyspace(name: &str) -> String {
+    format!("{}_{}_info", KEYSPACE, name)
+}
+
+fn get_wallet_keyspace() -> String {
+    format!("{}_walletname", KEYSPACE)
+}
+
 fn serde_to_str<T, S>(value: &T, serializer: S) -> std::result::Result<S::Ok, S::Error>
 where
     T: Encode,
@@ -218,13 +254,13 @@ pub fn load_wallet<S: SecureStorage>(
     if let Some(value) = wallet {
         let mut new_wallet = value;
         // storage -> wallet
-        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let info_keyspace = get_info_keyspace(name);
         new_wallet.view_key = read_pubkey(storage, &info_keyspace, "viewkey")?;
 
         // pubkey
-        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
+        let public_keyspace = get_public_keyspace(name);
         let publickey_count: u64 = read_number(storage, &public_keyspace, "index", Some(0))?;
-        let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
+        let private_keyspace = get_private_keyspace(name);
 
         for i in 0..publickey_count {
             let pubkey = read_pubkey(storage, &public_keyspace, &format!("{}", i))?;
@@ -240,7 +276,7 @@ pub fn load_wallet<S: SecureStorage>(
             }
         }
 
-        let staking_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        let staking_keyspace = get_staking_keyspace(name);
 
         // stakingkey
         let stakingkey_count: u64 = read_number(storage, &staking_keyspace, "index", Some(0))?;
@@ -252,7 +288,7 @@ pub fn load_wallet<S: SecureStorage>(
         }
 
         // roothash
-        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let roothash_keyspace = get_roothash_keyspace(name);
         let roothash_count: u64 = read_number(storage, &roothash_keyspace, "index", Some(0))?;
 
         for i in 0..roothash_count {
@@ -306,7 +342,7 @@ where
             .save_secure(KEYSPACE, name, enckey, wallet)
             .expect("save walet-name in save_wallet");
 
-        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let info_keyspace = get_info_keyspace(name);
         // write viewkey
         write_pubkey(&self.storage, &info_keyspace, "viewkey", &wallet.view_key)
             .expect("write_pubkey in save_wallet");
@@ -316,7 +352,7 @@ where
         }
 
         // pubkey
-        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
+        let public_keyspace = get_public_keyspace(name);
         write_number(&self.storage, &public_keyspace, "index", 0)?;
         for public_key in wallet.public_keys.iter() {
             self.add_public_key(name, enckey, public_key)
@@ -324,7 +360,7 @@ where
         }
 
         // stakingkey
-        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        let stakingkey_keyspace = get_staking_keyspace(name);
         write_number(&self.storage, &stakingkey_keyspace, "index", 0)?;
         for public_key in wallet.staking_keys.iter() {
             self.add_staking_key(name, enckey, public_key)
@@ -332,7 +368,7 @@ where
         }
 
         // root hash
-        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let roothash_keyspace = get_roothash_keyspace(name);
         write_number(&self.storage, &roothash_keyspace, "index", 0)?;
         for root_hash in wallet.root_hashes.iter() {
             self.add_root_hash(name, enckey, root_hash.clone())
@@ -355,7 +391,7 @@ where
         _enckey: &SecKey,
         redeem_address: &RedeemAddress,
     ) -> Result<Option<PublicKey>> {
-        let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
+        let stakingkeyset_keyspace = get_stakingkeyset_keyspace(name);
 
         if let Ok(value) = read_pubkey(
             &self.storage,
@@ -375,7 +411,7 @@ where
         enckey: &SecKey,
         public_key: &PublicKey,
     ) -> Result<Option<PrivateKey>> {
-        let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
+        let private_keyspace = get_private_keyspace(name);
 
         // key: public_key
         // value: private_key
@@ -400,7 +436,7 @@ where
         match address {
             ExtendedAddr::OrTree(ref root_hash) => {
                 // roothashset
-                let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
+                let roothashset_keyspace = get_roothashset_keyspace(name);
 
                 let value = self.storage.get(roothashset_keyspace, root_hash.to_vec())?;
 
@@ -428,14 +464,14 @@ where
         self.set_wallet(name, enckey, Wallet::new(view_key.clone()))
             .expect("set_wallet in create wallet");
 
-        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let info_keyspace = get_info_keyspace(name);
         // key: "viewkey"
         // value: view-key
         write_pubkey(&self.storage, &info_keyspace, "viewkey", &view_key)?;
 
         // key: index
         // value: walletname
-        let wallet_keyspace = format!("{}_walletname", KEYSPACE);
+        let wallet_keyspace = get_wallet_keyspace();
         self.storage
             .set(wallet_keyspace, name, name.as_bytes().to_vec())?;
 
@@ -444,16 +480,15 @@ where
 
     /// Returns view key of wallet
     pub fn view_key(&self, name: &str, _enckey: &SecKey) -> Result<PublicKey> {
-        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let info_keyspace = get_info_keyspace(name);
         read_pubkey(&self.storage, &info_keyspace, "viewkey")
     }
 
     /// Returns all public keys stored in a wallet
     pub fn public_keys(&self, name: &str, _enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
-        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
+        let public_keyspace = get_public_keyspace(name);
         let publickey_count: u64 = read_number(&self.storage, &public_keyspace, "index", None)?;
 
-        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
         for i in 0..publickey_count {
             let pubkey = read_pubkey(&self.storage, &public_keyspace, &format!("{}", i))?;
@@ -465,7 +500,7 @@ where
 
     /// Returns all public keys corresponding to staking addresses stored in a wallet
     pub fn staking_keys(&self, name: &str, _enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
-        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        let stakingkey_keyspace = get_staking_keyspace(name);
         let staking_count: u64 = read_number(&self.storage, &stakingkey_keyspace, "index", None)?;
 
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
@@ -479,10 +514,9 @@ where
 
     /// Returns all multi-sig addresses stored in a wallet
     pub fn root_hashes(&self, name: &str, _enckey: &SecKey) -> Result<IndexSet<H256>> {
-        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let roothash_keyspace = get_roothash_keyspace(name);
         let roothash_count: u64 = read_number(&self.storage, &roothash_keyspace, "index", None)?;
 
-        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
         let mut ret: IndexSet<H256> = IndexSet::<H256>::new();
         for i in 0..roothash_count {
             let value = self.storage.get(&roothash_keyspace, format!("{}", i))?;
@@ -502,10 +536,9 @@ where
         name: &str,
         _enckey: &SecKey,
     ) -> Result<IndexSet<StakedStateAddress>> {
-        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        let stakingkey_keyspace = get_staking_keyspace(name);
         let staking_count: u64 = read_number(&self.storage, &stakingkey_keyspace, "index", None)?;
 
-        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
         let mut ret: IndexSet<StakedStateAddress> = IndexSet::<StakedStateAddress>::new();
         for i in 0..staking_count {
             let value = self.storage.get(&stakingkey_keyspace, format!("{}", i))?;
@@ -525,10 +558,9 @@ where
         name: &str,
         _enckey: &SecKey,
     ) -> Result<IndexSet<ExtendedAddr>> {
-        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let roothash_keyspace = get_roothash_keyspace(name);
         let roothash_count: u64 = read_number(&self.storage, &roothash_keyspace, "index", None)?;
 
-        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
         let mut ret: IndexSet<ExtendedAddr> = IndexSet::<ExtendedAddr>::new();
         for i in 0..roothash_count {
             let value = self.storage.get(&roothash_keyspace, format!("{}", i))?;
@@ -551,12 +583,12 @@ where
         public_key: &PublicKey,
         private_key: &PrivateKey,
     ) -> Result<()> {
-        let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
+        let private_keyspace = get_private_keyspace(name);
 
         // key: public_key
         // value: private_key
         self.storage.set_secure(
-            private_keyspace.clone(),
+            private_keyspace,
             public_key.serialize(),
             private_key.serialize(),
             enckey,
@@ -571,7 +603,7 @@ where
         _enckey: &SecKey,
         public_key: &PublicKey,
     ) -> Result<()> {
-        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
+        let public_keyspace = get_public_keyspace(name);
         let mut index_value: u64 = read_number(&self.storage, &public_keyspace, "index", Some(0))?;
 
         // key: index
@@ -598,7 +630,7 @@ where
         _enckey: &SecKey,
         staking_key: &PublicKey,
     ) -> Result<()> {
-        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
+        let stakingkey_keyspace = get_staking_keyspace(name);
         let mut index_value: u64 =
             read_number(&self.storage, &stakingkey_keyspace, "index", Some(0))?;
 
@@ -616,7 +648,7 @@ where
         // key: redeem address (20 bytes)
         // value: staking key (<-publickey)
         let redeemaddress = RedeemAddress::from(staking_key).to_string();
-        let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
+        let stakingkeyset_keyspace = get_stakingkeyset_keyspace(name);
 
         write_pubkey(
             &self.storage,
@@ -635,7 +667,7 @@ where
 
     /// Adds a multi-sig address to given wallet
     pub fn add_root_hash(&self, name: &str, _enckey: &SecKey, root_hash: H256) -> Result<()> {
-        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
+        let roothash_keyspace = get_roothash_keyspace(name);
         let mut index_value: u64 =
             read_number(&self.storage, &roothash_keyspace, "index", Some(0))?;
 
@@ -648,7 +680,7 @@ where
         )?;
 
         // roothashset
-        let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
+        let roothashset_keyspace = get_roothashset_keyspace(name);
         self.storage.set(
             roothashset_keyspace,
             root_hash.to_vec(),
@@ -664,7 +696,7 @@ where
 
     /// Retrieves names of all the stored wallets
     pub fn names(&self) -> Result<Vec<String>> {
-        let wallet_keyspace = format!("{}_walletname", KEYSPACE);
+        let wallet_keyspace = get_wallet_keyspace();
         let keys = self.storage.keys(&wallet_keyspace)?;
         let mut names: Vec<String> = vec![];
         for key in keys {
@@ -682,7 +714,7 @@ where
 
     /// Clears all storage
     pub fn clear(&self) -> Result<()> {
-        let wallet_keyspace = format!("{}_walletname", KEYSPACE);
+        let wallet_keyspace = get_wallet_keyspace();
         let keys = self.storage.keys(&wallet_keyspace)?;
         for key in keys {
             let string_key = String::from_utf8(key).chain(|| {
@@ -704,15 +736,15 @@ where
     fn delete_wallet_keyspace(&self, name: &str) -> Result<()> {
         self.storage.delete(KEYSPACE, name)?;
         assert!(self.storage.get(KEYSPACE, name)?.is_none());
-        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        let stakingkey_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
-        let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
-        let public_keyspace = format!("{}_{}_publickey", KEYSPACE, name);
-        let private_keyspace = format!("{}_{}_privatekey", KEYSPACE, name);
-        let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
-        let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
-        let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
-        let wallet_keyspace = format!("{}_walletname", KEYSPACE);
+        let info_keyspace = get_info_keyspace(name);
+        let stakingkey_keyspace = get_staking_keyspace(name);
+        let stakingkeyset_keyspace = get_stakingkeyset_keyspace(name);
+        let public_keyspace = get_public_keyspace(name);
+        let private_keyspace = get_private_keyspace(name);
+        let roothash_keyspace = get_roothash_keyspace(name);
+        let roothashset_keyspace = get_roothashset_keyspace(name);
+        let multisigaddress_keyspace = get_multisig_keyspace(name);
+        let wallet_keyspace = get_wallet_keyspace();
         self.storage.delete(wallet_keyspace, name)?;
         self.storage.clear(info_keyspace)?;
         self.storage.clear(roothash_keyspace)?;

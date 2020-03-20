@@ -444,8 +444,6 @@ where
         self.set_wallet(name, enckey, Wallet::new(view_key.clone()))
             .expect("set_wallet in create wallet");
 
-        let mut index_value: u64 = read_number(&self.storage, KEYSPACE, "walletindex", Some(0))?;
-        println!("create wallet index_value={:?}", index_value);
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         // key: "viewkey"
         // value: view-key
@@ -454,24 +452,9 @@ where
         // key: index
         // value: walletname
         let wallet_keyspace = format!("{}_walletname", KEYSPACE);
-        self.storage.set(
-            wallet_keyspace.clone(),
-            format!("{}", index_value),
-            name.as_bytes().to_vec(),
-        )?;
+        self.storage
+            .set(wallet_keyspace, name, name.as_bytes().to_vec())?;
 
-        assert!(
-            read_string(&self.storage, &wallet_keyspace, &format!("{}", index_value)).unwrap()
-                == name
-        );
-        println!("create wallet {} {}", index_value, name);
-
-        // increase
-        index_value += 1;
-        println!("write index value {}", index_value);
-        write_number(&self.storage, KEYSPACE, "walletindex", index_value)?;
-
-        assert!(read_number(&self.storage, KEYSPACE, "walletindex", None)? == index_value);
         println!("OK");
         Ok(())
     }
@@ -729,30 +712,38 @@ where
 
     /// Retrieves names of all the stored wallets
     pub fn names(&self) -> Result<Vec<String>> {
-        let name_count: u64 = read_number(&self.storage, KEYSPACE, "walletindex", Some(0))?;
         let wallet_keyspace = format!("{}_walletname", KEYSPACE);
+        let keys = self.storage.keys(&wallet_keyspace)?;
         let mut names: Vec<String> = vec![];
-        for i in 0..name_count {
-            let name_found = read_string(&self.storage, &wallet_keyspace, &format!("{}", i))?;
+        for key in keys {
+            let string_key = String::from_utf8(key).chain(|| {
+                (
+                    ErrorKind::DeserializationError,
+                    "Unable to deserialize wallet names in storage",
+                )
+            })?;
+            let name_found = read_string(&self.storage, &wallet_keyspace, &string_key)?;
             names.push(name_found);
         }
-
         Ok(names)
     }
 
     /// Clears all storage
     pub fn clear(&self) -> Result<()> {
-        let wallet_count: u64 = read_number(&self.storage, KEYSPACE, "walletindex", None)?;
         let wallet_keyspace = format!("{}_walletname", KEYSPACE);
-        for i in 0..wallet_count {
-            let wallet_name =
-                read_string(&self.storage, &wallet_keyspace, &format!("{}", i)).unwrap();
-            println!("processing {} = {}", i, wallet_name); //  let self.storage.get( wallet_keyspace,
-                                                            //    format!("{}", index_value)).unwrap();
-            self.delete_wallet_keyspace(&wallet_name)
-                .expect("deletw wallet in clear")
+        let keys = self.storage.keys(&wallet_keyspace)?;
+        for key in keys {
+            let string_key = String::from_utf8(key).chain(|| {
+                (
+                    ErrorKind::DeserializationError,
+                    "Unable to deserialize wallet names in storage",
+                )
+            })?;
+            let name_found = read_string(&self.storage, &wallet_keyspace, &string_key)?;
+
+            self.delete_wallet_keyspace(&name_found)?;
         }
-        write_number(&self.storage, KEYSPACE, "wallet_index", 0)?;
+        self.storage.clear(wallet_keyspace).unwrap();
         self.storage.clear(KEYSPACE).unwrap();
         println!("remove all  {}", KEYSPACE);
         Ok(())
@@ -770,6 +761,8 @@ where
         let roothash_keyspace = format!("{}_{}_roothash", KEYSPACE, name);
         let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
         let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
+        let wallet_keyspace = format!("{}_walletname", KEYSPACE);
+        self.storage.delete(wallet_keyspace, name)?;
         self.storage.clear(info_keyspace)?;
         self.storage.clear(roothash_keyspace)?;
         self.storage.clear(roothashset_keyspace)?;

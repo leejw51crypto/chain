@@ -149,7 +149,6 @@ fn read_number<S: SecureStorage>(
     defaut_value: Option<u64>,
 ) -> Result<u64> {
     let value = storage.get(keyspace, key.as_bytes())?;
-    println!("read number {:?}", value);
     if let Some(raw_value) = value {
         let mut v: [u8; 8] = [0; 8];
         v.copy_from_slice(&raw_value);
@@ -202,7 +201,6 @@ fn read_string<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Resu
     let value = storage.get(keyspace, key.as_bytes())?;
     if let Some(raw_value) = value {
         let ret = str::from_utf8(&raw_value).unwrap();
-        println!("read_string {} {}", key, ret);
         Ok(ret.to_string())
     } else {
         Err(Error::new(ErrorKind::InvalidInput, "read string error"))
@@ -215,9 +213,7 @@ pub fn load_wallet<S: SecureStorage>(
     name: &str,
     enckey: &SecKey,
 ) -> Result<Option<Wallet>> {
-    println!("load wallet==========================1");
     let wallet: Option<Wallet> = storage.load_secure(KEYSPACE, name, enckey)?;
-    println!("load wallet==========================2");
 
     if let Some(value) = wallet {
         let mut new_wallet = value;
@@ -247,15 +243,11 @@ pub fn load_wallet<S: SecureStorage>(
         // stakingkey
         let stakingkey_count: u64 =
             read_number(storage, &info_keyspace, "stakingkeyindex", Some(0))?;
-        println!("load stakingkey count {}", stakingkey_count);
+
         let staking_keyspace = format!("{}_{}_stakingkey", KEYSPACE, name);
         for i in 0..stakingkey_count {
             let stakingkey = read_pubkey(storage, &staking_keyspace, &format!("{}", i))?;
-            println!(
-                "load_wallet{}  staking {}",
-                i,
-                hex::encode(stakingkey.serialize())
-            );
+
             new_wallet.staking_keys.insert(stakingkey);
         }
 
@@ -309,7 +301,6 @@ where
 
     /// Save wallet to storage
     pub fn save_wallet(&self, name: &str, enckey: &SecKey, wallet: &Wallet) -> Result<()> {
-        println!("save wallet ======================");
         self.storage
             .save_secure(KEYSPACE, name, enckey, wallet)
             .expect("save walet-name in save_wallet");
@@ -403,26 +394,17 @@ where
         _enckey: &SecKey,
         address: &ExtendedAddr,
     ) -> Result<Option<H256>> {
-        println!(
-            "find roothash  name {}   extended addr {}",
-            name,
-            address.to_string()
-        );
-
         match address {
             ExtendedAddr::OrTree(ref root_hash) => {
                 // roothashset
                 let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
-                println!("extended address hash={}", hex::encode(root_hash));
+
                 let value = self.storage.get(roothashset_keyspace, root_hash.to_vec())?;
-                println!(
-                    "************************************************** {:?}",
-                    value
-                );
+
                 if let Some(raw_value) = value {
                     let mut roothash_found: H256 = H256::default();
                     roothash_found.copy_from_slice(&raw_value);
-                    println!("roothash found={}", hex::encode(roothash_found));
+
                     return Ok(Some(roothash_found));
                 }
             }
@@ -433,7 +415,6 @@ where
 
     /// Creates a new wallet and returns wallet ID
     pub fn create(&self, name: &str, enckey: &SecKey, view_key: PublicKey) -> Result<()> {
-        println!("create wallet ========= {}", name);
         if self.storage.contains_key(KEYSPACE, name)? {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
@@ -455,7 +436,6 @@ where
         self.storage
             .set(wallet_keyspace, name, name.as_bytes().to_vec())?;
 
-        println!("OK");
         Ok(())
     }
 
@@ -584,19 +564,6 @@ where
             private_key.serialize(),
             enckey,
         )?;
-        if let Ok(value) = self
-            .storage
-            .get_secure(private_keyspace, public_key.serialize(), enckey)
-        {
-            if let Some(raw_value) = value {
-                println!(
-                    "public={}  private= {}",
-                    hex::encode(&public_key.serialize()),
-                    hex::encode(raw_value)
-                );
-            }
-        }
-
         Ok(())
     }
 
@@ -621,7 +588,6 @@ where
             &public_key,
         )
         .expect("write pubkey in add_public_key");
-        println!("add publickey {}", hex::encode(public_key.serialize()));
 
         // increase
         index_value += 1;
@@ -656,7 +622,7 @@ where
         // key: redeem address (20 bytes)
         // value: staking key (<-publickey)
         let redeemaddress = RedeemAddress::from(staking_key).to_string();
-        println!("add stakingkey {} {} {}", index_value, name, redeemaddress);
+
         let stakingkeyset_keyspace = format!("{}_{}_stakingkey_set", KEYSPACE, name);
 
         write_pubkey(
@@ -693,7 +659,6 @@ where
             format!("{}", index_value),
             root_hash.to_vec(),
         )?;
-        println!("** add roothash{} {}", index_value, hex::encode(&root_hash));
 
         // roothashset
         let roothashset_keyspace = format!("{}_{}_roothash_set", KEYSPACE, name);
@@ -745,12 +710,11 @@ where
         }
         self.storage.clear(wallet_keyspace).unwrap();
         self.storage.clear(KEYSPACE).unwrap();
-        println!("remove all  {}", KEYSPACE);
+
         Ok(())
     }
 
     fn delete_wallet_keyspace(&self, name: &str) -> Result<()> {
-        println!("delete_wallet_keyspace  {}", name);
         self.storage.delete(KEYSPACE, name)?;
         assert!(self.storage.get(KEYSPACE, name)?.is_none());
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
@@ -774,8 +738,7 @@ where
         Ok(())
     }
     /// Delete the key
-    pub fn delete(&self, name: &str, enckey: &SecKey) -> Result<()> {
-        println!("delete wallet  {} {:?}", name, enckey);
+    pub fn delete(&self, name: &str, _enckey: &SecKey) -> Result<()> {
         self.storage.delete(KEYSPACE, name)?;
         self.delete_wallet_keyspace(name)?;
         Ok(())

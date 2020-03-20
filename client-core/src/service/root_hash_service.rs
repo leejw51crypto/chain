@@ -36,12 +36,6 @@ where
             MultiSigAddress::new(public_keys, self_public_key, required_signers)?;
 
         let root_hash = multi_sig_address.root_hash();
-        //let mut storage_key = root_hash.clone().to_vec();
-        // storage_key.extend(name.as_bytes().iter());
-
-        // key: roothash     data: mutl-sig-address
-        //self.storage
-        //    .set_secure(KEYSPACE, storage_key, multi_sig_address.encode(), enckey)?;
 
         // key: roothash
         // value: multisig address info
@@ -57,11 +51,7 @@ where
     }
 
     /// delete root hash
-    pub fn delete_root_hash(&self, name: &str, root_hash: &H256, enckey: &SecKey) -> Result<()> {
-        /*let mut storage_key = root_hash.to_vec();
-        storage_key.extend(name.as_bytes().iter());
-        self.storage.get_secure(KEYSPACE, &storage_key, enckey)?;
-        self.storage.delete(KEYSPACE, &storage_key)?;*/
+    pub fn delete_root_hash(&self, name: &str, root_hash: &H256, _enckey: &SecKey) -> Result<()> {
         let multisigaddress_keyspace = format!("core_wallet_{}_multisigaddress", name);
         self.storage
             .delete(multisigaddress_keyspace, root_hash.clone().to_vec())?;

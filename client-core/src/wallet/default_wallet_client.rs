@@ -352,7 +352,7 @@ where
         })?;
 
         // the passphrase is verified here.
-        let wallet = self.wallet_service.delete(name, &enckey)?;
+        let _wallet = self.wallet_service.delete(name, &enckey)?;
         self.sync_state_service.delete_global_state(name)?;
         self.wallet_state_service
             .delete_wallet_state(name, &enckey)?;

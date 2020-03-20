@@ -256,11 +256,9 @@ impl WalletCommand {
         Ok(())
     }
 
-    fn import<T: WalletClient>(wallet_client: T, file: &PathBuf) -> Result<()> {
-        let mut file = File::open(file).chain(|| (ErrorKind::IoError, "Unable to open file"))?;
-        let mut wallet_info_str = String::new();
-        file.read_to_string(&mut wallet_info_str)
-            .chain(|| (ErrorKind::IoError, "Unable to read from file"))?;
+    fn import<T: WalletClient>(wallet_client: T, file: &PathBuf) -> Result<()> {        
+        let wallet_info_str= std::fs::read_to_string(file).chain(|| (ErrorKind::IoError, "Unable to read from file"))?;
+
         let wallet_info_list: Vec<WalletInfo> = serde_json::from_str(&wallet_info_str)
             .chain(|| (ErrorKind::InvalidInput, "Invalid wallet info list"))?;
         for wallet_info in wallet_info_list {

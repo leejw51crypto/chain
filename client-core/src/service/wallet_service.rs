@@ -195,7 +195,7 @@ fn write_pubkey<S: SecureStorage>(
 fn read_string<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Result<String> {
     let value = storage.get(keyspace, key.as_bytes())?;
     if let Some(raw_value) = value {
-        let ret = str::from_utf8(&raw_value).unwrap();
+        let ret = str::from_utf8(&raw_value).expect("get string in read_string");
         Ok(ret.to_string())
     } else {
         Err(Error::new(ErrorKind::InvalidInput, "read string error"))
@@ -221,14 +221,19 @@ pub fn load_wallet<S: SecureStorage>(
         let private_keyspace = get_private_keyspace(name);
         let public_keys = storage.keys(&public_keyspace)?;
         for key in &public_keys {
-            let pubkey = read_pubkey(storage, &public_keyspace, &str::from_utf8(&key).unwrap())?;
+            let pubkey = read_pubkey(
+                storage,
+                &public_keyspace,
+                &str::from_utf8(&key).expect("get string in load_wallet"),
+            )?;
             new_wallet.public_keys.insert(pubkey.clone());
 
             if let Ok(value) =
                 storage.get_secure(private_keyspace.clone(), pubkey.serialize(), enckey)
             {
                 if let Some(raw_value) = value {
-                    let privatekey = PrivateKey::deserialize_from(&raw_value).unwrap();
+                    let privatekey = PrivateKey::deserialize_from(&raw_value)
+                        .expect("get privatekey in load_wallet");
                     new_wallet.key_pairs.insert(pubkey, privatekey);
                 }
             }
@@ -237,8 +242,11 @@ pub fn load_wallet<S: SecureStorage>(
         let staking_keyspace = get_stakingkey_keyspace(name);
         let staking_keys = storage.keys(&staking_keyspace)?;
         for key in &staking_keys {
-            let stakingkey =
-                read_pubkey(storage, &staking_keyspace, &str::from_utf8(&key).unwrap())?;
+            let stakingkey = read_pubkey(
+                storage,
+                &staking_keyspace,
+                &str::from_utf8(&key).expect("get stakingkey in load_wallet"),
+            )?;
             new_wallet.staking_keys.insert(stakingkey);
         }
 
@@ -448,7 +456,7 @@ where
             let pubkey = read_pubkey(
                 &self.storage,
                 &public_keyspace,
-                &str::from_utf8(&key).unwrap(),
+                &str::from_utf8(&key).expect("get string in public_keys"),
             )?;
             ret.insert(pubkey);
         }
@@ -471,7 +479,7 @@ where
             let pubkey = read_pubkey(
                 &self.storage,
                 &stakingkey_keyspace,
-                &str::from_utf8(&key).unwrap(),
+                &str::from_utf8(&key).expect("get string in staking_keys"),
             )?;
             ret.insert(pubkey);
         }
@@ -514,7 +522,7 @@ where
             let pubkey = read_pubkey(
                 &self.storage,
                 &stakingkey_keyspace,
-                &str::from_utf8(&key).unwrap(),
+                &str::from_utf8(&key).expect("get string in staking_addresses"),
             )?;
             let staked = StakedStateAddress::BasicRedeem(RedeemAddress::from(&pubkey));
             ret.insert(staked);
@@ -655,8 +663,12 @@ where
 
             self.delete_wallet_keyspace(&name_found)?;
         }
-        self.storage.clear(wallet_keyspace).unwrap();
-        self.storage.clear(KEYSPACE).unwrap();
+        self.storage
+            .clear(wallet_keyspace)
+            .expect("storage clear keyspace in clear");
+        self.storage
+            .clear(KEYSPACE)
+            .expect("storage clear in clear");
 
         Ok(())
     }

@@ -393,7 +393,9 @@ where
                 // roothashset
                 let roothash_keyspace = get_roothash_keyspace(name);
 
-                let value = self.storage.get(roothash_keyspace, root_hash.to_vec())?;
+                let value = self
+                    .storage
+                    .get(roothash_keyspace, hex::encode(&root_hash))?;
 
                 if let Some(raw_value) = value {
                     let mut roothash_found: H256 = H256::default();
@@ -608,8 +610,11 @@ where
     pub fn add_root_hash(&self, name: &str, _enckey: &SecKey, root_hash: H256) -> Result<()> {
         // roothashset
         let roothash_keyspace = get_roothash_keyspace(name);
-        self.storage
-            .set(roothash_keyspace, root_hash.to_vec(), root_hash.to_vec())?;
+        self.storage.set(
+            roothash_keyspace,
+            hex::encode(&root_hash),
+            root_hash.to_vec(),
+        )?;
 
         Ok(())
     }

@@ -33,7 +33,7 @@ fn get_private_keyspace(name: &str) -> String {
 }
 
 fn get_roothash_keyspace(name: &str) -> String {
-    format!("{}_{}_roothash_set", KEYSPACE, name)
+    format!("{}_{}_roothash", KEYSPACE, name)
 }
 
 pub fn get_multisig_keyspace(name: &str) -> String {
@@ -451,7 +451,6 @@ where
         let public_keyspace = get_public_keyspace(name);
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
         let keys = self.storage.keys(&public_keyspace)?;
-        println!("keys=={}", keys.len());
         for key in keys {
             let pubkey = read_pubkey(
                 &self.storage,

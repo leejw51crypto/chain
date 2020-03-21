@@ -485,6 +485,21 @@ where
         Ok(ret)
     }
 
+    /// Returns all staking addresses stored in a wallet
+    pub fn staking_addresses(
+        &self,
+        name: &str,
+        enckey: &SecKey,
+    ) -> Result<IndexSet<StakedStateAddress>> {
+        let pubkeys: IndexSet<PublicKey> = self.staking_keys(name, enckey)?;
+        let mut ret: IndexSet<StakedStateAddress> = IndexSet::<StakedStateAddress>::new();
+        for pubkey in &pubkeys {
+            let staked = StakedStateAddress::BasicRedeem(RedeemAddress::from(pubkey));
+            ret.insert(staked);
+        }
+        Ok(ret)
+    }
+
     /// Returns all multi-sig addresses stored in a wallet
     pub fn root_hashes(&self, name: &str, _enckey: &SecKey) -> Result<IndexSet<H256>> {
         if !self.storage.contains_key(KEYSPACE, name)? {
@@ -507,48 +522,18 @@ where
         Ok(ret)
     }
 
-    /// Returns all staking addresses stored in a wallet
-    pub fn staking_addresses(
-        &self,
-        name: &str,
-        _enckey: &SecKey,
-    ) -> Result<IndexSet<StakedStateAddress>> {
-        let stakingkey_keyspace = get_stakingkey_keyspace(name);
-
-        let mut ret: IndexSet<StakedStateAddress> = IndexSet::<StakedStateAddress>::new();
-        let keys = self.storage.keys(&stakingkey_keyspace)?;
-        for key in keys {
-            let pubkey = read_pubkey(
-                &self.storage,
-                &stakingkey_keyspace,
-                &str::from_utf8(&key).expect("get string in staking_addresses"),
-            )?;
-            let staked = StakedStateAddress::BasicRedeem(RedeemAddress::from(&pubkey));
-            ret.insert(staked);
-        }
-        Ok(ret)
-    }
-
     /// Returns all tree addresses stored in a wallet
     pub fn transfer_addresses(
         &self,
         name: &str,
-        _enckey: &SecKey,
+        enckey: &SecKey,
     ) -> Result<IndexSet<ExtendedAddr>> {
-        let roothash_keyspace = get_roothash_keyspace(name);
-
+        let roothashes: IndexSet<H256> = self.root_hashes(name, enckey)?;
         let mut ret: IndexSet<ExtendedAddr> = IndexSet::<ExtendedAddr>::new();
-        let keys = self.storage.keys(&roothash_keyspace)?;
-        for key in &keys {
-            let value = self.storage.get(&roothash_keyspace, &key)?;
-            if let Some(raw_value) = value {
-                let mut roothash_found: H256 = H256::default();
-                roothash_found.copy_from_slice(&raw_value);
-                let extended_addr = ExtendedAddr::OrTree(roothash_found);
-                ret.insert(extended_addr);
-            }
+        for roothash_found in &roothashes {
+            let extended_addr = ExtendedAddr::OrTree(*roothash_found);
+            ret.insert(extended_addr);
         }
-
         Ok(ret)
     }
 

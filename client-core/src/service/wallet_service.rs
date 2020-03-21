@@ -24,10 +24,6 @@ fn get_public_keyspace(name: &str) -> String {
     format!("{}_{}_publickey", KEYSPACE, name)
 }
 
-fn get_staking_keyspace(name: &str) -> String {
-    format!("{}_{}_stakingkey", KEYSPACE, name)
-}
-
 fn get_stakingkeyset_keyspace(name: &str) -> String {
     format!("{}_{}_stakingkey_set", KEYSPACE, name)
 }
@@ -276,14 +272,11 @@ pub fn load_wallet<S: SecureStorage>(
             }
         }
 
-        let staking_keyspace = get_staking_keyspace(name);
-
-        // stakingkey
-        let stakingkey_count: u64 = read_number(storage, &staking_keyspace, "index", Some(0))?;
-
-        for i in 0..stakingkey_count {
-            let stakingkey = read_pubkey(storage, &staking_keyspace, &format!("{}", i))?;
-
+        let staking_keyspace = get_stakingkeyset_keyspace(name);
+        let staking_keys = storage.keys(&staking_keyspace)?;
+        for key in &staking_keys {
+            let stakingkey =
+                read_pubkey(storage, &staking_keyspace, &str::from_utf8(&key).unwrap())?;
             new_wallet.staking_keys.insert(stakingkey);
         }
 
@@ -360,8 +353,6 @@ where
         }
 
         // stakingkey
-        let stakingkey_keyspace = get_staking_keyspace(name);
-        write_number(&self.storage, &stakingkey_keyspace, "index", 0)?;
         for public_key in wallet.staking_keys.iter() {
             self.add_staking_key(name, enckey, public_key)
                 .expect("add_staking_key in save_wallet");
@@ -500,15 +491,17 @@ where
 
     /// Returns all public keys corresponding to staking addresses stored in a wallet
     pub fn staking_keys(&self, name: &str, _enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
-        let stakingkey_keyspace = get_staking_keyspace(name);
-        let staking_count: u64 = read_number(&self.storage, &stakingkey_keyspace, "index", None)?;
-
+        let stakingkey_keyspace = get_stakingkeyset_keyspace(name);
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
-        for i in 0..staking_count {
-            let pubkey = read_pubkey(&self.storage, &stakingkey_keyspace, &format!("{}", i))?;
+        let keys = self.storage.keys(&stakingkey_keyspace)?;
+        for key in keys {
+            let pubkey = read_pubkey(
+                &self.storage,
+                &stakingkey_keyspace,
+                &str::from_utf8(&key).unwrap(),
+            )?;
             ret.insert(pubkey);
         }
-        assert!(staking_count == ret.len() as u64);
         Ok(ret)
     }
 
@@ -536,19 +529,19 @@ where
         name: &str,
         _enckey: &SecKey,
     ) -> Result<IndexSet<StakedStateAddress>> {
-        let stakingkey_keyspace = get_staking_keyspace(name);
-        let staking_count: u64 = read_number(&self.storage, &stakingkey_keyspace, "index", None)?;
+        let stakingkey_keyspace = get_stakingkeyset_keyspace(name);
 
         let mut ret: IndexSet<StakedStateAddress> = IndexSet::<StakedStateAddress>::new();
-        for i in 0..staking_count {
-            let value = self.storage.get(&stakingkey_keyspace, format!("{}", i))?;
-            if let Some(raw_value) = value {
-                let pubkey = PublicKey::deserialize_from(&raw_value)?;
-                let staked = StakedStateAddress::BasicRedeem(RedeemAddress::from(&pubkey));
-                ret.insert(staked);
-            }
+        let keys = self.storage.keys(&stakingkey_keyspace)?;
+        for key in keys {
+            let pubkey = read_pubkey(
+                &self.storage,
+                &stakingkey_keyspace,
+                &str::from_utf8(&key).unwrap(),
+            )?;
+            let staked = StakedStateAddress::BasicRedeem(RedeemAddress::from(&pubkey));
+            ret.insert(staked);
         }
-        assert!(staking_count == ret.len() as u64);
         Ok(ret)
     }
 
@@ -630,20 +623,6 @@ where
         _enckey: &SecKey,
         staking_key: &PublicKey,
     ) -> Result<()> {
-        let stakingkey_keyspace = get_staking_keyspace(name);
-        let mut index_value: u64 =
-            read_number(&self.storage, &stakingkey_keyspace, "index", Some(0))?;
-
-        // key: index
-        // value: stakingkey
-        write_pubkey(
-            &self.storage,
-            &stakingkey_keyspace,
-            &format!("{}", index_value),
-            &staking_key,
-        )
-        .expect("write pubkey in add_string_key");
-
         // stakingkey set
         // key: redeem address (20 bytes)
         // value: staking key (<-publickey)
@@ -657,10 +636,6 @@ where
             &staking_key,
         )
         .expect("write pubkey");
-
-        // increase
-        index_value += 1;
-        write_number(&self.storage, &stakingkey_keyspace, "index", index_value)?;
 
         Ok(())
     }
@@ -737,7 +712,7 @@ where
         self.storage.delete(KEYSPACE, name)?;
         assert!(self.storage.get(KEYSPACE, name)?.is_none());
         let info_keyspace = get_info_keyspace(name);
-        let stakingkey_keyspace = get_staking_keyspace(name);
+
         let stakingkeyset_keyspace = get_stakingkeyset_keyspace(name);
         let public_keyspace = get_public_keyspace(name);
         let private_keyspace = get_private_keyspace(name);
@@ -749,7 +724,7 @@ where
         self.storage.clear(info_keyspace)?;
         self.storage.clear(roothash_keyspace)?;
         self.storage.clear(roothashset_keyspace)?;
-        self.storage.clear(stakingkey_keyspace)?;
+
         self.storage.clear(stakingkeyset_keyspace)?;
         self.storage.clear(public_keyspace)?;
         self.storage.clear(private_keyspace)?;

@@ -16,9 +16,37 @@ use secstr::SecUtf8;
 use serde::de::{self, Visitor};
 use serde::export::PhantomData;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
+use std::str;
 /// Key space of wallet
 const KEYSPACE: &str = "core_wallet";
+
+fn get_public_keyspace(name: &str) -> String {
+    format!("{}_{}_publickey", KEYSPACE, name)
+}
+
+fn get_stakingkey_keyspace(name: &str) -> String {
+    format!("{}_{}_stakingkey", KEYSPACE, name)
+}
+
+fn get_private_keyspace(name: &str) -> String {
+    format!("{}_{}_privatekey", KEYSPACE, name)
+}
+
+fn get_roothash_keyspace(name: &str) -> String {
+    format!("{}_{}_roothash", KEYSPACE, name)
+}
+
+pub fn get_multisig_keyspace(name: &str) -> String {
+    format!("{}_{}_multisigaddress", KEYSPACE, name)
+}
+
+fn get_info_keyspace(name: &str) -> String {
+    format!("{}_{}_info", KEYSPACE, name)
+}
+
+fn get_wallet_keyspace() -> String {
+    format!("{}_walletname", KEYSPACE)
+}
 
 fn serde_to_str<T, S>(value: &T, serializer: S) -> std::result::Result<S::Ok, S::Error>
 where
@@ -74,7 +102,7 @@ pub struct WalletInfo {
 }
 
 /// Wallet meta data
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Wallet {
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,
@@ -91,53 +119,16 @@ pub struct Wallet {
 impl Encode for Wallet {
     fn encode_to<W: Output>(&self, dest: &mut W) {
         self.view_key.encode_to(dest);
-        (self.key_pairs.len() as u64).encode_to(dest);
-        for (key, value) in self.key_pairs.iter() {
-            key.encode_to(dest);
-            value.encode_to(dest);
-        }
-        (self.public_keys.len() as u64).encode_to(dest);
-        for key in self.public_keys.iter() {
-            key.encode_to(dest);
-        }
-        (self.staking_keys.len() as u64).encode_to(dest);
-        for key in self.staking_keys.iter() {
-            key.encode_to(dest);
-        }
-        (self.root_hashes.len() as u64).encode_to(dest);
-        for hash in self.root_hashes.iter() {
-            hash.encode_to(dest);
-        }
     }
 }
 
 impl Decode for Wallet {
     fn decode<I: Input>(input: &mut I) -> std::result::Result<Self, parity_scale_codec::Error> {
         let view_key = PublicKey::decode(input)?;
-        let mut key_pairs = BTreeMap::new();
-        let len = u64::decode(input)?;
-        for _ in 0..len {
-            let key = PublicKey::decode(input)?;
-            let value = PrivateKey::decode(input)?;
-            key_pairs.insert(key, value);
-        }
-        let len = u64::decode(input)?;
-        let mut public_keys = IndexSet::with_capacity(len as usize);
-        for _ in 0..len {
-            public_keys.insert(PublicKey::decode(input)?);
-        }
-
-        let len = u64::decode(input)?;
-        let mut staking_keys = IndexSet::with_capacity(len as usize);
-        for _ in 0..len {
-            staking_keys.insert(PublicKey::decode(input)?);
-        }
-
-        let len = u64::decode(input)?;
-        let mut root_hashes = IndexSet::with_capacity(len as usize);
-        for _ in 0..len {
-            root_hashes.insert(H256::decode(input)?);
-        }
+        let key_pairs = BTreeMap::new();
+        let public_keys = IndexSet::new();
+        let staking_keys = IndexSet::new();
+        let root_hashes = IndexSet::new();
 
         Ok(Wallet {
             view_key,
@@ -177,32 +168,66 @@ impl Wallet {
             .map(ExtendedAddr::OrTree)
             .collect()
     }
+}
 
-    /// find staking key
-    pub fn find_staking_key(&self, redeem_address: &RedeemAddress) -> Option<&PublicKey> {
-        self.staking_keys
-            .iter()
-            .find(|staking_key| &RedeemAddress::from(*staking_key) == redeem_address)
+fn read_pubkey<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Result<PublicKey> {
+    let value = storage.get(keyspace, key)?;
+    if let Some(raw_value) = value {
+        let pubkey = PublicKey::deserialize_from(&raw_value)?;
+        Ok(pubkey)
+    } else {
+        Err(Error::new(ErrorKind::InvalidInput, "read pubkey error"))
     }
+}
 
-    /// find private key
-    pub fn find_private_key(&self, public_key: &PublicKey) -> Option<&PrivateKey> {
-        self.key_pairs.get(public_key)
+fn write_pubkey<S: SecureStorage>(
+    storage: &S,
+    keyspace: &str,
+    key: &str,
+    value: &PublicKey,
+) -> Result<()> {
+    storage.set(keyspace, key, value.serialize())?;
+    Ok(())
+}
+
+fn read_pubkey_enc<S: SecureStorage>(
+    storage: &S,
+    keyspace: &str,
+    key: &str,
+    enckey: &SecKey,
+) -> Result<PublicKey> {
+    let value = storage.get_secure(keyspace, key, enckey)?;
+    if let Some(raw_value) = value {
+        let pubkey = PublicKey::deserialize_from(&raw_value)?;
+        Ok(pubkey)
+    } else {
+        Err(Error::new(ErrorKind::InvalidInput, "read pubkey error"))
     }
+}
 
-    /// add key pair
-    pub fn add_key_pair(&mut self, public_key: &PublicKey, private_key: &PrivateKey) {
-        self.key_pairs
-            .insert(public_key.clone(), private_key.clone());
-    }
+fn write_pubkey_enc<S: SecureStorage>(
+    storage: &S,
+    keyspace: &str,
+    key: &str,
+    value: &PublicKey,
+    enckey: &SecKey,
+) -> Result<()> {
+    storage.set_secure(keyspace, key, value.serialize(), enckey)?;
+    Ok(())
+}
 
-    /// find root hash
-    pub fn find_root_hash(&self, address: &ExtendedAddr) -> Option<&H256> {
-        match address {
-            ExtendedAddr::OrTree(ref root_hash) => {
-                self.root_hashes.iter().find(|hash| hash == &root_hash)
-            }
-        }
+fn read_string<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Result<String> {
+    let value = storage.get(keyspace, key.as_bytes())?;
+    if let Some(raw_value) = value {
+        let ret = str::from_utf8(&raw_value).chain(|| {
+            (
+                ErrorKind::InvalidInput,
+                "Unable to read string in wallet_service",
+            )
+        })?;
+        Ok(ret.to_string())
+    } else {
+        Err(Error::new(ErrorKind::InvalidInput, "read string error"))
     }
 }
 
@@ -212,17 +237,72 @@ pub fn load_wallet<S: SecureStorage>(
     name: &str,
     enckey: &SecKey,
 ) -> Result<Option<Wallet>> {
-    storage.load_secure(KEYSPACE, name, enckey)
-}
+    let wallet: Option<Wallet> = storage.load_secure(KEYSPACE, name, enckey)?;
 
-/// Save wallet to storage
-pub fn save_wallet<S: SecureStorage>(
-    storage: &S,
-    name: &str,
-    enckey: &SecKey,
-    wallet: &Wallet,
-) -> Result<()> {
-    storage.save_secure(KEYSPACE, name, enckey, wallet)
+    if let Some(value) = wallet {
+        let mut new_wallet = value;
+        // storage -> wallet
+        let info_keyspace = get_info_keyspace(name);
+        new_wallet.view_key = read_pubkey_enc(storage, &info_keyspace, "viewkey", enckey)?;
+
+        // pubkey
+        let public_keyspace = get_public_keyspace(name);
+        let private_keyspace = get_private_keyspace(name);
+        let public_keys = storage.keys(&public_keyspace)?;
+        for key in &public_keys {
+            let pubkey = read_pubkey(
+                storage,
+                &public_keyspace,
+                &str::from_utf8(&key).chain(|| {
+                    (
+                        ErrorKind::InvalidInput,
+                        "Unable to read publick-key in load_wallet",
+                    )
+                })?,
+            )?;
+            new_wallet.public_keys.insert(pubkey.clone());
+
+            if let Ok(value) =
+                storage.get_secure(private_keyspace.clone(), pubkey.serialize(), enckey)
+            {
+                if let Some(raw_value) = value {
+                    let privatekey = PrivateKey::deserialize_from(&raw_value)?;
+                    new_wallet.key_pairs.insert(pubkey, privatekey);
+                }
+            }
+        }
+
+        let staking_keyspace = get_stakingkey_keyspace(name);
+        let staking_keys = storage.keys(&staking_keyspace)?;
+        for key in &staking_keys {
+            let stakingkey = read_pubkey(
+                storage,
+                &staking_keyspace,
+                &str::from_utf8(&key).chain(|| {
+                    (
+                        ErrorKind::InvalidInput,
+                        "Unable to read staking-key in load_wallet",
+                    )
+                })?,
+            )?;
+            new_wallet.staking_keys.insert(stakingkey);
+        }
+
+        // roothash
+        let roothash_keyspace = get_roothash_keyspace(name);
+        let roothash_keys = storage.keys(&roothash_keyspace)?;
+        for key in &roothash_keys {
+            let value = storage.get(&roothash_keyspace, &key)?;
+            if let Some(raw_value) = value {
+                let mut roothash_found: H256 = H256::default();
+                roothash_found.copy_from_slice(&raw_value);
+                new_wallet.root_hashes.insert(roothash_found);
+            }
+        }
+        return Ok(Some(new_wallet));
+    }
+
+    Ok(None)
 }
 
 /// Maintains mapping `wallet-name -> wallet-details`
@@ -248,28 +328,73 @@ where
     }
 
     /// Get the wallet state from storage
+    // storage -> wallet
     pub fn get_wallet_state(&self, name: &str, enckey: &SecKey) -> Result<WalletState> {
         load_wallet_state(&self.storage, name, enckey)?.err_kind(ErrorKind::InvalidInput, || {
             format!("WalletState with name ({}) not found", name)
         })
     }
 
+    /// Save wallet to storage
+    pub fn save_wallet(&self, name: &str, enckey: &SecKey, wallet: &Wallet) -> Result<()> {
+        self.storage.save_secure(KEYSPACE, name, enckey, wallet)?;
+
+        let info_keyspace = get_info_keyspace(name);
+        // write viewkey
+        write_pubkey_enc(
+            &self.storage,
+            &info_keyspace,
+            "viewkey",
+            &wallet.view_key,
+            enckey,
+        )?;
+
+        for (pubkey, prikey) in &wallet.key_pairs {
+            self.add_key_pairs(&name, &enckey, &pubkey, &prikey)?
+        }
+
+        // pubkey
+        for public_key in wallet.public_keys.iter() {
+            self.add_public_key(name, enckey, public_key)?;
+        }
+
+        // stakingkey
+        for public_key in wallet.staking_keys.iter() {
+            self.add_staking_key(name, enckey, public_key)?;
+        }
+
+        // root hash
+        for root_hash in wallet.root_hashes.iter() {
+            self.add_root_hash(name, enckey, root_hash.clone())?;
+        }
+
+        Ok(())
+    }
+
     /// Store the wallet to storage
+    // wallet -> storage
     pub fn set_wallet(&self, name: &str, enckey: &SecKey, wallet: Wallet) -> Result<()> {
-        save_wallet(&self.storage, name, enckey, &wallet)
+        self.save_wallet(name, enckey, &wallet)
     }
 
     /// Finds staking key corresponding to given redeem address
     pub fn find_staking_key(
         &self,
         name: &str,
-        enckey: &SecKey,
+        _enckey: &SecKey,
         redeem_address: &RedeemAddress,
     ) -> Result<Option<PublicKey>> {
-        Ok(self
-            .get_wallet(name, enckey)?
-            .find_staking_key(redeem_address)
-            .cloned())
+        let stakingkey_keyspace = get_stakingkey_keyspace(name);
+
+        if let Ok(value) = read_pubkey(
+            &self.storage,
+            &stakingkey_keyspace,
+            &redeem_address.to_string(),
+        ) {
+            Ok(Some(value))
+        } else {
+            Err(Error::new(ErrorKind::InvalidInput, "finding staking"))
+        }
     }
 
     /// Finds private_key corresponding to given public_key
@@ -279,23 +404,47 @@ where
         enckey: &SecKey,
         public_key: &PublicKey,
     ) -> Result<Option<PrivateKey>> {
-        Ok(self
-            .get_wallet(name, enckey)?
-            .find_private_key(public_key)
-            .cloned())
+        let private_keyspace = get_private_keyspace(name);
+
+        // key: public_key
+        // value: private_key
+        let value = self
+            .storage
+            .get_secure(private_keyspace, public_key.serialize(), enckey)?;
+        if let Some(raw_value) = value {
+            let privatekey = PrivateKey::deserialize_from(&raw_value)?;
+            Ok(Some(privatekey))
+        } else {
+            Err(Error::new(ErrorKind::InvalidInput, "private_key not found"))
+        }
     }
 
     /// Checks if root hash exists in current wallet and returns root hash if exists
     pub fn find_root_hash(
         &self,
         name: &str,
-        enckey: &SecKey,
+        _enckey: &SecKey,
         address: &ExtendedAddr,
     ) -> Result<Option<H256>> {
-        Ok(self
-            .get_wallet(name, enckey)?
-            .find_root_hash(address)
-            .copied())
+        match address {
+            ExtendedAddr::OrTree(ref root_hash) => {
+                // roothashset
+                let roothash_keyspace = get_roothash_keyspace(name);
+
+                let value = self
+                    .storage
+                    .get(roothash_keyspace, hex::encode(&root_hash))?;
+
+                if let Some(raw_value) = value {
+                    let mut roothash_found: H256 = H256::default();
+                    roothash_found.copy_from_slice(&raw_value);
+
+                    return Ok(Some(roothash_found));
+                }
+            }
+        }
+
+        Err(Error::new(ErrorKind::InvalidInput, "private_key not found"))
     }
 
     /// Creates a new wallet and returns wallet ID
@@ -307,31 +456,83 @@ where
             ));
         }
 
-        self.set_wallet(name, enckey, Wallet::new(view_key))
+        self.set_wallet(name, enckey, Wallet::new(view_key.clone()))?;
+
+        let info_keyspace = get_info_keyspace(name);
+        // key: "viewkey"
+        // value: view-key
+        write_pubkey_enc(&self.storage, &info_keyspace, "viewkey", &view_key, enckey)?;
+
+        // key: index
+        // value: walletname
+        let wallet_keyspace = get_wallet_keyspace();
+        self.storage
+            .set(wallet_keyspace, name, name.as_bytes().to_vec())?;
+
+        Ok(())
     }
 
     /// Returns view key of wallet
     pub fn view_key(&self, name: &str, enckey: &SecKey) -> Result<PublicKey> {
-        let wallet = self.get_wallet(name, enckey)?;
-        Ok(wallet.view_key)
+        let _wallet_found = self.get_wallet(name, enckey)?;
+        let info_keyspace = get_info_keyspace(name);
+        read_pubkey_enc(&self.storage, &info_keyspace, "viewkey", enckey)
     }
 
     /// Returns all public keys stored in a wallet
     pub fn public_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
-        let wallet = self.get_wallet(name, enckey)?;
-        Ok(wallet.public_keys)
+        if !self.storage.contains_key(KEYSPACE, name)? {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("Wallet with name ({}) not found", name),
+            ));
+        }
+        let _wallet_found = self.get_wallet(name, enckey)?;
+        let public_keyspace = get_public_keyspace(name);
+        let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
+        let keys = self.storage.keys(&public_keyspace)?;
+        for key in keys {
+            let pubkey = read_pubkey(
+                &self.storage,
+                &public_keyspace,
+                &str::from_utf8(&key).chain(|| {
+                    (
+                        ErrorKind::InvalidInput,
+                        "cannot read publickey in public_keys",
+                    )
+                })?,
+            )?;
+            ret.insert(pubkey);
+        }
+        Ok(ret)
     }
 
     /// Returns all public keys corresponding to staking addresses stored in a wallet
     pub fn staking_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
-        let wallet = self.get_wallet(name, enckey)?;
-        Ok(wallet.staking_keys)
-    }
-
-    /// Returns all multi-sig addresses stored in a wallet
-    pub fn root_hashes(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<H256>> {
-        let wallet = self.get_wallet(name, enckey)?;
-        Ok(wallet.root_hashes)
+        if !self.storage.contains_key(KEYSPACE, name)? {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("Wallet with name ({}) not found", name),
+            ));
+        }
+        let _wallet_found = self.get_wallet(name, enckey)?;
+        let stakingkey_keyspace = get_stakingkey_keyspace(name);
+        let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
+        let keys = self.storage.keys(&stakingkey_keyspace)?;
+        for key in keys {
+            let pubkey = read_pubkey(
+                &self.storage,
+                &stakingkey_keyspace,
+                &str::from_utf8(&key).chain(|| {
+                    (
+                        ErrorKind::InvalidInput,
+                        "Unable to read public-key in staking_keys",
+                    )
+                })?,
+            )?;
+            ret.insert(pubkey);
+        }
+        Ok(ret)
     }
 
     /// Returns all staking addresses stored in a wallet
@@ -340,7 +541,36 @@ where
         name: &str,
         enckey: &SecKey,
     ) -> Result<IndexSet<StakedStateAddress>> {
-        Ok(self.get_wallet(name, enckey)?.staking_addresses())
+        let pubkeys: IndexSet<PublicKey> = self.staking_keys(name, enckey)?;
+        let mut ret: IndexSet<StakedStateAddress> = IndexSet::<StakedStateAddress>::new();
+        for pubkey in &pubkeys {
+            let staked = StakedStateAddress::BasicRedeem(RedeemAddress::from(pubkey));
+            ret.insert(staked);
+        }
+        Ok(ret)
+    }
+
+    /// Returns all multi-sig addresses stored in a wallet
+    pub fn root_hashes(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<H256>> {
+        if !self.storage.contains_key(KEYSPACE, name)? {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("Wallet with name ({}) not found", name),
+            ));
+        }
+        let _wallet_found = self.get_wallet(name, enckey)?;
+        let roothash_keyspace = get_roothash_keyspace(name);
+        let mut ret: IndexSet<H256> = IndexSet::<H256>::new();
+        let keys = self.storage.keys(&roothash_keyspace)?;
+        for key in keys {
+            let value = self.storage.get(&roothash_keyspace, &key)?;
+            if let Some(raw_value) = value {
+                let mut roothash_found: H256 = H256::default();
+                roothash_found.copy_from_slice(&raw_value);
+                ret.insert(roothash_found);
+            }
+        }
+        Ok(ret)
     }
 
     /// Returns all tree addresses stored in a wallet
@@ -349,7 +579,13 @@ where
         name: &str,
         enckey: &SecKey,
     ) -> Result<IndexSet<ExtendedAddr>> {
-        Ok(self.get_wallet(name, enckey)?.transfer_addresses())
+        let roothashes: IndexSet<H256> = self.root_hashes(name, enckey)?;
+        let mut ret: IndexSet<ExtendedAddr> = IndexSet::<ExtendedAddr>::new();
+        for roothash_found in &roothashes {
+            let extended_addr = ExtendedAddr::OrTree(*roothash_found);
+            ret.insert(extended_addr);
+        }
+        Ok(ret)
     }
 
     /// Adds a (public_key, private_key) pair to given wallet
@@ -360,94 +596,140 @@ where
         public_key: &PublicKey,
         private_key: &PrivateKey,
     ) -> Result<()> {
-        self.modify_wallet(name, enckey, move |wallet| {
-            wallet
-                .key_pairs
-                .insert(public_key.clone(), private_key.clone());
-        })
+        let private_keyspace = get_private_keyspace(name);
+
+        // key: public_key
+        // value: private_key
+        self.storage.set_secure(
+            private_keyspace,
+            public_key.serialize(),
+            private_key.serialize(),
+            enckey,
+        )?;
+        Ok(())
     }
 
     /// Adds a public key to given wallet
     pub fn add_public_key(
         &self,
         name: &str,
-        enckey: &SecKey,
+        _enckey: &SecKey,
         public_key: &PublicKey,
     ) -> Result<()> {
-        self.modify_wallet(name, enckey, move |wallet| {
-            wallet.public_keys.insert(public_key.clone());
-        })
+        let public_keyspace = get_public_keyspace(name);
+
+        // key: index
+        // value: publickey
+        write_pubkey(
+            &self.storage,
+            &public_keyspace,
+            &hex::encode(&public_key.serialize()),
+            &public_key,
+        )?;
+
+        Ok(())
     }
 
     /// Adds a public key corresponding to a staking address to given wallet
     pub fn add_staking_key(
         &self,
         name: &str,
-        enckey: &SecKey,
+        _enckey: &SecKey,
         staking_key: &PublicKey,
     ) -> Result<()> {
-        self.modify_wallet(name, enckey, move |wallet| {
-            wallet.staking_keys.insert(staking_key.clone());
-        })
-    }
+        // stakingkey set
+        // key: redeem address (20 bytes)
+        // value: staking key (<-publickey)
+        let redeemaddress = RedeemAddress::from(staking_key).to_string();
+        let stakingkey_keyspace = get_stakingkey_keyspace(name);
 
-    fn modify_wallet<F>(&self, name: &str, enckey: &SecKey, f: F) -> Result<()>
-    where
-        F: Fn(&mut Wallet),
-    {
-        self.storage
-            .fetch_and_update_secure(KEYSPACE, name, enckey, move |value| {
-                let mut wallet_bytes = value.chain(|| {
-                    (
-                        ErrorKind::InvalidInput,
-                        format!("Wallet with name ({}) not found", name),
-                    )
-                })?;
-                let mut wallet = Wallet::decode(&mut wallet_bytes).chain(|| {
-                    (
-                        ErrorKind::DeserializationError,
-                        format!("Unable to deserialize wallet with name {}", name),
-                    )
-                })?;
-                f(&mut wallet);
-                Ok(Some(wallet.encode()))
-            })
-            .map(|_| ())
+        write_pubkey(
+            &self.storage,
+            &stakingkey_keyspace,
+            &redeemaddress,
+            &staking_key,
+        )?;
+
+        Ok(())
     }
 
     /// Adds a multi-sig address to given wallet
-    pub fn add_root_hash(&self, name: &str, enckey: &SecKey, root_hash: H256) -> Result<()> {
-        self.modify_wallet(name, enckey, move |wallet| {
-            wallet.root_hashes.insert(root_hash);
-        })
+    pub fn add_root_hash(&self, name: &str, _enckey: &SecKey, root_hash: H256) -> Result<()> {
+        // roothashset
+        let roothash_keyspace = get_roothash_keyspace(name);
+        self.storage.set(
+            roothash_keyspace,
+            hex::encode(&root_hash),
+            root_hash.to_vec(),
+        )?;
+
+        Ok(())
     }
 
     /// Retrieves names of all the stored wallets
     pub fn names(&self) -> Result<Vec<String>> {
-        let keys = self.storage.keys(KEYSPACE)?;
-
-        keys.into_iter()
-            .map(|bytes| {
-                String::from_utf8(bytes).chain(|| {
-                    (
-                        ErrorKind::DeserializationError,
-                        "Unable to deserialize wallet names in storage",
-                    )
-                })
-            })
-            .collect()
+        let wallet_keyspace = get_wallet_keyspace();
+        let keys = self.storage.keys(&wallet_keyspace)?;
+        let mut names: Vec<String> = vec![];
+        for key in keys {
+            let string_key = String::from_utf8(key).chain(|| {
+                (
+                    ErrorKind::DeserializationError,
+                    "Unable to deserialize wallet names in storage",
+                )
+            })?;
+            let name_found = read_string(&self.storage, &wallet_keyspace, &string_key)?;
+            names.push(name_found);
+        }
+        Ok(names)
     }
 
     /// Clears all storage
     pub fn clear(&self) -> Result<()> {
-        self.storage.clear(KEYSPACE)
+        let wallet_keyspace = get_wallet_keyspace();
+        let keys = self.storage.keys(&wallet_keyspace)?;
+        for key in keys {
+            let string_key = String::from_utf8(key).chain(|| {
+                (
+                    ErrorKind::DeserializationError,
+                    "Unable to deserialize wallet names in storage",
+                )
+            })?;
+            let name_found = read_string(&self.storage, &wallet_keyspace, &string_key)?;
+
+            self.delete_wallet_keyspace(&name_found)?;
+        }
+        self.storage.clear(wallet_keyspace)?;
+        self.storage.clear(KEYSPACE)?;
+
+        Ok(())
     }
 
-    /// Delete the key
-    pub fn delete(&self, name: &str, enckey: &SecKey) -> Result<Wallet> {
-        let wallet = self.get_wallet(name, enckey)?;
+    fn delete_wallet_keyspace(&self, name: &str) -> Result<()> {
         self.storage.delete(KEYSPACE, name)?;
-        Ok(wallet)
+        assert!(self.storage.get(KEYSPACE, name)?.is_none());
+        let info_keyspace = get_info_keyspace(name);
+
+        let stakingkey_keyspace = get_stakingkey_keyspace(name);
+        let public_keyspace = get_public_keyspace(name);
+        let private_keyspace = get_private_keyspace(name);
+        let roothash_keyspace = get_roothash_keyspace(name);
+        let multisigaddress_keyspace = get_multisig_keyspace(name);
+        let wallet_keyspace = get_wallet_keyspace();
+        self.storage.delete(wallet_keyspace, name)?;
+        self.storage.clear(info_keyspace)?;
+        self.storage.clear(roothash_keyspace)?;
+        self.storage.clear(stakingkey_keyspace)?;
+        self.storage.clear(public_keyspace)?;
+        self.storage.clear(private_keyspace)?;
+        self.storage.clear(multisigaddress_keyspace)?;
+        Ok(())
+    }
+    /// Delete the key
+    pub fn delete(&self, name: &str, _enckey: &SecKey) -> Result<()> {
+        self.storage.delete(KEYSPACE, name)?;
+        self.delete_wallet_keyspace(name)?;
+        Ok(())
     }
 }
 

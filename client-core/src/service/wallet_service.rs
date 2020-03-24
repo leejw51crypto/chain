@@ -293,18 +293,11 @@ pub fn load_wallet<S: SecureStorage>(
         // pubkey
         let public_keyspace = get_public_keyspace(name);
         let private_keyspace = get_private_keyspace(name);
-        let public_keys = storage.keys(&public_keyspace)?;
-        for key in &public_keys {
-            let pubkey = read_pubkey(
-                storage,
-                &public_keyspace,
-                &str::from_utf8(&key).chain(|| {
-                    (
-                        ErrorKind::InvalidInput,
-                        "Unable to read publick-key in load_wallet",
-                    )
-                })?,
-            )?;
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+
+        let publickey_count: u64 = read_number(storage, &info_keyspace, "publicindex", Some(0))?;
+        for i in 0..publickey_count {
+            let pubkey = read_pubkey(storage, &public_keyspace, &format!("{}", i))?;
             new_wallet.public_keys.insert(pubkey.clone());
 
             if let Ok(value) =
@@ -318,26 +311,18 @@ pub fn load_wallet<S: SecureStorage>(
         }
 
         let staking_keyspace = get_stakingkey_keyspace(name);
-        let staking_keys = storage.keys(&staking_keyspace)?;
-        for key in &staking_keys {
-            let stakingkey = read_pubkey(
-                storage,
-                &staking_keyspace,
-                &str::from_utf8(&key).chain(|| {
-                    (
-                        ErrorKind::InvalidInput,
-                        "Unable to read staking-key in load_wallet",
-                    )
-                })?,
-            )?;
+        let stakingkey_count: u64 =
+            read_number(storage, &info_keyspace, "stakingkeyindex", Some(0))?;
+        for i in 0..stakingkey_count {
+            let stakingkey = read_pubkey(storage, &staking_keyspace, &format!("{}", i))?;
             new_wallet.staking_keys.insert(stakingkey);
         }
 
         // roothash
         let roothash_keyspace = get_roothash_keyspace(name);
-        let roothash_keys = storage.keys(&roothash_keyspace)?;
-        for key in &roothash_keys {
-            let value = storage.get(&roothash_keyspace, &key)?;
+        let roothash_count: u64 = read_number(storage, &info_keyspace, "roothashindex", Some(0))?;
+        for i in 0..roothash_count {
+            let value = storage.get(&roothash_keyspace, format!("{}", i))?;
             if let Some(raw_value) = value {
                 let mut roothash_found: H256 = H256::default();
                 roothash_found.copy_from_slice(&raw_value);
@@ -541,19 +526,11 @@ where
         let public_keyspace = get_public_keyspace(name);
 
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
-        let keys = self.storage.keys(&public_keyspace)?;
+        let info_keyspace = get_info_keyspace(name);
+        let publickey_count: u64 = read_number(&self.storage, &info_keyspace, "publicindex", None)?;
 
-        for key in keys {
-            let pubkey = read_pubkey(
-                &self.storage,
-                &public_keyspace,
-                &str::from_utf8(&key).chain(|| {
-                    (
-                        ErrorKind::InvalidInput,
-                        "cannot read publickey in public_keys",
-                    )
-                })?,
-            )?;
+        for i in 0..publickey_count {
+            let pubkey = read_pubkey(&self.storage, &public_keyspace, &format!("{}", i))?;
             ret.insert(pubkey);
         }
         Ok(ret)
@@ -570,18 +547,11 @@ where
         let _wallet_found = self.get_wallet(name, enckey)?;
         let stakingkey_keyspace = get_stakingkey_keyspace(name);
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
-        let keys = self.storage.keys(&stakingkey_keyspace)?;
-        for key in keys {
-            let pubkey = read_pubkey(
-                &self.storage,
-                &stakingkey_keyspace,
-                &str::from_utf8(&key).chain(|| {
-                    (
-                        ErrorKind::InvalidInput,
-                        "Unable to read public-key in staking_keys",
-                    )
-                })?,
-            )?;
+        let info_keyspace = get_info_keyspace(name);
+        let staking_count: u64 =
+            read_number(&self.storage, &info_keyspace, "stakingkeyindex", None)?;
+        for i in 0..staking_count {
+            let pubkey = read_pubkey(&self.storage, &stakingkey_keyspace, &format!("{}", i))?;
             ret.insert(pubkey);
         }
         Ok(ret)
@@ -613,9 +583,11 @@ where
         let _wallet_found = self.get_wallet(name, enckey)?;
         let roothash_keyspace = get_roothash_keyspace(name);
         let mut ret: IndexSet<H256> = IndexSet::<H256>::new();
-        let keys = self.storage.keys(&roothash_keyspace)?;
-        for key in keys {
-            let value = self.storage.get(&roothash_keyspace, &key)?;
+        let info_keyspace = get_info_keyspace(name);
+        let roothash_count: u64 =
+            read_number(&self.storage, &info_keyspace, "roothashindex", None)?;
+        for i in 0..roothash_count {
+            let value = self.storage.get(&roothash_keyspace, format!("{}", i))?;
             if let Some(raw_value) = value {
                 let mut roothash_found: H256 = H256::default();
                 roothash_found.copy_from_slice(&raw_value);

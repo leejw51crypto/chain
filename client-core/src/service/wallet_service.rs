@@ -28,12 +28,20 @@ fn get_stakingkey_keyspace(name: &str) -> String {
     format!("{}_{}_stakingkey", KEYSPACE, name)
 }
 
+fn get_stakingkeyset_keyspace(name: &str) -> String {
+    format!("{}_{}_stakingkeyset", KEYSPACE, name)
+}
+
 fn get_private_keyspace(name: &str) -> String {
     format!("{}_{}_privatekey", KEYSPACE, name)
 }
 
 fn get_roothash_keyspace(name: &str) -> String {
     format!("{}_{}_roothash", KEYSPACE, name)
+}
+
+fn get_roothashset_keyspace(name: &str) -> String {
+    format!("{}_{}_roothashset", KEYSPACE, name)
 }
 
 pub fn get_multisig_keyspace(name: &str) -> String {
@@ -231,6 +239,43 @@ fn read_string<S: SecureStorage>(storage: &S, keyspace: &str, key: &str) -> Resu
     }
 }
 
+fn read_number<S: SecureStorage>(
+    storage: &S,
+    keyspace: &str,
+    key: &str,
+    defaut_value: Option<u64>,
+) -> Result<u64> {
+    let value = storage.get(keyspace, key.as_bytes())?;
+    if let Some(raw_value) = value {
+        let mut v: [u8; 8] = [0; 8];
+        v.copy_from_slice(&raw_value);
+        let index_value: u64 = u64::from_be_bytes(v);
+        return Ok(index_value);
+    }
+
+    if let Some(value) = defaut_value {
+        Ok(value)
+    } else {
+        Err(Error::new(ErrorKind::InvalidInput, "read number error"))
+    }
+}
+
+fn write_number<S: SecureStorage>(
+    storage: &S,
+    keyspace: &str,
+    key: &str,
+    value: u64,
+) -> Result<()> {
+    storage
+        .set(
+            keyspace.clone(),
+            key.as_bytes(),
+            value.to_be_bytes().to_vec(),
+        )
+        .expect("write storage");
+    Ok(())
+}
+
 /// Load wallet from storage
 pub fn load_wallet<S: SecureStorage>(
     storage: &S,
@@ -353,17 +398,20 @@ where
             self.add_key_pairs(&name, &enckey, &pubkey, &prikey)?
         }
 
+        write_number(&self.storage, &info_keyspace, "publicindex", 0)?;
         // pubkey
         for public_key in wallet.public_keys.iter() {
             self.add_public_key(name, enckey, public_key)?;
         }
 
         // stakingkey
+        write_number(&self.storage, &info_keyspace, "stakingkeyindex", 0)?;
         for public_key in wallet.staking_keys.iter() {
             self.add_staking_key(name, enckey, public_key)?;
         }
 
         // root hash
+        write_number(&self.storage, &info_keyspace, "roothashindex", 0)?;
         for root_hash in wallet.root_hashes.iter() {
             self.add_root_hash(name, enckey, root_hash.clone())?;
         }
@@ -384,7 +432,7 @@ where
         _enckey: &SecKey,
         redeem_address: &RedeemAddress,
     ) -> Result<Option<PublicKey>> {
-        let stakingkey_keyspace = get_stakingkey_keyspace(name);
+        let stakingkey_keyspace = get_stakingkeyset_keyspace(name);
 
         if let Ok(value) = read_pubkey(
             &self.storage,
@@ -429,7 +477,7 @@ where
         match address {
             ExtendedAddr::OrTree(ref root_hash) => {
                 // roothashset
-                let roothash_keyspace = get_roothash_keyspace(name);
+                let roothash_keyspace = get_roothashset_keyspace(name);
 
                 let value = self
                     .storage
@@ -487,10 +535,14 @@ where
                 format!("Wallet with name ({}) not found", name),
             ));
         }
+
         let _wallet_found = self.get_wallet(name, enckey)?;
+
         let public_keyspace = get_public_keyspace(name);
+
         let mut ret: IndexSet<PublicKey> = IndexSet::<PublicKey>::new();
         let keys = self.storage.keys(&public_keyspace)?;
+
         for key in keys {
             let pubkey = read_pubkey(
                 &self.storage,
@@ -617,15 +669,22 @@ where
         public_key: &PublicKey,
     ) -> Result<()> {
         let public_keyspace = get_public_keyspace(name);
+        let info_keyspace = get_info_keyspace(name);
+
+        let mut index_value: u64 =
+            read_number(&self.storage, &info_keyspace, "publicindex", Some(0))?;
 
         // key: index
         // value: publickey
         write_pubkey(
             &self.storage,
             &public_keyspace,
-            &hex::encode(&public_key.serialize()),
+            &format!("{}", index_value),
             &public_key,
         )?;
+
+        index_value += 1;
+        write_number(&self.storage, &info_keyspace, "publicindex", index_value)?;
 
         Ok(())
     }
@@ -642,12 +701,33 @@ where
         // value: staking key (<-publickey)
         let redeemaddress = RedeemAddress::from(staking_key).to_string();
         let stakingkey_keyspace = get_stakingkey_keyspace(name);
+        let stakingkeyset_keyspace = get_stakingkeyset_keyspace(name);
+        let info_keyspace = get_info_keyspace(name);
+
+        let mut index_value: u64 =
+            read_number(&self.storage, &info_keyspace, "stakingkeyindex", Some(0))?;
+
+        write_pubkey(
+            &self.storage,
+            &stakingkeyset_keyspace,
+            &redeemaddress,
+            &staking_key,
+        )?;
 
         write_pubkey(
             &self.storage,
             &stakingkey_keyspace,
-            &redeemaddress,
+            &format!("{}", index_value),
             &staking_key,
+        )?;
+
+        // increase
+        index_value += 1;
+        write_number(
+            &self.storage,
+            &info_keyspace,
+            "stakingkeyindex",
+            index_value,
         )?;
 
         Ok(())
@@ -657,11 +737,30 @@ where
     pub fn add_root_hash(&self, name: &str, _enckey: &SecKey, root_hash: H256) -> Result<()> {
         // roothashset
         let roothash_keyspace = get_roothash_keyspace(name);
+        let roothashset_keyspace = get_roothashset_keyspace(name);
+        let info_keyspace = get_info_keyspace(name);
+
+        let mut index_value: u64 =
+            read_number(&self.storage, &info_keyspace, "roothashindex", Some(0))?;
+
+        // key: index
+        // value: roothash
         self.storage.set(
-            roothash_keyspace,
+            &roothash_keyspace,
+            format!("{}", index_value),
+            root_hash.to_vec(),
+        )?;
+
+        // roothashset
+        self.storage.set(
+            &roothashset_keyspace,
             hex::encode(&root_hash),
             root_hash.to_vec(),
         )?;
+
+        // increase
+        index_value += 1;
+        write_number(&self.storage, &info_keyspace, "roothashindex", index_value)?;
 
         Ok(())
     }
@@ -711,15 +810,19 @@ where
         let info_keyspace = get_info_keyspace(name);
 
         let stakingkey_keyspace = get_stakingkey_keyspace(name);
+        let stakingkeyset_keyspace = get_stakingkeyset_keyspace(name);
         let public_keyspace = get_public_keyspace(name);
         let private_keyspace = get_private_keyspace(name);
         let roothash_keyspace = get_roothash_keyspace(name);
+        let roothashset_keyspace = get_roothashset_keyspace(name);
         let multisigaddress_keyspace = get_multisig_keyspace(name);
         let wallet_keyspace = get_wallet_keyspace();
         self.storage.delete(wallet_keyspace, name)?;
         self.storage.clear(info_keyspace)?;
         self.storage.clear(roothash_keyspace)?;
+        self.storage.clear(roothashset_keyspace)?;
         self.storage.clear(stakingkey_keyspace)?;
+        self.storage.clear(stakingkeyset_keyspace)?;
         self.storage.clear(public_keyspace)?;
         self.storage.clear(private_keyspace)?;
         self.storage.clear(multisigaddress_keyspace)?;

@@ -249,7 +249,7 @@ fn read_number<S: SecureStorage>(
     if let Some(raw_value) = value {
         let mut v: [u8; 8] = [0; 8];
         v.copy_from_slice(&raw_value);
-        let index_value: u64 = u64::from_be_bytes(v);
+        let index_value: u64 = u64::from_le_bytes(v);
         return Ok(index_value);
     }
 
@@ -267,7 +267,7 @@ fn write_number<S: SecureStorage>(
     value: u64,
 ) -> Result<()> {
     storage
-        .set(keyspace, key.as_bytes(), value.to_be_bytes().to_vec())
+        .set(keyspace, key.as_bytes(), value.to_le_bytes().to_vec())
         .expect("write storage");
     Ok(())
 }
@@ -407,6 +407,7 @@ where
     }
 
     /// Finds staking key corresponding to given redeem address
+    // TODO: change api not to use _enckey
     pub fn find_staking_key(
         &self,
         name: &str,
@@ -449,6 +450,7 @@ where
     }
 
     /// Checks if root hash exists in current wallet and returns root hash if exists
+    // TODO: change api not to use _enckey
     pub fn find_root_hash(
         &self,
         name: &str,
@@ -630,6 +632,7 @@ where
     }
 
     /// Adds a public key to given wallet
+    // TODO: change api not to use _enckey
     pub fn add_public_key(
         &self,
         name: &str,
@@ -658,6 +661,7 @@ where
     }
 
     /// Adds a public key corresponding to a staking address to given wallet
+    // TODO: change api not to use _enckey
     pub fn add_staking_key(
         &self,
         name: &str,
@@ -702,6 +706,7 @@ where
     }
 
     /// Adds a multi-sig address to given wallet
+    // TODO: change api not to use _enckey
     pub fn add_root_hash(&self, name: &str, _enckey: &SecKey, root_hash: H256) -> Result<()> {
         // roothashset
         let roothash_keyspace = get_roothash_keyspace(name);
@@ -797,6 +802,7 @@ where
         Ok(())
     }
     /// Delete the key
+    // TODO: change api not to use _enckey
     pub fn delete(&self, name: &str, _enckey: &SecKey) -> Result<()> {
         self.storage.delete(KEYSPACE, name)?;
         self.delete_wallet_keyspace(name)?;

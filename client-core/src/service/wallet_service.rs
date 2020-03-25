@@ -9,13 +9,11 @@ use chain_core::tx::data::address::ExtendedAddr;
 use client_common::{
     Error, ErrorKind, PrivateKey, PublicKey, Result, ResultExt, SecKey, SecureStorage, Storage,
 };
-use std::fmt;
-//use serde::ser::{Serialize, SerializeStruct, Serializer};
-use parity_scale_codec::alloc::collections::BTreeMap;
 use secstr::SecUtf8;
 use serde::de::{self, Visitor};
 use serde::export::PhantomData;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt;
 use std::str;
 /// Key space of wallet
 const KEYSPACE: &str = "core_wallet";
@@ -114,13 +112,10 @@ pub struct WalletInfo {
 pub struct Wallet {
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,
-    /// public key and private key pair
-    pub key_pairs: BTreeMap<PublicKey, PrivateKey>,
-    /// public keys to construct transfer addresses
-    pub public_keys: IndexSet<PublicKey>,
     /// public keys of staking addresses
     pub staking_keys: IndexSet<PublicKey>,
     /// root hashes of multi-sig transfer addresses
+    // this is transfer address
     pub root_hashes: IndexSet<H256>,
 }
 
@@ -133,15 +128,11 @@ impl Encode for Wallet {
 impl Decode for Wallet {
     fn decode<I: Input>(input: &mut I) -> std::result::Result<Self, parity_scale_codec::Error> {
         let view_key = PublicKey::decode(input)?;
-        let key_pairs = BTreeMap::new();
-        let public_keys = IndexSet::new();
         let staking_keys = IndexSet::new();
         let root_hashes = IndexSet::new();
 
         Ok(Wallet {
             view_key,
-            key_pairs,
-            public_keys,
             staking_keys,
             root_hashes,
         })
@@ -153,8 +144,6 @@ impl Wallet {
     pub fn new(view_key: PublicKey) -> Self {
         Self {
             view_key,
-            key_pairs: Default::default(),
-            public_keys: Default::default(),
             staking_keys: Default::default(),
             root_hashes: Default::default(),
         }
@@ -285,27 +274,8 @@ pub fn load_wallet<S: SecureStorage>(
         // storage -> wallet
         let info_keyspace = get_info_keyspace(name);
         new_wallet.view_key = read_pubkey_enc(storage, &info_keyspace, "viewkey", enckey)?;
-
         // pubkey
-        let public_keyspace = get_public_keyspace(name);
-        let private_keyspace = get_private_keyspace(name);
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-
-        let publickey_count: u64 = read_number(storage, &info_keyspace, "publicindex", Some(0))?;
-        for i in 0..publickey_count {
-            let pubkey = read_pubkey(storage, &public_keyspace, &format!("{}", i))?;
-            new_wallet.public_keys.insert(pubkey.clone());
-
-            if let Ok(value) =
-                storage.get_secure(private_keyspace.clone(), pubkey.serialize(), enckey)
-            {
-                if let Some(raw_value) = value {
-                    let privatekey = PrivateKey::deserialize_from(&raw_value)?;
-                    new_wallet.key_pairs.insert(pubkey, privatekey);
-                }
-            }
-        }
-
         let staking_keyspace = get_stakingkey_keyspace(name);
         let stakingkey_count: u64 =
             read_number(storage, &info_keyspace, "stakingkeyindex", Some(0))?;
@@ -374,16 +344,6 @@ where
             &wallet.view_key,
             enckey,
         )?;
-
-        for (pubkey, prikey) in &wallet.key_pairs {
-            self.add_key_pairs(&name, &enckey, &pubkey, &prikey)?
-        }
-
-        write_number(&self.storage, &info_keyspace, "publicindex", 0)?;
-        // pubkey
-        for public_key in wallet.public_keys.iter() {
-            self.add_public_key(name, enckey, public_key)?;
-        }
 
         // stakingkey
         write_number(&self.storage, &info_keyspace, "stakingkeyindex", 0)?;

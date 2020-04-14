@@ -11,6 +11,9 @@ use client_core::wallet::WalletRequest;
 use client_core::TransactionObfuscation;
 use std::sync::Arc;
 use std::sync::Mutex;
+use super::sync_worker::WorkerShared;
+use super::sync_worker::SyncWorker;
+use std::thread;
 
 pub trait CBindingCallback: Send + Sync {
     fn progress(&self, current: u64, start: u64, end: u64) -> i32;
@@ -27,6 +30,12 @@ pub struct CBindingCore {
 pub trait SyncRpc: Send + Sync {
     #[rpc(name = "sync")]
     fn sync(&self, request: WalletRequest) -> Result<()>;
+
+    #[rpc(name = "run_sync")]
+    fn run_sync(&self, request: WalletRequest) -> Result<String>;
+
+    #[rpc(name = "run_sync")]
+    fn run_sync_progress(&self, request: WalletRequest) -> Result<String>;
 
     #[rpc(name = "sync_all")]
     fn sync_all(&self, request: WalletRequest) -> Result<()>;
@@ -47,6 +56,7 @@ where
     config: ObfuscationSyncerConfig<S, C, O>,
     polling_synchronizer: PollingSynchronizer,
     progress_callback: Option<CBindingCore>,
+    worker:WorkerShared,
 }
 
 impl<S, C, O> SyncRpc for SyncRpcImpl<S, C, O>
@@ -61,7 +71,45 @@ where
     }
 
     #[inline]
-    fn sync_all(&self, request: WalletRequest) -> Result<()> {
+    fn run_sync_progress(&self, request: WalletRequest) -> Result<String>
+    {
+        let value= self.worker.lock().unwrap().get_progress(&request.name);
+        Ok(value.to_string())
+    }
+
+    #[inline]
+    fn run_sync(&self, request: WalletRequest) -> Result<String> {
+        let syncer = WalletSyncer::with_obfuscation_config(
+            self.config.clone(),
+            request.name.clone(),
+            request.enckey,
+        )
+        .map_err(to_rpc_error)?;
+
+        let name = request.name.clone();
+        if self.worker.lock().unwrap().exist(&name) {
+            return Ok("FAIL ALREADY EXISTS".to_string());
+        }
+        let m = format!("Started {}", name);
+        let worker = self.worker.clone();
+        thread::spawn( move || {
+            let tmpworker = worker;
+            tmpworker.lock().unwrap().add(&name);
+            // sync
+            syncer.sync(|_| true).map_err(to_rpc_error);
+            /*for i in 0..20 {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                println!("waiting {}", i);
+            }*/
+          //  self.do_sync(request, false);
+            tmpworker.lock().unwrap().remove(&name);
+        });
+        
+        Ok("Success".to_string())
+    }
+
+    #[inline]
+    fn sync_all(&self, request: WalletRequest) -> Result<()> {        
         self.do_sync(request, true)
     }
 
@@ -78,6 +126,8 @@ where
         Ok(())
     }
 }
+
+
 
 impl<S, C, O> SyncRpcImpl<S, C, O>
 where
@@ -96,6 +146,7 @@ where
             config,
             polling_synchronizer,
             progress_callback,
+            worker: Arc::new(Mutex::new(SyncWorker::new())),
         }
     }
 

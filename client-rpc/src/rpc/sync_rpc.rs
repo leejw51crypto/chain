@@ -11,6 +11,7 @@ use client_core::wallet::syncer::ProgressReport;
 use client_core::wallet::syncer::{ObfuscationSyncerConfig, WalletSyncer};
 use client_core::wallet::WalletRequest;
 use client_core::TransactionObfuscation;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
@@ -26,22 +27,45 @@ pub struct CBindingCore {
     pub data: Arc<Mutex<dyn CBindingCallback>>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum RunSyncResultCode {
+    Success,
+    AlreadySyncing,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RunSyncResult {
+    code: RunSyncResultCode,
+    name: String,
+    message: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct RunSyncProgressResult {
+    pub name: String,
+    pub message: String,
+    pub percent: f32,
+    pub current: u64,
+    pub start: u64,
+    pub end: u64,
+}
+
 #[rpc]
 pub trait SyncRpc: Send + Sync {
     #[rpc(name = "sync")]
     fn sync(&self, request: WalletRequest) -> Result<()>;
 
     #[rpc(name = "run_sync")]
-    fn run_sync(&self, request: WalletRequest) -> Result<String>;
+    fn run_sync(&self, request: WalletRequest) -> Result<RunSyncResult>;
 
     #[rpc(name = "run_sync_progress")]
-    fn run_sync_progress(&self, request: WalletRequest) -> Result<String>;
+    fn run_sync_progress(&self, request: WalletRequest) -> Result<RunSyncProgressResult>;
 
     #[rpc(name = "sync_all")]
     fn sync_all(&self, request: WalletRequest) -> Result<()>;
 
     #[rpc(name = "run_sync_all")]
-    fn run_sync_all(&self, request: WalletRequest) -> Result<String>;
+    fn run_sync_all(&self, request: WalletRequest) -> Result<RunSyncResult>;
 
     #[rpc(name = "sync_unlockWallet")]
     fn sync_unlock_wallet(&self, request: WalletRequest) -> Result<()>;
@@ -135,15 +159,20 @@ where
     O: TransactionObfuscation + 'static,
 {
     #[inline]
-    fn do_run_sync(&self, request: WalletRequest, reset: bool) -> Result<String> {
+    fn do_run_sync(&self, request: WalletRequest, reset: bool) -> Result<RunSyncResult> {
         log::info!("run_sync");
         let config = self.config.clone();
 
         let name = request.name.clone();
         let worker = self.worker.clone();
+        let userrequest = request.clone();
 
         if worker.lock().unwrap().exist(&name) {
-            return Ok(format!("wallet {} already in syncing", name));
+            return Ok(RunSyncResult {
+                code: RunSyncResultCode::AlreadySyncing,
+                message: format!("wallet {} already in syncing", name.clone()),
+                name,
+            });
         }
         let message = format!("started sync wallet {}", name);
 
@@ -155,7 +184,7 @@ where
             let usercallback = node.unwrap();
 
             let usercallback = Some(CBindingCore { data: usercallback });
-            let result = process_sync(config, request, reset, usercallback);
+            let result = process_sync(config, userrequest, reset, usercallback);
             log::info!("process_sync finished {} {:?}", name, result);
             // notify
             log::info!("wait for notification {}", name);
@@ -164,7 +193,11 @@ where
             log::info!("sync thread finished {}", name);
         });
 
-        Ok(message)
+        Ok(RunSyncResult {
+            code: RunSyncResultCode::Success,
+            message,
+            name: request.name,
+        })
     }
 }
 
@@ -185,18 +218,17 @@ where
     }
 
     #[inline]
-    fn run_sync_progress(&self, request: WalletRequest) -> Result<String> {
-        let value = self.worker.lock().unwrap().get_progress(&request.name);
-        Ok(value.to_string())
+    fn run_sync_progress(&self, request: WalletRequest) -> Result<RunSyncProgressResult> {
+        Ok(self.worker.lock().unwrap().get_progress(&request.name))
     }
 
     #[inline]
-    fn run_sync(&self, request: WalletRequest) -> Result<String> {
+    fn run_sync(&self, request: WalletRequest) -> Result<RunSyncResult> {
         self.do_run_sync(request, false)
     }
 
     #[inline]
-    fn run_sync_all(&self, request: WalletRequest) -> Result<String> {
+    fn run_sync_all(&self, request: WalletRequest) -> Result<RunSyncResult> {
         self.do_run_sync(request, true)
     }
 

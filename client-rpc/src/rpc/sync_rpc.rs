@@ -167,7 +167,7 @@ where
         let worker = self.worker.clone();
         let userrequest = request.clone();
 
-        if worker.lock().unwrap().exist(&name) {
+        if worker.lock().expect("get sync worker lock").exist(&name) {
             return Ok(RunSyncResult {
                 code: RunSyncResultCode::AlreadySyncing,
                 message: format!("wallet {} already in syncing", name.clone()),
@@ -179,9 +179,9 @@ where
         thread::spawn(move || {
             let tmpworker = worker;
 
-            tmpworker.lock().unwrap().add(&name);
-            let node = tmpworker.lock().unwrap().get(&name);
-            let usercallback = node.unwrap();
+            tmpworker.lock().expect("get sync worker lock").add(&name);
+            let node = tmpworker.lock().expect("get sync worker lock").get(&name);
+            let usercallback = node.expect("get progress callback");
 
             let usercallback = Some(CBindingCore { data: usercallback });
             let result = process_sync(config, userrequest, reset, usercallback);
@@ -189,7 +189,10 @@ where
             // notify
             log::info!("wait for notification {}", name);
             std::thread::sleep(std::time::Duration::from_secs(20));
-            tmpworker.lock().unwrap().remove(&name);
+            tmpworker
+                .lock()
+                .expect("get sync worker lock")
+                .remove(&name);
             log::info!("sync thread finished {}", name);
         });
 
@@ -219,7 +222,10 @@ where
 
     #[inline]
     fn run_sync_progress(&self, request: WalletRequest) -> Result<RunSyncProgressResult> {
-        self.worker.lock().unwrap().get_progress(&request.name)
+        self.worker
+            .lock()
+            .expect("get sync worker lock")
+            .get_progress(&request.name)
     }
 
     #[inline]

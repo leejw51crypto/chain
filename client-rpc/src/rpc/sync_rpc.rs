@@ -40,6 +40,9 @@ pub trait SyncRpc: Send + Sync {
     #[rpc(name = "sync_all")]
     fn sync_all(&self, request: WalletRequest) -> Result<()>;
 
+    #[rpc(name = "run_sync_all")]
+    fn run_sync_all(&self, request: WalletRequest) -> Result<String>;
+
     #[rpc(name = "sync_unlockWallet")]
     fn sync_unlock_wallet(&self, request: WalletRequest) -> Result<()>;
 
@@ -125,6 +128,46 @@ where
         .map_err(to_rpc_error)
 }
 
+impl<S, C, O> SyncRpcImpl<S, C, O>
+where
+    S: Storage + 'static,
+    C: Client + 'static,
+    O: TransactionObfuscation + 'static,
+{
+    #[inline]
+    fn do_run_sync(&self, request: WalletRequest, reset: bool) -> Result<String> {
+        log::info!("run_sync");
+        let config = self.config.clone();
+
+        let name = request.name.clone();
+        let worker = self.worker.clone();
+
+        if worker.lock().unwrap().exist(&name) {
+            return Ok(format!("wallet {} already in syncing", name));
+        }
+        let message = format!("started sync wallet {}", name);
+
+        thread::spawn(move || {
+            let tmpworker = worker;
+
+            tmpworker.lock().unwrap().add(&name);
+            let node = tmpworker.lock().unwrap().get(&name);
+            let usercallback = node.unwrap();
+
+            let usercallback = Some(CBindingCore { data: usercallback });
+            let result = process_sync(config, request, reset, usercallback);
+            log::info!("process_sync finished {} {:?}", name, result);
+            // notify
+            log::info!("wait for notification {}", name);
+            std::thread::sleep(std::time::Duration::from_secs(20));
+            tmpworker.lock().unwrap().remove(&name);
+            log::info!("sync thread finished {}", name);
+        });
+
+        Ok(message)
+    }
+}
+
 impl<S, C, O> SyncRpc for SyncRpcImpl<S, C, O>
 where
     S: Storage + 'static,
@@ -149,35 +192,12 @@ where
 
     #[inline]
     fn run_sync(&self, request: WalletRequest) -> Result<String> {
-        log::info!("run_sync");
-        let config = self.config.clone();
+        self.do_run_sync(request, false)
+    }
 
-        let name = request.name.clone();
-        let worker = self.worker.clone();
-
-        if worker.lock().unwrap().exist(&name) {
-            return Ok(format!("wallet {} already in syncing", name));
-        }
-        let message = format!("started sync wallet {}", name);
-
-        thread::spawn(move || {
-            let tmpworker = worker;
-
-            tmpworker.lock().unwrap().add(&name);
-            let node = tmpworker.lock().unwrap().get(&name);
-            let usercallback = node.unwrap();
-
-            let usercallback = Some(CBindingCore { data: usercallback });
-            let result = process_sync(config, request, false, usercallback);
-            log::info!("process_sync finished {} {:?}", name, result);
-            // notify
-            log::info!("wait for notification {}", name);
-            std::thread::sleep(std::time::Duration::from_secs(20));
-            tmpworker.lock().unwrap().remove(&name);
-            log::info!("sync thread finished {}", name);
-        });
-
-        Ok(message)
+    #[inline]
+    fn run_sync_all(&self, request: WalletRequest) -> Result<String> {
+        self.do_run_sync(request, true)
     }
 
     #[inline]

@@ -16,7 +16,7 @@ use super::sync_worker::SyncWorker;
 use std::thread;
 
 pub trait CBindingCallback: Send + Sync {
-    fn progress(&self, current: u64, start: u64, end: u64) -> i32;
+    fn progress(&mut self, current: u64, start: u64, end: u64) -> i32;
     fn set_user(&mut self, user: u64);
     fn get_user(&self) -> u64;
 }
@@ -91,7 +91,7 @@ where S: Storage, C:Client, O:TransactionObfuscation
                     final_block_height = finish_block_height;
                     if let Some(delegator) = &progress_callback {
                         {
-                            let user_callback =
+                            let mut user_callback =
                                 delegator.data.lock().expect("get cbinding callback");
                             user_callback.progress(0, init_block_height, final_block_height);
                             return true;
@@ -105,7 +105,7 @@ where S: Storage, C:Client, O:TransactionObfuscation
                 } => {
                     if let Some(delegator) = &progress_callback {
                         {
-                            let user_callback =
+                            let mut user_callback =
                                 delegator.data.lock().expect("get cbinding callback");
                             return 1
                                 == user_callback.progress(

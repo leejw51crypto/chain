@@ -1,9 +1,8 @@
-use jsonrpc_core::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use super::sync_rpc::{CBindingCallback, CBindingCore};
+use super::sync_rpc::CBindingCallback;
 #[derive(Default)]
 pub struct SyncWorkerNode {
     pub user_data: u64,
@@ -29,13 +28,31 @@ impl CBindingCallback for SyncWorkerNode {
     }
 
     fn progress(&mut self, current: u64, start: u64, end: u64) -> i32 {
-        log::debug!("sync progress {} {}~{}", current, start, end);
-        let mut gap: f32 = 0.0;
-        let mut rate: f32 = 0.0;
-        if current >= start && end > start {
-            gap = (end - start) as f32;
-            rate = ((current - start) as f32) / gap * 100.0;
+        let rate = if current >= start && end > start {
+            let gap: f32 = (end - start) as f32;
+            ((current - start) as f32) / gap * 100.0
+        } else {
+            0.0
+        };
+
+        if current == end || 0 == (rate as i32) % 10 {
+            log::info!(
+                "sync progress {} percent  {} {}~{}",
+                rate,
+                current,
+                start,
+                end
+            );
+        } else {
+            log::debug!(
+                "sync progress {} percent  {} {}~{}",
+                rate,
+                current,
+                start,
+                end
+            );
         }
+
         self.progress = rate;
         // OK
         1
@@ -80,9 +97,9 @@ impl SyncWorker {
     }
     pub fn get_progress(&self, key: &str) -> f32 {
         if self.works.contains_key(key) {
-            return self.works.get(key).unwrap().lock().unwrap().progress;
+            self.works.get(key).unwrap().lock().unwrap().progress
         } else {
-            return 0.0;
+            0.0
         }
     }
     pub fn exist(&self, thread: &str) -> bool {

@@ -37,9 +37,11 @@ use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash};
 
 use kvdb::KeyValueDB;
+use starling::traits::Exception;
 
-use chain_core::state::account::{StakedState, StakedStateAddress};
+use chain_core::state::account::{to_stake_key, StakedState, StakedStateAddress};
 
+use crate::account::{AccountStorage as StakingStorage, AccountWrapper, StarlingFixedKey};
 use crate::Storage;
 
 pub trait Get {
@@ -85,6 +87,29 @@ pub trait StoreStaking: SimpleStore<Key = StakedStateAddress, Value = StakedStat
     }
 }
 impl<S> StoreStaking for S where S: SimpleStore<Key = StakedStateAddress, Value = StakedState> {}
+
+/// Implement `Get` for readonly merkle trie.
+pub struct StakingGetter<'a> {
+    storage: &'a StakingStorage,
+    root: Option<StarlingFixedKey>,
+}
+impl<'a> StakingGetter<'a> {
+    pub fn new(storage: &'a StakingStorage, root: Option<StarlingFixedKey>) -> Self {
+        Self { storage, root }
+    }
+}
+impl<'a> Get for StakingGetter<'a> {
+    type Key = StakedStateAddress;
+    type Value = StakedState;
+    fn get(&self, key: &Self::Key) -> Option<Self::Value> {
+        self.root.as_ref().and_then(|root| {
+            self.storage
+                .get_one(root, &to_stake_key(key))
+                .unwrap()
+                .map(|AccountWrapper(o)| o)
+        })
+    }
+}
 
 /// Generic readonly buffered storage implementation
 pub struct BufferGetter<'a, S: Get, H> {
@@ -210,6 +235,11 @@ where
     }
 }
 
+/// Specialized for staking
+pub type StakingBufferStore<'a, H> = BufferSimpleStore<'a, StakingGetter<'a>, H>;
+/// Specialized for staking
+pub type StakingBufferGetter<'a, H> = BufferGetter<'a, StakingGetter<'a>, H>;
+
 /// Dummy storage implemented with a HashMap in memory.
 #[derive(Debug, Clone)]
 pub struct MemStore<K: Hash + Eq, V>(HashMap<K, V>);
@@ -260,6 +290,22 @@ where
 /// Buffer used for staking storage
 pub type StakingBuffer = HashMap<StakedStateAddress, StakedState>;
 
+/// Flush buffer to merkle trie, and return the new root
+pub fn flush_staking_storage(
+    storage: &mut StakingStorage,
+    root: Option<StarlingFixedKey>,
+    buffer: StakingBuffer,
+) -> Result<Option<StarlingFixedKey>, Exception> {
+    let (mut keys, values): (Vec<_>, Vec<_>) = buffer
+        .into_iter()
+        .map(|(addr, v)| (to_stake_key(&addr), AccountWrapper(v)))
+        .unzip();
+    if keys.is_empty() {
+        return Ok(root);
+    }
+    Ok(Some(storage.insert(root.as_ref(), &mut keys, &values)?))
+}
+
 /// Buffer used for key-value storage
 pub type KVBuffer = HashMap<(u32, Vec<u8>), Option<Vec<u8>>>;
 
@@ -307,31 +353,63 @@ mod tests {
     use kvdb::KeyValueDB;
     use kvdb_memorydb::{create as create_memorydb, InMemory};
 
+    use chain_core::state::account::{StakedState, StakedStateAddress};
+
     use super::*;
+    use crate::account::{pure_account_storage, AccountStorage as StakingStorage};
 
     // demonstrate how to use buffered store in the chain abci app.
     struct App<D: KeyValueDB> {
         kvdb: D,
+        trie: StakingStorage,
+        root: Option<StarlingFixedKey>,
+
         tmp_kv_buffer: KVBuffer,
+        tmp_trie_buffer: StakingBuffer,
+
         kv_buffer: KVBuffer,
+        trie_buffer: StakingBuffer,
     }
 
     impl<D: KeyValueDB> App<D> {
-        fn new(kvdb: D) -> Self {
+        fn new(kvdb: D, trie: StakingStorage) -> Self {
             Self {
                 kvdb,
+                trie,
+                root: None,
                 tmp_kv_buffer: HashMap::new(),
+                tmp_trie_buffer: HashMap::new(),
                 kv_buffer: HashMap::new(),
+                trie_buffer: HashMap::new(),
             }
         }
 
         fn commit(&mut self) {
             flush_kvdb(&self.kvdb, mem::take(&mut self.kv_buffer)).unwrap();
+            self.root =
+                flush_staking_storage(&mut self.trie, self.root, mem::take(&mut self.trie_buffer))
+                    .unwrap();
+
             self.tmp_kv_buffer.clear();
+            self.tmp_trie_buffer.clear();
+        }
+
+        fn staking_store(&mut self) -> impl StoreStaking + '_ {
+            StakingBufferStore::new(
+                StakingGetter::new(&self.trie, self.root),
+                &mut self.trie_buffer,
+            )
         }
 
         fn kv_store(&mut self) -> impl StoreKV + '_ {
             BufferStore::new(&self.kvdb, &mut self.kv_buffer)
+        }
+
+        fn tmp_staking_store(&mut self) -> impl StoreStaking + '_ {
+            StakingBufferStore::new(
+                StakingGetter::new(&self.trie, self.root),
+                &mut self.tmp_trie_buffer,
+            )
         }
 
         fn tmp_kv_store(&mut self) -> impl StoreKV + '_ {
@@ -341,8 +419,42 @@ mod tests {
 
     impl App<InMemory> {
         fn new_memory() -> Self {
-            Self::new(create_memorydb(1))
+            Self::new(create_memorydb(1), pure_account_storage(20).unwrap())
         }
+    }
+
+    #[test]
+    fn check_staking_store() {
+        let mut app = App::new_memory();
+        let staking1 = StakedState::default(StakedStateAddress::BasicRedeem([0xcc; 20].into()));
+        let staking2 = StakedState::default(StakedStateAddress::BasicRedeem([0xcd; 20].into()));
+        app.staking_store().set_staking(staking1.clone());
+        app.tmp_staking_store().set_staking(staking2.clone());
+        assert_eq!(
+            app.staking_store().get(&staking1.address).unwrap(),
+            staking1
+        );
+        assert_eq!(
+            app.tmp_staking_store().get(&staking2.address).unwrap(),
+            staking2
+        );
+        // no conflict between two buffers.
+        assert!(app.staking_store().get(&staking2.address).is_none());
+        assert!(app.tmp_staking_store().get(&staking1.address).is_none());
+
+        app.commit();
+
+        // after commit, staking1 is committed, staking2 is dropped
+        assert_eq!(
+            app.staking_store().get(&staking1.address).unwrap(),
+            staking1
+        );
+        assert_eq!(
+            app.tmp_staking_store().get(&staking1.address).unwrap(),
+            staking1
+        );
+        assert!(app.staking_store().get(&staking2.address).is_none(),);
+        assert!(app.tmp_staking_store().get(&staking2.address).is_none(),);
     }
 
     #[test]

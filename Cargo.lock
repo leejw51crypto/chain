@@ -333,9 +333,9 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "0.3.2"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "550fc503a8b30d8dcbe2217ab58c3367ada2137e5df2aec91d39f4a53e4ffada"
+checksum = "7bd3c29b0e8eedf3a4424b8b2ee09518fc9e95b7efe257000c356827e6353584"
 dependencies = [
  "arrayref",
  "arrayvec 0.5.1",
@@ -488,6 +488,7 @@ dependencies = [
  "integer-encoding",
  "kvdb",
  "kvdb-memorydb",
+ "kvdb-rocksdb",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec",
  "protobuf",
@@ -500,6 +501,7 @@ dependencies = [
  "sgx_types",
  "sgx_urts",
  "sha3",
+ "starling",
  "structopt",
  "test-common",
  "thiserror",
@@ -534,17 +536,16 @@ dependencies = [
 name = "chain-storage"
 version = "0.4.0"
 dependencies = [
- "anyhow",
  "bit-vec 0.6.1",
  "blake3",
  "chain-core",
  "integer-encoding",
- "jellyfish-merkle",
  "kvdb",
  "kvdb-memorydb",
  "kvdb-rocksdb",
  "parity-scale-codec",
  "quickcheck",
+ "starling",
 ]
 
 [[package]]
@@ -1972,25 +1973,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8b7a7c0c47db5545ed3fef7468ee7bb5b74691498139e4b3f6a20685dc6dd8e"
 
 [[package]]
-name = "jellyfish-merkle"
-version = "0.1.0"
-source = "git+https://github.com/crypto-com/jellyfish-merkle-tree.git?rev=42c0fb190b4034c7939f8876d3f539bd2ff74cd9#42c0fb190b4034c7939f8876d3f539bd2ff74cd9"
-dependencies = [
- "anyhow",
- "byteorder",
- "libra-canonical-serialization",
- "libra-crypto",
- "libra-crypto-derive",
- "libra-nibble",
- "libra-types",
- "mirai-annotations",
- "num-derive",
- "num-traits 0.2.11",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "jobserver"
 version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2010,9 +1992,9 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-client-transports"
-version = "14.1.0"
+version = "14.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2307a7e78cf969759e390a8a2151ea12e783849a45bb00aa871b468ba58ea79e"
+checksum = "0a9ae166c4d1f702d297cd76d4b55758ace80272ffc6dbb139fdc1bf810de40b"
 dependencies = [
  "failure",
  "futures 0.1.29",
@@ -2026,9 +2008,9 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-core"
-version = "14.1.0"
+version = "14.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25525f6002338fb4debb5167a89a0b47f727a5a48418417545ad3429758b7fec"
+checksum = "fe3b688648f1ef5d5072229e2d672ecb92cbff7d1c79bcf3fd5898f3f3df0970"
 dependencies = [
  "futures 0.1.29",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2039,9 +2021,9 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-core-client"
-version = "14.1.0"
+version = "14.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f9382e831a6d630c658df103aac3f971da096deb57c136ea2b760d3b4e3f9f"
+checksum = "080dc110be17701097df238fad3c816d4a478a1899dfbcf8ec8957dd40ec7304"
 dependencies = [
  "jsonrpc-client-transports",
 ]
@@ -2060,9 +2042,9 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-http-server"
-version = "14.1.0"
+version = "14.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d52860f0549694aa4abb12766856f56952ab46d3fb9f0815131b2db3d9cc2f29"
+checksum = "816d63997ea45d3634608edbef83ddb35e661f7c0b27b5b72f237e321f0e9807"
 dependencies = [
  "hyper 0.12.35",
  "jsonrpc-core",
@@ -2075,9 +2057,9 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-pubsub"
-version = "14.1.0"
+version = "14.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4ca5e391d6c6a2261d4adca029f427fe63ea546ad6cef2957c654c08495ec16"
+checksum = "5b31c9b90731276fdd24d896f31bb10aecf2e5151733364ae81123186643d939"
 dependencies = [
  "jsonrpc-core",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2087,9 +2069,9 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-server-utils"
-version = "14.1.0"
+version = "14.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f06add502b48351e05dd95814835327fb115e4e9f834ca42fd522d3b769d4d2"
+checksum = "95b7635e618a0edbbe0d2a2bbbc69874277c49383fcf6c3c0414491cfb517d22"
 dependencies = [
  "bytes 0.4.12",
  "globset",
@@ -2208,66 +2190,6 @@ checksum = "f2b111a074963af1d37a139918ac6d49ad1d0d5e47f72fd55388619691a7d753"
 dependencies = [
  "cc",
  "winapi 0.3.8",
-]
-
-[[package]]
-name = "libra-canonical-serialization"
-version = "0.1.0"
-source = "git+https://github.com/crypto-com/jellyfish-merkle-tree.git?rev=42c0fb190b4034c7939f8876d3f539bd2ff74cd9#42c0fb190b4034c7939f8876d3f539bd2ff74cd9"
-dependencies = [
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "libra-crypto"
-version = "0.1.0"
-source = "git+https://github.com/crypto-com/jellyfish-merkle-tree.git?rev=42c0fb190b4034c7939f8876d3f539bd2ff74cd9#42c0fb190b4034c7939f8876d3f539bd2ff74cd9"
-dependencies = [
- "anyhow",
- "blake3",
- "bytes 0.5.4",
- "digest 0.8.1",
- "hex 0.4.2",
- "hmac",
- "libra-crypto-derive",
- "libra-nibble",
- "mirai-annotations",
- "once_cell",
- "rand 0.6.5",
- "serde",
- "sha2",
- "thiserror",
-]
-
-[[package]]
-name = "libra-crypto-derive"
-version = "0.1.0"
-source = "git+https://github.com/crypto-com/jellyfish-merkle-tree.git?rev=42c0fb190b4034c7939f8876d3f539bd2ff74cd9#42c0fb190b4034c7939f8876d3f539bd2ff74cd9"
-dependencies = [
- "proc-macro2 1.0.10",
- "quote 1.0.3",
- "syn 1.0.17",
-]
-
-[[package]]
-name = "libra-nibble"
-version = "0.1.0"
-source = "git+https://github.com/crypto-com/jellyfish-merkle-tree.git?rev=42c0fb190b4034c7939f8876d3f539bd2ff74cd9#42c0fb190b4034c7939f8876d3f539bd2ff74cd9"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "libra-types"
-version = "0.1.0"
-source = "git+https://github.com/crypto-com/jellyfish-merkle-tree.git?rev=42c0fb190b4034c7939f8876d3f539bd2ff74cd9#42c0fb190b4034c7939f8876d3f539bd2ff74cd9"
-dependencies = [
- "anyhow",
- "libra-crypto",
- "libra-crypto-derive",
- "mirai-annotations",
- "serde",
 ]
 
 [[package]]
@@ -2412,12 +2334,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mirai-annotations"
-version = "1.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb967d27c8ae70e45f44a8f6b615f292fd865cf07f72573b1edd75f399790422"
-
-[[package]]
 name = "native-tls"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2515,17 +2431,6 @@ dependencies = [
  "autocfg 1.0.0",
  "num-integer 0.1.42",
  "num-traits 0.2.11",
-]
-
-[[package]]
-name = "num-derive"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c8b15b261814f992e33760b1fca9fe8b693d8a65299f20c9901688636cfb746"
-dependencies = [
- "proc-macro2 1.0.10",
- "quote 1.0.3",
- "syn 1.0.17",
 ]
 
 [[package]]
@@ -4043,6 +3948,12 @@ name = "stable_deref_trait"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dba1a27d3efae4351c8051072d619e3ade2820635c3958d826bfea39d59b54c8"
+
+[[package]]
+name = "starling"
+version = "3.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e31f22b013888d2337d4a7f4443e13d67b0fcc87d6f1461b5c437089f60a3cce"
 
 [[package]]
 name = "static_assertions"

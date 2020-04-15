@@ -1,11 +1,9 @@
+pub mod account;
 mod api;
 pub mod buffer;
-pub mod jellyfish;
 
-use crate::buffer::{flush_storage, BufferStore, Get, KVBuffer};
-use crate::jellyfish::{put_stakings, Version};
+use crate::buffer::Get;
 use chain_core::common::H256;
-use chain_core::state::account::StakedState;
 use chain_core::state::tendermint::BlockHeight;
 use chain_core::tx::data::TxId;
 use kvdb::{DBTransaction, KeyValueDB};
@@ -33,12 +31,8 @@ pub const COL_APP_HASHS: u32 = 6;
 pub const COL_APP_STATES: u32 = 7;
 /// Column for sealed transction payload: TxId => sealed tx payload (to MRSIGNER on a particular machine)
 pub const COL_ENCLAVE_TX: u32 = 8;
-/// Column for merkle trie storage
-pub const COL_TRIE_NODE: u32 = 9;
-/// Column for staled node key in merkle trie
-pub const COL_TRIE_STALED: u32 = 10;
 /// Number of columns in DB
-pub const NUM_COLUMNS: u32 = 11;
+pub const NUM_COLUMNS: u32 = 9;
 
 pub const CHAIN_ID_KEY: &[u8] = b"chain_id";
 pub const GENESIS_APP_HASH_KEY: &[u8] = b"genesis_app_hash";
@@ -233,17 +227,5 @@ impl Storage {
         } else {
             Ok(())
         }
-    }
-
-    pub fn put_stakings(&mut self, version: Version, stakings: &[StakedState]) -> H256 {
-        let mut kv_buffer = KVBuffer::new();
-        let root_hash = put_stakings(
-            &mut BufferStore::new(self, &mut kv_buffer),
-            version,
-            stakings.iter(),
-        )
-        .unwrap();
-        flush_storage(self, kv_buffer).unwrap();
-        root_hash
     }
 }

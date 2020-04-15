@@ -1,4 +1,4 @@
-use super::sync_rpc::CBindingCallback;
+use super::sync_rpc::{CBindingCallback, RunSyncProgressResult};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -6,17 +6,18 @@ use std::time::Instant;
 
 pub struct SyncWorkerNode {
     pub user_data: u64,
-    // 0.0 ~ 100.0
-    pub progress: f32,
+    pub progress: RunSyncProgressResult,
     counter: Instant,
 }
 impl SyncWorkerNode {
-    fn new() -> Self {
-        SyncWorkerNode {
-            progress: 0.0,
+    fn new(name: &str) -> Self {
+        let mut ret = SyncWorkerNode {
+            progress: RunSyncProgressResult::default(),
             user_data: 0,
             counter: Instant::now(),
-        }
+        };
+        ret.progress.name = name.to_string();
+        ret
     }
 }
 
@@ -37,26 +38,27 @@ impl CBindingCallback for SyncWorkerNode {
             0.0
         };
 
+        let status: String;
         if current == end || self.counter.elapsed().as_millis() > 250 {
-            log::info!(
+            status = format!(
                 "sync progress {} percent  {} {}~{}",
-                rate,
-                current,
-                start,
-                end
+                rate, current, start, end
             );
+            log::info!("{}", status);
             self.counter = Instant::now();
         } else {
-            log::debug!(
+            status = format!(
                 "sync progress {} percent  {} {}~{}",
-                rate,
-                current,
-                start,
-                end
+                rate, current, start, end
             );
+            log::debug!("{}", status);
         }
 
-        self.progress = rate;
+        self.progress.percent = rate;
+        self.progress.current = current;
+        self.progress.start = start;
+        self.progress.end = end;
+        self.progress.message = status;
 
         // OK
         1
@@ -87,7 +89,7 @@ impl SyncWorker {
     pub fn add(&mut self, newthread: &str) {
         self.works.insert(
             newthread.to_string(),
-            Arc::new(Mutex::new(SyncWorkerNode::new())),
+            Arc::new(Mutex::new(SyncWorkerNode::new(newthread))),
         );
         log::info!("add sync thread {} total {}", newthread, self.works.len());
     }
@@ -99,11 +101,17 @@ impl SyncWorker {
             self.works.len()
         );
     }
-    pub fn get_progress(&self, key: &str) -> f32 {
+    pub fn get_progress(&self, key: &str) -> RunSyncProgressResult {
         if self.works.contains_key(key) {
-            self.works.get(key).unwrap().lock().unwrap().progress
+            self.works
+                .get(key)
+                .unwrap()
+                .lock()
+                .unwrap()
+                .progress
+                .clone()
         } else {
-            0.0
+            RunSyncProgressResult::default()
         }
     }
     pub fn exist(&self, thread: &str) -> bool {

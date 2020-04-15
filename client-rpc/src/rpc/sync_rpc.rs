@@ -219,7 +219,7 @@ where
 
     #[inline]
     fn run_sync_progress(&self, request: WalletRequest) -> Result<RunSyncProgressResult> {
-        Ok(self.worker.lock().unwrap().get_progress(&request.name))
+        self.worker.lock().unwrap().get_progress(&request.name)
     }
 
     #[inline]

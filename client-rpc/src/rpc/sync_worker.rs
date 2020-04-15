@@ -1,9 +1,10 @@
 use super::sync_rpc::{CBindingCallback, RunSyncProgressResult};
+use crate::server::rpc_error_from_string;
+use jsonrpc_core::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
-
 pub struct SyncWorkerNode {
     pub user_data: u64,
     pub progress: RunSyncProgressResult,
@@ -101,17 +102,13 @@ impl SyncWorker {
             self.works.len()
         );
     }
-    pub fn get_progress(&self, key: &str) -> RunSyncProgressResult {
-        if self.works.contains_key(key) {
-            self.works
-                .get(key)
-                .unwrap()
-                .lock()
-                .unwrap()
-                .progress
-                .clone()
+    pub fn get_progress(&self, key: &str) -> Result<RunSyncProgressResult> {
+        if let Some(value) = self.works.get(key) {
+            Ok(value.lock().unwrap().progress.clone())
         } else {
-            RunSyncProgressResult::default()
+            Err(rpc_error_from_string(
+                "wallet is not running sync".to_owned(),
+            ))
         }
     }
     pub fn exist(&self, thread: &str) -> bool {

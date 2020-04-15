@@ -1,19 +1,21 @@
+use super::sync_rpc::CBindingCallback;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Instant;
 
-use super::sync_rpc::CBindingCallback;
-#[derive(Default)]
 pub struct SyncWorkerNode {
     pub user_data: u64,
     // 0.0 ~ 100.0
     pub progress: f32,
+    counter: Instant,
 }
 impl SyncWorkerNode {
     fn new() -> Self {
         SyncWorkerNode {
             progress: 0.0,
             user_data: 0,
+            counter: Instant::now(),
         }
     }
 }
@@ -35,7 +37,7 @@ impl CBindingCallback for SyncWorkerNode {
             0.0
         };
 
-        if current == end || 0 == (rate as i32) % 10 {
+        if current == end || self.counter.elapsed().as_millis() > 250 {
             log::info!(
                 "sync progress {} percent  {} {}~{}",
                 rate,
@@ -43,6 +45,7 @@ impl CBindingCallback for SyncWorkerNode {
                 start,
                 end
             );
+            self.counter = Instant::now();
         } else {
             log::debug!(
                 "sync progress {} percent  {} {}~{}",
@@ -54,6 +57,7 @@ impl CBindingCallback for SyncWorkerNode {
         }
 
         self.progress = rate;
+
         // OK
         1
     }

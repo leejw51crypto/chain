@@ -142,34 +142,29 @@ where
     }
 
     #[inline]
-    fn run_sync(&self, request: WalletRequest) -> Result<String> {
-        let syncer = WalletSyncer::with_obfuscation_config(
-            self.config.clone(),
-            request.name.clone(),
-            request.enckey,
-        )
-        .map_err(to_rpc_error)?;
+    fn run_sync(&self, request: WalletRequest) -> Result<String> {        
+        let config= self.config.clone();
+        let usercallback= self.progress_callback.clone();
+        
 
         let name = request.name.clone();
         if self.worker.lock().unwrap().exist(&name) {
-            return Ok("FAIL ALREADY EXISTS".to_string());
-        }
-        let m = format!("Started {}", name);
-        let worker = self.worker.clone();
+            return Ok(format!("Wallet {} Already In Syncing", name).to_string());
+        }        
+        let message=format!("Started Sync Wallet {}", name);
+        let worker = self.worker.clone();        
         thread::spawn( move || {
             let tmpworker = worker;
-            tmpworker.lock().unwrap().add(&name);
-            // sync
-            syncer.sync(|_| true).map_err(to_rpc_error);
-            /*for i in 0..20 {
+            tmpworker.lock().unwrap().add(&name);            
+            for i in 0..20 {
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 println!("waiting {}", i);
-            }*/
-          
+            }
+            let _result=process_sync(config, request, false, usercallback);          
             tmpworker.lock().unwrap().remove(&name);
         });
         
-        Ok("Success".to_string())
+        Ok(message)
     }
 
     #[inline]

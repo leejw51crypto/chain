@@ -59,6 +59,70 @@ where
     worker:WorkerShared,
 }
 
+fn process_sync<S,C,O> (config: ObfuscationSyncerConfig<S, C, O>, request: WalletRequest, reset: bool,    progress_callback: Option<CBindingCore>
+) -> Result<()>
+where S: Storage, C:Client, O:TransactionObfuscation
+{
+    let syncer = WalletSyncer::with_obfuscation_config(
+        config.clone(),
+        request.name,
+        request.enckey,
+    )
+    .map_err(to_rpc_error)?;
+    if reset {
+        syncer.reset_state().map_err(to_rpc_error)?;
+    }
+
+    if progress_callback.is_none() {
+        return syncer.sync(|_| true).map_err(to_rpc_error);
+    }
+
+    let mut init_block_height = 0;
+    let mut final_block_height = 0;
+    syncer
+        .sync(|report: ProgressReport| -> bool {
+            match report {
+                ProgressReport::Init {
+                    start_block_height,
+                    finish_block_height,
+                    ..
+                } => {
+                    init_block_height = start_block_height;
+                    final_block_height = finish_block_height;
+                    if let Some(delegator) = &progress_callback {
+                        {
+                            let user_callback =
+                                delegator.data.lock().expect("get cbinding callback");
+                            user_callback.progress(0, init_block_height, final_block_height);
+                            return true;
+                        }
+                    }
+                    true
+                }
+                ProgressReport::Update {
+                    current_block_height,
+                    ..
+                } => {
+                    if let Some(delegator) = &progress_callback {
+                        {
+                            let user_callback =
+                                delegator.data.lock().expect("get cbinding callback");
+                            return 1
+                                == user_callback.progress(
+                                    current_block_height,
+                                    init_block_height,
+                                    final_block_height,
+                                );
+                        }
+                    }
+                    true
+                }
+            }
+        })
+        .map_err(to_rpc_error)
+}
+
+
 impl<S, C, O> SyncRpc for SyncRpcImpl<S, C, O>
 where
     S: Storage + 'static,
@@ -66,8 +130,8 @@ where
     O: TransactionObfuscation + 'static,
 {
     #[inline]
-    fn sync(&self, request: WalletRequest) -> Result<()> {
-        self.do_sync(request, false)
+    fn sync(&self, request: WalletRequest) -> Result<()> {        
+        process_sync(self.config.clone(), request, false, self.progress_callback.clone())
     }
 
     #[inline]
@@ -101,7 +165,7 @@ where
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 println!("waiting {}", i);
             }*/
-          //  self.do_sync(request, false);
+          
             tmpworker.lock().unwrap().remove(&name);
         });
         
@@ -109,8 +173,8 @@ where
     }
 
     #[inline]
-    fn sync_all(&self, request: WalletRequest) -> Result<()> {        
-        self.do_sync(request, true)
+    fn sync_all(&self, request: WalletRequest) -> Result<()> {                
+        process_sync(self.config.clone(), request, true, self.progress_callback.clone())
     }
 
     #[inline]
@@ -150,65 +214,7 @@ where
         }
     }
 
-    fn do_sync(&self, request: WalletRequest, reset: bool) -> Result<()> {
-        let syncer = WalletSyncer::with_obfuscation_config(
-            self.config.clone(),
-            request.name,
-            request.enckey,
-        )
-        .map_err(to_rpc_error)?;
-        if reset {
-            syncer.reset_state().map_err(to_rpc_error)?;
-        }
 
-        if self.progress_callback.is_none() {
-            return syncer.sync(|_| true).map_err(to_rpc_error);
-        }
-
-        let mut init_block_height = 0;
-        let mut final_block_height = 0;
-        syncer
-            .sync(|report: ProgressReport| -> bool {
-                match report {
-                    ProgressReport::Init {
-                        start_block_height,
-                        finish_block_height,
-                        ..
-                    } => {
-                        init_block_height = start_block_height;
-                        final_block_height = finish_block_height;
-                        if let Some(delegator) = &self.progress_callback {
-                            {
-                                let user_callback =
-                                    delegator.data.lock().expect("get cbinding callback");
-                                user_callback.progress(0, init_block_height, final_block_height);
-                                return true;
-                            }
-                        }
-                        true
-                    }
-                    ProgressReport::Update {
-                        current_block_height,
-                        ..
-                    } => {
-                        if let Some(delegator) = &self.progress_callback {
-                            {
-                                let user_callback =
-                                    delegator.data.lock().expect("get cbinding callback");
-                                return 1
-                                    == user_callback.progress(
-                                        current_block_height,
-                                        init_block_height,
-                                        final_block_height,
-                                    );
-                            }
-                        }
-                        true
-                    }
-                }
-            })
-            .map_err(to_rpc_error)
-    }
 }
 
 impl<S, C, O> Drop for SyncRpcImpl<S, C, O>

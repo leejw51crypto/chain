@@ -1,8 +1,6 @@
-use jsonrpc_core::Result;
-use jsonrpc_derive::rpc;
-
 use super::sync_worker::SyncWorker;
 use super::sync_worker::WorkerShared;
+use crate::server::rpc_error_from_string;
 use crate::server::to_rpc_error;
 use client_common::tendermint::Client;
 use client_common::Storage;
@@ -11,6 +9,8 @@ use client_core::wallet::syncer::ProgressReport;
 use client_core::wallet::syncer::{ObfuscationSyncerConfig, WalletSyncer};
 use client_core::wallet::WalletRequest;
 use client_core::TransactionObfuscation;
+use jsonrpc_core::Result;
+use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -28,14 +28,7 @@ pub struct CBindingCore {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum RunSyncResultCode {
-    Success,
-    AlreadySyncing,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RunSyncResult {
-    code: RunSyncResultCode,
     name: String,
     message: String,
 }
@@ -168,13 +161,10 @@ where
         let userrequest = request.clone();
 
         if worker.lock().expect("get sync worker lock").exist(&name) {
-            return Ok(RunSyncResult {
-                code: RunSyncResultCode::AlreadySyncing,
-                message: format!("wallet {} already in syncing", name.clone()),
-                name,
-            });
+            return Err(rpc_error_from_string(
+                "wallet already running sync".to_owned(),
+            ));
         }
-        let message = format!("started sync wallet {}", name);
 
         thread::spawn(move || {
             let tmpworker = worker;
@@ -197,8 +187,7 @@ where
         });
 
         Ok(RunSyncResult {
-            code: RunSyncResultCode::Success,
-            message,
+            message: "started sync wallet".to_string(),
             name: request.name,
         })
     }

@@ -70,9 +70,8 @@ where
     C: Client,
     O: TransactionObfuscation,
 {
-    let syncer =
-        WalletSyncer::with_obfuscation_config(config.clone(), request.name, request.enckey)
-            .map_err(to_rpc_error)?;
+    let syncer = WalletSyncer::with_obfuscation_config(config, request.name, request.enckey)
+        .map_err(to_rpc_error)?;
     if reset {
         syncer.reset_state().map_err(to_rpc_error)?;
     }
@@ -157,9 +156,9 @@ where
         let worker = self.worker.clone();
 
         if worker.lock().unwrap().exist(&name) {
-            return Ok(format!("Wallet {} Already In Syncing", name).to_string());
+            return Ok(format!("wallet {} already in syncing", name));
         }
-        let message = format!("Started Sync Wallet {}", name);
+        let message = format!("started sync wallet {}", name);
 
         thread::spawn(move || {
             let tmpworker = worker;

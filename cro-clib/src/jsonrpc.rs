@@ -148,7 +148,7 @@ fn do_jsonrpc_call(
     let tendermint_client = WebsocketRpcClient::new(websocket_url)?;
     let wallet_client = make_wallet_client(storage.clone(), tendermint_client.clone())?;
     let ops_client = make_ops_client(storage.clone(), tendermint_client.clone())?;
-    let syncer_config = make_syncer_config(storage, tendermint_client)?;
+    let syncer_config = make_syncer_config(storage.clone(), tendermint_client.clone())?;
 
     let multisig_rpc = MultiSigRpcImpl::new(wallet_client.clone());
     let transaction_rpc = TransactionRpcImpl::new(network_id);
@@ -160,7 +160,9 @@ fn do_jsonrpc_call(
             user_data: user_data as u64,
         })),
     };
-    let sync_rpc = SyncRpcImpl::new(syncer_config, Some(cbindingcallback));
+    let sync_wallet_client = make_wallet_client(storage.clone(), tendermint_client.clone())?;
+
+    let sync_rpc = SyncRpcImpl::new(syncer_config, Some(cbindingcallback), sync_wallet_client);
     let wallet_rpc = WalletRpcImpl::new(wallet_client, network_id);
 
     io.extend_with(multisig_rpc.to_delegate());
@@ -267,7 +269,7 @@ pub unsafe extern "C" fn cro_create_jsonrpc(
     let tendermint_client = WebsocketRpcClient::new(&websocket_url).unwrap();
     let wallet_client = make_wallet_client(storage.clone(), tendermint_client.clone()).unwrap();
     let ops_client = make_ops_client(storage.clone(), tendermint_client.clone()).unwrap();
-    let syncer_config = make_syncer_config(storage, tendermint_client).unwrap();
+    let syncer_config = make_syncer_config(storage.clone(), tendermint_client.clone()).unwrap();
 
     let multisig_rpc = MultiSigRpcImpl::new(wallet_client.clone());
     let transaction_rpc = TransactionRpcImpl::new(network_id);
@@ -280,7 +282,14 @@ pub unsafe extern "C" fn cro_create_jsonrpc(
         })),
     };
 
-    let sync_rpc = SyncRpcImpl::new(syncer_config, Some(cbindingcallback.clone()));
+    let sync_wallet_client =
+        make_wallet_client(storage.clone(), tendermint_client.clone()).unwrap();
+
+    let sync_rpc = SyncRpcImpl::new(
+        syncer_config,
+        Some(cbindingcallback.clone()),
+        sync_wallet_client,
+    );
     let wallet_rpc = WalletRpcImpl::new(wallet_client, network_id);
 
     io.extend_with(multisig_rpc.to_delegate());

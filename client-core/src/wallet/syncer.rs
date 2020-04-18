@@ -17,6 +17,7 @@ use client_common::{
 use super::syncer_logic::handle_blocks;
 use crate::service;
 use crate::service::{KeyService, SyncState, Wallet, WalletState, WalletStateMemento};
+use crate::wallet::{DefaultWalletClient, WalletClient};
 use crate::TransactionObfuscation;
 
 /// Transaction decryptor interface for wallet synchronizer
@@ -107,10 +108,11 @@ pub struct SyncerConfig<S: SecureStorage, C: Client> {
 
 /// Wallet Syncer
 #[derive(Clone)]
-pub struct WalletSyncer<S: SecureStorage, C: Client, D: TxDecryptor> {
+pub struct WalletSyncer<S: SecureStorage, C: Client, D: TxDecryptor, T: WalletClient> {
     // common
     storage: S,
     client: C,
+    wallet_client: T,
     enable_fast_forward: bool,
     batch_size: usize,
     block_height_ensure: u64,
@@ -121,11 +123,12 @@ pub struct WalletSyncer<S: SecureStorage, C: Client, D: TxDecryptor> {
     enckey: SecKey,
 }
 
-impl<S, C, D> WalletSyncer<S, C, D>
+impl<S, C, D, T> WalletSyncer<S, C, D, T>
 where
     S: SecureStorage,
     C: Client,
     D: TxDecryptor,
+    T: WalletClient,
 {
     /// Construct with common config
     pub fn with_config(
@@ -133,7 +136,8 @@ where
         decryptor: D,
         name: String,
         enckey: SecKey,
-    ) -> WalletSyncer<S, C, D> {
+        wallet_client: T,
+    ) -> WalletSyncer<S, C, D, T> {
         Self {
             storage: config.storage,
             client: config.client,
@@ -143,6 +147,7 @@ where
             enable_fast_forward: config.enable_fast_forward,
             batch_size: config.batch_size,
             block_height_ensure: config.block_height_ensure,
+            wallet_client,
         }
     }
 
@@ -167,18 +172,20 @@ fn load_view_key<S: SecureStorage>(storage: &S, name: &str, enckey: &SecKey) -> 
         })
 }
 
-impl<S, C, O> WalletSyncer<S, C, TxObfuscationDecryptor<O>>
+impl<S, C, O, T> WalletSyncer<S, C, TxObfuscationDecryptor<O>, T>
 where
     S: SecureStorage,
     C: Client,
     O: TransactionObfuscation,
+    T: WalletClient,
 {
     /// Construct with obfuscation config
     pub fn with_obfuscation_config(
         config: ObfuscationSyncerConfig<S, C, O>,
         name: String,
         enckey: SecKey,
-    ) -> Result<WalletSyncer<S, C, TxObfuscationDecryptor<O>>>
+        wallet_client: T,
+    ) -> Result<WalletSyncer<S, C, TxObfuscationDecryptor<O>, T>>
     where
         O: TransactionObfuscation,
     {
@@ -195,6 +202,7 @@ where
             decryptor,
             name,
             enckey,
+            wallet_client,
         ))
     }
 }
@@ -206,8 +214,9 @@ struct WalletSyncerImpl<
     C: Client,
     D: TxDecryptor,
     F: FnMut(ProgressReport) -> bool,
+    T: WalletClient,
 > {
-    env: &'a WalletSyncer<S, C, D>,
+    env: &'a WalletSyncer<S, C, D, T>,
     progress_callback: F,
 
     // cached state
@@ -216,10 +225,16 @@ struct WalletSyncerImpl<
     wallet_state: WalletState,
 }
 
-impl<'a, S: SecureStorage, C: Client, D: TxDecryptor, F: FnMut(ProgressReport) -> bool>
-    WalletSyncerImpl<'a, S, C, D, F>
+impl<
+        'a,
+        S: SecureStorage,
+        C: Client,
+        D: TxDecryptor,
+        F: FnMut(ProgressReport) -> bool,
+        T: WalletClient,
+    > WalletSyncerImpl<'a, S, C, D, F, T>
 {
-    fn new(env: &'a WalletSyncer<S, C, D>, progress_callback: F) -> Result<Self> {
+    fn new(env: &'a WalletSyncer<S, C, D, T>, progress_callback: F) -> Result<Self> {
         let wallet = service::load_wallet(&env.storage, &env.name, &env.enckey)?
             .err_kind(ErrorKind::InvalidInput, || {
                 format!("wallet not found: {}", env.name)

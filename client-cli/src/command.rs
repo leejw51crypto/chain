@@ -35,12 +35,17 @@ use self::transaction_command::TransactionCommand;
 use self::wallet_command::WalletCommand;
 use crate::logo::{get_jok, get_logo};
 use crate::{ask_seckey, storage_path, tendermint_url};
+use chain_core::tx::fee::LinearFee;
 use client_core::hd_wallet::HardwareKind;
 use client_core::service::HwKeyService;
 #[cfg(feature = "mock-hardware-wallet")]
 use client_core::service::MockHardwareService;
 use once_cell::sync::Lazy;
 use std::env;
+
+type AppTransactionCipher = DefaultTransactionObfuscation;
+type AppTxBuilder = DefaultWalletTransactionBuilder<SledStorage, LinearFee, AppTransactionCipher>;
+type AppWalletClient = DefaultWalletClient<SledStorage, WebsocketRpcClient, AppTxBuilder>;
 
 static VERSION: Lazy<String> = Lazy::new(|| {
     format!(
@@ -343,6 +348,7 @@ impl Command {
                 let tendermint_client = WebsocketRpcClient::new(&tendermint_url())?;
                 let tx_obfuscation = get_tx_query(tendermint_client.clone())?;
                 let enckey = ask_seckey(None)?;
+                let wallet_client = get_wallet_client()?;
                 let config = ObfuscationSyncerConfig::new(
                     SledStorage::new(storage_path())?,
                     tendermint_client,
@@ -589,6 +595,8 @@ impl Command {
         enckey: SecKey,
         force: bool,
     ) -> Result<()> {
+        let wallet_client = get_wallet_client()?;
+
         let mut init_block_height = 0;
         let mut final_block_height = 0;
         let mut progress_bar = None;
@@ -622,7 +630,7 @@ impl Command {
             true
         };
 
-        let syncer = WalletSyncer::with_obfuscation_config(config, name, enckey)?;
+        let syncer = WalletSyncer::with_obfuscation_config(config, name, enckey, wallet_client)?;
         if force {
             syncer.reset_state()?;
         }
@@ -634,4 +642,30 @@ impl Command {
 fn print_sync_warning() {
     ask("Warning! Information displayed here may be outdated. To get the latest information, do `client-cli sync --name <wallet name>`");
     println!();
+}
+
+fn get_wallet_client() -> Result<AppWalletClient> {
+    let tendermint_client = WebsocketRpcClient::new(&tendermint_url())?;
+    let tx_obfuscation = get_tx_query(tendermint_client.clone())?;
+    let enckey = ask_seckey(None)?;
+    let storage = SledStorage::new(storage_path())?;
+    let hw_key_service = HwKeyService::default();
+
+    let signer_manager = WalletSignerManager::new(storage.clone(), hw_key_service.clone());
+    let fee_algorithm = tendermint_client.genesis()?.fee_policy();
+    let transaction_obfuscation = get_tx_query(tendermint_client.clone())?;
+    let transaction_builder = DefaultWalletTransactionBuilder::new(
+        signer_manager.clone(),
+        fee_algorithm,
+        transaction_obfuscation.clone(),
+    );
+
+    let wallet_client = DefaultWalletClient::new(
+        storage,
+        tendermint_client.clone(),
+        transaction_builder,
+        None,
+        hw_key_service,
+    );
+    Ok(wallet_client)
 }

@@ -130,6 +130,8 @@ pub(crate) fn handle_transaction(
     let transfer_addresses = wallet.transfer_addresses();
 
     for (i, output) in transaction_change.outputs.iter().enumerate() {
+        //println!("address={}", output.address.to_string());
+
         // Only add unspent transaction if output address belongs to current wallet
         if transfer_addresses.contains(&output.address) {
             memento.add_unspent_transaction(

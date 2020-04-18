@@ -19,6 +19,8 @@ use crate::service;
 use crate::service::{KeyService, SyncState, Wallet, WalletState, WalletStateMemento};
 use crate::wallet::{DefaultWalletClient, WalletClient};
 use crate::TransactionObfuscation;
+use chain_core::tx::TransactionId;
+use std::collections::HashMap;
 
 /// Transaction decryptor interface for wallet synchronizer
 pub trait TxDecryptor: Clone + Send + Sync {
@@ -290,12 +292,57 @@ impl<
         Ok(())
     }
 
+    fn do_recover_address(&mut self, transaction: &Transaction) {
+        let transaction_id = transaction.id();
+        let outputs = transaction.outputs().to_vec();
+        for (i, output) in outputs.iter().enumerate() {
+            println!("## address={}", output.address.to_string());
+        }
+    }
+
+    fn recover_address(&mut self, blocks: &[FilteredBlock]) -> Result<()> {
+        let enclave_txids = blocks
+            .iter()
+            .flat_map(|block| block.enclave_transaction_ids.iter().copied())
+            .collect::<Vec<_>>();
+        let enclave_txs = self.env.decryptor.decrypt_tx(&enclave_txids)?;
+        let enclave_transactions = enclave_txs
+            .iter()
+            .map(|tx| (tx.id(), tx))
+            .collect::<HashMap<_, _>>();
+
+        println!(
+            "Handle batch count {} blocks {}",
+            enclave_txs.len(),
+            blocks.len()
+        );
+
+        for block in blocks {
+            for tx in block.staking_transactions.iter() {
+                if let Some(fee) = block.valid_transaction_fees.get(&tx.id()) {}
+            }
+
+            for txid in block.enclave_transaction_ids.iter() {
+                if let (Some(tx), Some(fee)) = (
+                    enclave_transactions.get(txid),
+                    block.valid_transaction_fees.get(txid),
+                ) {
+                    self.do_recover_address(&tx);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn handle_batch(&mut self, blocks: NonEmpty<FilteredBlock>) -> Result<()> {
         let enclave_txids = blocks
             .iter()
             .flat_map(|block| block.enclave_transaction_ids.iter().copied())
             .collect::<Vec<_>>();
         let enclave_txs = self.env.decryptor.decrypt_tx(&enclave_txids)?;
+
+        self.recover_address(&blocks);
 
         let memento = handle_blocks(&self.wallet, &self.wallet_state, &blocks, &enclave_txs)
             .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;

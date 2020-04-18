@@ -240,6 +240,11 @@ where
                     break;
                 }
 
+                localworker
+                    .lock()
+                    .expect("get sync worker lock")
+                    .set_complete(&name);
+
                 // notify
                 log::info!("wait for notification {}", name);
                 std::thread::sleep(std::time::Duration::from_secs(NOTIFICATION_TIME));

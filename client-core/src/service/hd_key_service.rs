@@ -71,8 +71,26 @@ where
     }
 
     /// automatically recover address in syncing
-    pub fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) {
+    pub fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<()> {
         log::info!("recover address {}", new_address);
+        let bytes: Vec<u8> = self.storage.get_secure(KEYSPACE, name, enckey)?.chain(|| {
+            (
+                ErrorKind::InvalidInput,
+                format!("HD Key with name ({}) not found", name),
+            )
+        })?;
+
+        //  let hd_key_bytes = decrypt_bytes(name, enckey, &bytes)?;
+        let hd_key = HdKey::decode(&mut bytes.as_slice()).chain(|| {
+            (
+                ErrorKind::DeserializationError,
+                "Unable to decode HD key bytes",
+            )
+        })?;
+
+        let index = hd_key.transfer_index;
+        log::info!("current transfer index {}", index);
+        Ok(())
     }
 
     /// Returns true if wallet's HD key is present in storage

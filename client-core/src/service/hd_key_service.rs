@@ -8,8 +8,10 @@ use client_common::{
 
 use crate::types::AddressType;
 use crate::{HDSeed, Mnemonic};
-
+use chain_core::tx::data::address::ExtendedAddr;
+use std::convert::From;
 const KEYSPACE: &str = "core_hd_key";
+use std::str::FromStr;
 
 /// HD key
 #[derive(Debug, Clone, PartialEq, Encode, Decode)]
@@ -90,6 +92,17 @@ where
 
         let index = hd_key.transfer_index;
         log::info!("current transfer index {}", index);
+        let extended_addr = ExtendedAddr::from_str(new_address).chain(|| {
+            (
+                ErrorKind::DeserializationError,
+                "Unable to decode extended addr",
+            )
+        })?;
+        log::info!(
+            "extended address {}={}",
+            new_address,
+            extended_addr.to_string()
+        );
         Ok(())
     }
 

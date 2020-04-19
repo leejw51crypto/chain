@@ -300,9 +300,9 @@ impl<
             self.env
                 .wallet_client
                 .check_address(&newaddress, &self.env.name, &self.env.enckey);
-            self.env
-                .wallet_client
-                .new_transfer_address(&self.env.name, &self.env.enckey);
+            //   self.env
+            //       .wallet_client
+            //     .new_transfer_address(&self.env.name, &self.env.enckey);
             println!("** address={}", output.address.to_string());
         }
     }

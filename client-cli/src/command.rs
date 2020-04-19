@@ -630,7 +630,8 @@ impl Command {
             true
         };
 
-        let syncer = WalletSyncer::with_obfuscation_config(config, name, enckey, wallet_client)?;
+        let mut syncer =
+            WalletSyncer::with_obfuscation_config(config, name, enckey, wallet_client)?;
         if force {
             syncer.reset_state()?;
         }

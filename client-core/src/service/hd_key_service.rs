@@ -70,6 +70,11 @@ where
         Self { storage }
     }
 
+    /// automatically recover address in syncing
+    pub fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) {
+        log::info!("recover address {}", new_address);
+    }
+
     /// Returns true if wallet's HD key is present in storage
     pub fn has_wallet(&self, name: &str) -> Result<bool> {
         self.storage.contains_key(KEYSPACE, name)

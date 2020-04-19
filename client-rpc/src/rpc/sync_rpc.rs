@@ -124,7 +124,7 @@ where
     O: TransactionObfuscation,
     T: WalletClient,
 {
-    let syncer =
+    let mut syncer =
         WalletSyncer::with_obfuscation_config(config, request.name, request.enckey, wallet_client)
             .map_err(to_rpc_error)?;
     if reset {

@@ -115,6 +115,10 @@ where
     C: Client,
     T: WalletTransactionBuilder,
 {
+    fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<()> {
+        self.hd_key_service.check_address(new_address, name, enckey);
+        Ok(())
+    }
     fn get_transaction(&self, name: &str, enckey: &SecKey, txid: TxId) -> Result<Transaction> {
         let wallet = self.wallet_service.get_wallet(name, enckey)?;
         let private_key = self

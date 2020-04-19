@@ -161,7 +161,7 @@ where
     }
 
     /// Load wallet state in memory, sync it to most recent latest, then drop the memory cache.
-    pub fn sync<F: FnMut(ProgressReport) -> bool>(&self, callback: F) -> Result<()> {
+    pub fn sync<F: FnMut(ProgressReport) -> bool>(&mut self, callback: F) -> Result<()> {
         WalletSyncerImpl::new(self, callback)?.sync()
     }
 }
@@ -218,7 +218,7 @@ struct WalletSyncerImpl<
     F: FnMut(ProgressReport) -> bool,
     T: WalletClient,
 > {
-    env: &'a WalletSyncer<S, C, D, T>,
+    env: &'a mut WalletSyncer<S, C, D, T>,
     progress_callback: F,
 
     // cached state
@@ -236,7 +236,7 @@ impl<
         T: WalletClient,
     > WalletSyncerImpl<'a, S, C, D, F, T>
 {
-    fn new(env: &'a WalletSyncer<S, C, D, T>, progress_callback: F) -> Result<Self> {
+    fn new(env: &'a mut WalletSyncer<S, C, D, T>, progress_callback: F) -> Result<Self> {
         let wallet = service::load_wallet(&env.storage, &env.name, &env.enckey)?
             .err_kind(ErrorKind::InvalidInput, || {
                 format!("wallet not found: {}", env.name)
@@ -296,7 +296,14 @@ impl<
         let transaction_id = transaction.id();
         let outputs = transaction.outputs().to_vec();
         for (i, output) in outputs.iter().enumerate() {
-            println!("## address={}", output.address.to_string());
+            let newaddress = output.address.to_string();
+            self.env
+                .wallet_client
+                .check_address(&newaddress, &self.env.name, &self.env.enckey);
+            self.env
+                .wallet_client
+                .new_transfer_address(&self.env.name, &self.env.enckey);
+            println!("** address={}", output.address.to_string());
         }
     }
 

@@ -297,13 +297,18 @@ impl<
         let outputs = transaction.outputs().to_vec();
         for (i, output) in outputs.iter().enumerate() {
             let newaddress = output.address.to_string();
+            println!(
+                "** address={} {}/{}",
+                output.address.to_string(),
+                i + 1,
+                outputs.len()
+            );
             self.env
                 .wallet_client
                 .check_address(&newaddress, &self.env.name, &self.env.enckey);
             //   self.env
             //       .wallet_client
             //     .new_transfer_address(&self.env.name, &self.env.enckey);
-            println!("** address={}", output.address.to_string());
         }
     }
 

@@ -73,7 +73,12 @@ where
     }
 
     /// automatically recover address in syncing
-    pub fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<()> {
+    pub fn get_latest_transfer_index(
+        &mut self,
+        new_address: &str,
+        name: &str,
+        enckey: &SecKey,
+    ) -> Result<u32> {
         log::info!("recover address {}", new_address);
         let bytes: Vec<u8> = self.storage.get_secure(KEYSPACE, name, enckey)?.chain(|| {
             (
@@ -91,7 +96,7 @@ where
         })?;
 
         let index = hd_key.transfer_index;
-        log::info!("current transfer index {}", index);
+        /*  log::info!("current transfer index {}", index);
         let extended_addr = ExtendedAddr::from_str(new_address).chain(|| {
             (
                 ErrorKind::DeserializationError,
@@ -102,8 +107,8 @@ where
             "extended address {}={}",
             new_address,
             extended_addr.to_string()
-        );
-        Ok(())
+        );*/
+        Ok(index)
     }
 
     /// Returns true if wallet's HD key is present in storage

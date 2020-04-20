@@ -133,7 +133,12 @@ where
             return Ok(());
         }
 
-        self.hd_key_service.check_address(new_address, name, enckey);
+        let index = self
+            .hd_key_service
+            .get_latest_transfer_index(new_address, name, enckey)?;
+        for i in index..(index + 20) {
+            log::info!("check address {}", i);
+        }
         Ok(())
     }
     fn get_transaction(&self, name: &str, enckey: &SecKey, txid: TxId) -> Result<Transaction> {
@@ -653,6 +658,25 @@ where
 
         self.new_multisig_transfer_address(name, enckey, vec![public_key.clone()], public_key, 1)
     }
+
+    /* fn get_hd_new_transfer_address(&self, name: &str, enckey: &SecKey, index:u32) -> Result<ExtendedAddr> {
+        let wallet = self.wallet_service.get_wallet(name, enckey)?;
+        assert!(WalletKind::HD== wallet.wallet_kind);
+        let public_key =
+            WalletKind::HD => {
+                let (public_key, private_key) =
+                    self.hd_key_service
+                        .generate_keypair(name, enckey, HDAccountType::Transfer)?;
+                self.wallet_service
+                    .add_key_pairs(name, enckey, &public_key, &private_key)?;
+                public_key
+            }
+
+        self.wallet_service
+            .add_public_key(name, enckey, &public_key)?;
+
+        self.new_multisig_transfer_address(name, enckey, vec![public_key.clone()], public_key, 1)
+    }*/
 
     fn new_watch_staking_address(
         &self,

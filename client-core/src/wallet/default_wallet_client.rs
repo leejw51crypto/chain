@@ -115,6 +115,23 @@ where
     C: Client,
     T: WalletTransactionBuilder,
 {
+    fn get_transfer_address(
+        &mut self,
+        name: &str,
+        enckey: &SecKey,
+        index: u32,
+    ) -> Result<ExtendedAddr> {
+        let extended_addr = ExtendedAddr::from_str(
+            "dcro1pe7qg5gshrdl99m9q3ecpzvfr8zuk4h5qqgjyv6y24n80zye42as88x8tg",
+        )
+        .chain(|| {
+            (
+                ErrorKind::DeserializationError,
+                format!("Unable to deserialize to_address"),
+            )
+        })?;
+        Ok(extended_addr)
+    }
     fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<()> {
         let extended_addr = ExtendedAddr::from_str(new_address).chain(|| {
             (
@@ -133,12 +150,53 @@ where
             return Ok(());
         }
 
-        let index = self
+        let mut index = self
             .hd_key_service
             .get_latest_transfer_index(new_address, name, enckey)?;
-        for i in index..(index + 20) {
-            log::info!("check address {}", i);
+        let mut found = false;
+        let count = 20;
+        for i in index..(index + count) {
+            let (publickey, privatekey) = self.hd_key_service.peek_key_pair(name, enckey, i)?;
+            let (h256, multisigaddr) = self.root_hash_service.peek_new_root_hash(
+                vec![publickey.clone()],
+                publickey.clone(),
+                1,
+            )?;
+            assert!(32 == h256.len());
+            let extended_addr_from_hash = ExtendedAddr::OrTree(h256);
+            log::info!(
+                "** new address={}  check address {}={}",
+                new_address,
+                i,
+                extended_addr_from_hash.to_string()
+            );
+            if extended_addr == extended_addr_from_hash {
+                found = true;
+                break;
+            }
+
+            //    let address = self.get_transfer_address(name, enckey, index)?;
         }
+
+        if !found {
+            // out of the range
+            log::info!(
+                "out of range, ignore this address {}",
+                extended_addr.to_string()
+            );
+            return Ok(());
+        }
+
+        log::info!(
+            "make new address **************   from {} count {}",
+            index,
+            count
+        );
+        let count = count;
+        for i in 0..count {
+            self.new_transfer_address(name, enckey);
+        }
+
         Ok(())
     }
     fn get_transaction(&self, name: &str, enckey: &SecKey, txid: TxId) -> Result<Transaction> {

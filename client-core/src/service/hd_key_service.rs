@@ -150,6 +150,33 @@ where
             .map(|_| ())
     }
 
+    /// peek key pair by index
+    pub fn peek_key_pair(
+        &self,
+        name: &str,
+        enckey: &SecKey,
+        index: u32,
+    ) -> Result<(PublicKey, PrivateKey)> {
+        let bytes: Vec<u8> = self.storage.get_secure(KEYSPACE, name, enckey)?.chain(|| {
+            (
+                ErrorKind::InvalidInput,
+                format!("HD Key with name ({}) not found", name),
+            )
+        })?;
+
+        //  let hd_key_bytes = decrypt_bytes(name, enckey, &bytes)?;
+        let hd_key = HdKey::decode(&mut bytes.as_slice()).chain(|| {
+            (
+                ErrorKind::DeserializationError,
+                "Unable to decode HD key bytes",
+            )
+        })?;
+
+        hd_key
+            .seed
+            .derive_key_pair(get_network(), HDAccountType::Transfer.index(), index)
+    }
+
     /// Generates keypair for given wallet and address type
     ///
     /// # Note

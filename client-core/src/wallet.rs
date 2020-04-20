@@ -54,6 +54,13 @@ pub struct WalletRequest {
 
 /// Interface for a generic wallet
 pub trait WalletClient: Send + Sync + Clone {
+    /// get transfer address by index
+    fn get_transfer_address(
+        &mut self,
+        name: &str,
+        enckey: &SecKey,
+        index: u32,
+    ) -> Result<ExtendedAddr>;
     /// recover address beforehand
     fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<()>;
     /// if the view key included in the transaction, return the Transaction

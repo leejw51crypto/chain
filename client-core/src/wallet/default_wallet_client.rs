@@ -38,8 +38,8 @@ use client_common::{
     seckey::derive_enckey, Error, ErrorKind, PrivateKey, PrivateKeyAction, PublicKey, Result,
     ResultExt, SecKey, SignedTransaction, Storage, Transaction, TransactionInfo,
 };
+use std::str::FromStr;
 use std::time::Duration;
-
 /// Default implementation of `WalletClient` based on `Storage` and `Index`
 #[derive(Debug, Default, Clone)]
 pub struct DefaultWalletClient<S, C, T>
@@ -116,6 +116,23 @@ where
     T: WalletTransactionBuilder,
 {
     fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<()> {
+        let extended_addr = ExtendedAddr::from_str(new_address).chain(|| {
+            (
+                ErrorKind::DeserializationError,
+                "Unable to decode extended addr",
+            )
+        })?;
+
+        let is_exist = self
+            .wallet_service
+            .find_root_hash(name, enckey, &extended_addr)
+            .is_ok();
+        log::info!("key already exist {}", is_exist);
+        if is_exist {
+            // no need
+            return Ok(());
+        }
+
         self.hd_key_service.check_address(new_address, name, enckey);
         Ok(())
     }

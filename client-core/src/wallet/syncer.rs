@@ -292,9 +292,10 @@ impl<
         Ok(())
     }
 
-    fn do_recover_address(&mut self, transaction: &Transaction) {
+    fn do_recover_address(&mut self, transaction: &Transaction) -> Result<()> {
         let transaction_id = transaction.id();
         let outputs = transaction.outputs().to_vec();
+        let mut refetch = false;
         for (i, output) in outputs.iter().enumerate() {
             let newaddress = output.address.to_string();
             println!(
@@ -303,13 +304,24 @@ impl<
                 i + 1,
                 outputs.len()
             );
-            self.env
-                .wallet_client
-                .check_address(&newaddress, &self.env.name, &self.env.enckey);
+            refetch = self.env.wallet_client.check_address(
+                &newaddress,
+                &self.env.name,
+                &self.env.enckey,
+            )?;
+
             //   self.env
             //       .wallet_client
             //     .new_transfer_address(&self.env.name, &self.env.enckey);
         }
+
+        if refetch {
+            log::info!("refetch address ---------------------------");
+            let wallet = service::load_wallet(&self.env.storage, &self.env.name, &self.env.enckey)
+                .expect("get wallet");
+            self.wallet = wallet.expect("get wallet");
+        }
+        Ok(())
     }
 
     fn recover_address(&mut self, blocks: &[FilteredBlock]) -> Result<()> {

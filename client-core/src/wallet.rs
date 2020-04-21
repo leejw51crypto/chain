@@ -62,7 +62,8 @@ pub trait WalletClient: Send + Sync + Clone {
         index: u32,
     ) -> Result<ExtendedAddr>;
     /// recover address beforehand
-    fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<()>;
+    /// ret: true== refetch transfer addresses
+    fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<bool>;
     /// if the view key included in the transaction, return the Transaction
     fn get_transaction(&self, name: &str, enckey: &SecKey, txid: TxId) -> Result<Transaction>;
 

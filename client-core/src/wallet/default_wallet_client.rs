@@ -132,7 +132,7 @@ where
         })?;
         Ok(extended_addr)
     }
-    fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<()> {
+    fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<bool> {
         let extended_addr = ExtendedAddr::from_str(new_address).chain(|| {
             (
                 ErrorKind::DeserializationError,
@@ -147,7 +147,7 @@ where
         log::info!("key already exist {}", is_exist);
         if is_exist {
             // no need
-            return Ok(());
+            return Ok(false);
         }
 
         let mut index = self
@@ -184,7 +184,7 @@ where
                 "out of range, ignore this address {}",
                 extended_addr.to_string()
             );
-            return Ok(());
+            return Ok(false);
         }
 
         log::info!(
@@ -197,7 +197,7 @@ where
             self.new_transfer_address(name, enckey);
         }
 
-        Ok(())
+        Ok(true)
     }
     fn get_transaction(&self, name: &str, enckey: &SecKey, txid: TxId) -> Result<Transaction> {
         let wallet = self.wallet_service.get_wallet(name, enckey)?;

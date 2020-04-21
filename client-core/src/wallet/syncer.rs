@@ -14,7 +14,7 @@ use client_common::{
     Error, ErrorKind, PrivateKey, Result, ResultExt, SecKey, SecureStorage, Transaction,
 };
 
-use super::syncer_logic::handle_blocks;
+use super::syncer_logic::{handle_blocks, decorate_inputs};
 use crate::service;
 use crate::service::{KeyService, SyncState, Wallet, WalletState, WalletStateMemento};
 use crate::wallet::{DefaultWalletClient, WalletClient};
@@ -293,32 +293,61 @@ impl<
     }
 
     fn do_recover_address(&mut self, transaction: &Transaction) -> Result<()> {
+        println!("do_recover_address======================================================");
         let transaction_id = transaction.id();
-        let outputs = transaction.outputs().to_vec();
+        println!("transsaction id {:?} inputs {}  ouputs{}", transaction_id, transaction.inputs().len(), transaction.outputs().len());
         let mut refetch = false;
+
+
+        let inputs= transaction.inputs().to_vec();
+        for (i,input) in inputs.iter().enumerate() {
+            println!(
+                "input utxo ** address={:?} {}/{}",
+                input,
+                i + 1,
+                inputs.len()
+            );
+        }
+        let decorated=decorate_inputs( &self.wallet_state, &inputs, &transaction_id).expect("get txin data");
+        println!("decorated inputs {}", decorated.len());
+        for (i, input) in decorated.iter().enumerate() {
+            //let newaddress = output.address.to_string();
+            println!(
+                "decorated input utxo ** address={:?} {}/{}",
+                input.output,
+                i + 1,
+                decorated.len()
+            );
+       
+        }
+
+        let outputs = transaction.outputs().to_vec();
+        
+        
         for (i, output) in outputs.iter().enumerate() {
             let newaddress = output.address.to_string();
             println!(
-                "** address={} {}/{}",
+                "output ** address={} {}/{}",
                 output.address.to_string(),
                 i + 1,
                 outputs.len()
             );
-            refetch = self.env.wallet_client.check_address(
+            let tmp_refetch = self.env.wallet_client.check_address(
                 &newaddress,
                 &self.env.name,
                 &self.env.enckey,
             )?;
+            if tmp_refetch {
+                refetch= true;
+            }
 
-            //   self.env
-            //       .wallet_client
-            //     .new_transfer_address(&self.env.name, &self.env.enckey);
+             
         }
 
         if refetch {
             log::info!("refetch address ---------------------------");
-            let wallet = service::load_wallet(&self.env.storage, &self.env.name, &self.env.enckey)
-                .expect("get wallet");
+           let wallet = service::load_wallet(&self.env.storage, &self.env.name, &self.env.enckey)
+            .expect("get wallet");
             self.wallet = wallet.expect("get wallet");
         }
         Ok(())

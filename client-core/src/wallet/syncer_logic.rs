@@ -146,7 +146,7 @@ pub(crate) fn handle_transaction(
     Ok(())
 }
 
-fn decorate_inputs(
+pub fn decorate_inputs(
     wallet_state: &WalletState,
     raw_inputs: &[TxoPointer],
     txid: &TxId,
@@ -174,6 +174,8 @@ fn calculate_balance_change<'a>(
     inputs: &'a [TransactionInput],
     outputs: &'a [TxOut],
 ) -> Result<BalanceChange, SyncerLogicError> {
+    println!("input=============== {:?}", inputs);
+    println!("output=================  {:?}", outputs);
     let encode_txid = || hex::encode(&transaction_id);
 
     let transfer_addresses = wallet.transfer_addresses();
@@ -181,13 +183,14 @@ fn calculate_balance_change<'a>(
     let our_output = |input: &'a TransactionInput| -> Option<&'a TxOut> {
         input.output.as_ref().and_then(|output| {
             if is_our_address(&output.address) {
+                println!("address {} is ours", output.address.to_string());
                 Some(output)
             } else {
                 None
             }
         })
     };
-
+ 
     // Either all spent output is ours (outgoing), or none of it is (incoming).
     let spent_outputs: Option<NonEmpty<&TxOut>> = inputs
         .iter()
@@ -195,8 +198,20 @@ fn calculate_balance_change<'a>(
         .collect::<Option<Vec<_>>>()
         .and_then(NonEmpty::new);
 
+    println!("spend_outputs (inputs)");
+    for x in &spent_outputs {
+        println!("spent out {:?}",x);
+
+    }
+        for x in inputs {
+            println!("input {:?} our_output {:?}", x, our_output(x));
+        }
+    for x in outputs {
+        println!("output {:?}", x);
+    }
     let total_output = sum_outputs(outputs.iter())
         .map_err(|_| SyncerLogicError::TotalOutputOutOfBound(encode_txid()))?;
+    println!("total output={}", total_output);
 
     let total_output_ours = sum_outputs(
         outputs
@@ -204,6 +219,9 @@ fn calculate_balance_change<'a>(
             .filter(|output| is_our_address(&output.address)),
     )
     .map_err(|_| SyncerLogicError::TotalOutputOutOfBound(encode_txid()))?;
+    println!("total_output_ours={:?}", total_output_ours);
+
+    println!("spent_outputs={:?}", spent_outputs);
 
     match spent_outputs {
         None => {

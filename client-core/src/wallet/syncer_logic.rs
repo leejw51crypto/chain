@@ -33,7 +33,7 @@ pub enum SyncerLogicError {
 /// Update wallet state with batch blocks
 pub(crate) fn handle_blocks(
     wallet: &Wallet,
-    wallet_state: &WalletState,
+    wallet_state: &mut WalletState,
     blocks: &[FilteredBlock],
     enclave_transactions: &[Transaction],
 ) -> Result<WalletStateMemento, SyncerLogicError> {
@@ -108,7 +108,7 @@ pub fn create_transaction_change(
 /// Update WalletStateMemento with transaction
 pub(crate) fn handle_transaction(
     wallet: &Wallet,
-    wallet_state: &WalletState,
+    wallet_state: &mut WalletState,
     memento: &mut WalletStateMemento,
     transaction: &Transaction,
     fee_paid: Fee,
@@ -141,8 +141,11 @@ pub(crate) fn handle_transaction(
         }
     }
 
-    memento.remove_pending_transaction(transaction_change.transaction_id);
-    memento.add_transaction_change(transaction_change);
+    memento.remove_pending_transaction(transaction_change.transaction_id.clone());
+    memento.add_transaction_change(transaction_change.clone());
+    // write to state
+    wallet_state.add_transaction_change(transaction_change.transaction_id.clone(), transaction_change);
+
     Ok(())
 }
 

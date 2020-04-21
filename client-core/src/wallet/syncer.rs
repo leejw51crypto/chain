@@ -397,7 +397,7 @@ impl<
 
         self.recover_address(&blocks);
 
-        let memento = handle_blocks(&self.wallet, &self.wallet_state, &blocks, &enclave_txs)
+        let memento = handle_blocks(&self.wallet, &mut self.wallet_state, &blocks, &enclave_txs)
             .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
 
         let block = blocks.last();

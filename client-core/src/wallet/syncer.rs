@@ -14,12 +14,13 @@ use client_common::{
     Error, ErrorKind, PrivateKey, Result, ResultExt, SecKey, SecureStorage, Transaction,
 };
 
-use super::syncer_logic::{handle_blocks, decorate_inputs};
+use super::syncer_logic::{decorate_inputs, handle_blocks};
 use crate::service;
 use crate::service::{KeyService, SyncState, Wallet, WalletState, WalletStateMemento};
 use crate::wallet::{DefaultWalletClient, WalletClient};
 use crate::TransactionObfuscation;
 use chain_core::tx::TransactionId;
+use client_core::types::WalletKind;
 use std::collections::HashMap;
 
 /// Transaction decryptor interface for wallet synchronizer
@@ -295,12 +296,16 @@ impl<
     fn do_recover_address(&mut self, transaction: &Transaction) -> Result<()> {
         println!("do_recover_address======================================================");
         let transaction_id = transaction.id();
-        println!("transsaction id {:?} inputs {}  ouputs{}", transaction_id, transaction.inputs().len(), transaction.outputs().len());
+        println!(
+            "transsaction id {:?} inputs {}  ouputs{}",
+            transaction_id,
+            transaction.inputs().len(),
+            transaction.outputs().len()
+        );
         let mut refetch = false;
 
-
-        let inputs= transaction.inputs().to_vec();
-        for (i,input) in inputs.iter().enumerate() {
+        let inputs = transaction.inputs().to_vec();
+        for (i, input) in inputs.iter().enumerate() {
             println!(
                 "input utxo ** address={:?} {}/{}",
                 input,
@@ -308,7 +313,8 @@ impl<
                 inputs.len()
             );
         }
-        let decorated=decorate_inputs( &self.wallet_state, &inputs, &transaction_id).expect("get txin data");
+        let decorated =
+            decorate_inputs(&self.wallet_state, &inputs, &transaction_id).expect("get txin data");
         println!("decorated inputs {}", decorated.len());
         for (i, input) in decorated.iter().enumerate() {
             //let newaddress = output.address.to_string();
@@ -318,12 +324,10 @@ impl<
                 i + 1,
                 decorated.len()
             );
-       
         }
 
         let outputs = transaction.outputs().to_vec();
-        
-        
+
         for (i, output) in outputs.iter().enumerate() {
             let newaddress = output.address.to_string();
             println!(
@@ -338,16 +342,14 @@ impl<
                 &self.env.enckey,
             )?;
             if tmp_refetch {
-                refetch= true;
+                refetch = true;
             }
-
-             
         }
 
         if refetch {
             log::info!("refetch address ---------------------------");
-           let wallet = service::load_wallet(&self.env.storage, &self.env.name, &self.env.enckey)
-            .expect("get wallet");
+            let wallet = service::load_wallet(&self.env.storage, &self.env.name, &self.env.enckey)
+                .expect("get wallet");
             self.wallet = wallet.expect("get wallet");
         }
         Ok(())
@@ -395,7 +397,10 @@ impl<
             .collect::<Vec<_>>();
         let enclave_txs = self.env.decryptor.decrypt_tx(&enclave_txids)?;
 
-        self.recover_address(&blocks);
+        if crate::types::WalletKind::HD == self.wallet.wallet_kind {
+            // only hdwallet
+            self.recover_address(&blocks);
+        }
 
         let memento = handle_blocks(&self.wallet, &mut self.wallet_state, &blocks, &enclave_txs)
             .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;

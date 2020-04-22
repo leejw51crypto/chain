@@ -144,7 +144,10 @@ pub(crate) fn handle_transaction(
     memento.remove_pending_transaction(transaction_change.transaction_id.clone());
     memento.add_transaction_change(transaction_change.clone());
     // write to state
-    wallet_state.add_transaction_change(transaction_change.transaction_id.clone(), transaction_change);
+    wallet_state.add_transaction_change(
+        transaction_change.transaction_id.clone(),
+        transaction_change,
+    );
 
     Ok(())
 }
@@ -193,7 +196,7 @@ fn calculate_balance_change<'a>(
             }
         })
     };
- 
+
     // Either all spent output is ours (outgoing), or none of it is (incoming).
     let spent_outputs: Option<NonEmpty<&TxOut>> = inputs
         .iter()
@@ -203,12 +206,11 @@ fn calculate_balance_change<'a>(
 
     println!("spend_outputs (inputs)");
     for x in &spent_outputs {
-        println!("spent out {:?}",x);
-
+        println!("spent out {:?}", x);
     }
-        for x in inputs {
-            println!("input {:?} our_output {:?}", x, our_output(x));
-        }
+    for x in inputs {
+        println!("input {:?} our_output {:?}", x, our_output(x));
+    }
     for x in outputs {
         println!("output {:?}", x);
     }

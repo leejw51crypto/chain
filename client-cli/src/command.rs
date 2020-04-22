@@ -348,7 +348,7 @@ impl Command {
                 let tendermint_client = WebsocketRpcClient::new(&tendermint_url())?;
                 let tx_obfuscation = get_tx_query(tendermint_client.clone())?;
                 let enckey = ask_seckey(None)?;
-                let wallet_client = get_wallet_client()?;
+                let _wallet_client = get_wallet_client()?;
                 let config = ObfuscationSyncerConfig::new(
                     SledStorage::new(storage_path())?,
                     tendermint_client,
@@ -647,8 +647,8 @@ fn print_sync_warning() {
 
 fn get_wallet_client() -> Result<AppWalletClient> {
     let tendermint_client = WebsocketRpcClient::new(&tendermint_url())?;
-    let tx_obfuscation = get_tx_query(tendermint_client.clone())?;
-    let enckey = ask_seckey(None)?;
+    let _tx_obfuscation = get_tx_query(tendermint_client.clone())?;
+    let _enckey = ask_seckey(None)?;
     let storage = SledStorage::new(storage_path())?;
     let hw_key_service = HwKeyService::default();
 

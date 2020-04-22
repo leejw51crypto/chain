@@ -17,7 +17,7 @@ use client_common::{
 use super::syncer_logic::{decorate_inputs, handle_blocks};
 use crate::service;
 use crate::service::{KeyService, SyncState, Wallet, WalletState, WalletStateMemento};
-use crate::wallet::{DefaultWalletClient, WalletClient};
+use crate::wallet::WalletClient;
 use crate::TransactionObfuscation;
 use chain_core::tx::TransactionId;
 use std::collections::HashMap;
@@ -372,16 +372,12 @@ impl<
         );
 
         for block in blocks {
-            for tx in block.staking_transactions.iter() {
-                if let Some(fee) = block.valid_transaction_fees.get(&tx.id()) {}
-            }
-
             for txid in block.enclave_transaction_ids.iter() {
-                if let (Some(tx), Some(fee)) = (
+                if let (Some(tx), Some(_fee)) = (
                     enclave_transactions.get(txid),
                     block.valid_transaction_fees.get(txid),
                 ) {
-                    self.do_recover_address(&tx);
+                    self.do_recover_address(&tx)?;
                 }
             }
         }
@@ -398,7 +394,7 @@ impl<
 
         if crate::types::WalletKind::HD == self.wallet.wallet_kind {
             // only hdwallet
-            self.recover_address(&blocks);
+            self.recover_address(&blocks)?;
         }
 
         let memento = handle_blocks(&self.wallet, &mut self.wallet_state, &blocks, &enclave_txs)

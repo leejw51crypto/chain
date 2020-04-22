@@ -115,23 +115,7 @@ where
     C: Client,
     T: WalletTransactionBuilder,
 {
-    fn get_transfer_address(
-        &mut self,
-        name: &str,
-        enckey: &SecKey,
-        index: u32,
-    ) -> Result<ExtendedAddr> {
-        let extended_addr = ExtendedAddr::from_str(
-            "dcro1pe7qg5gshrdl99m9q3ecpzvfr8zuk4h5qqgjyv6y24n80zye42as88x8tg",
-        )
-        .chain(|| {
-            (
-                ErrorKind::DeserializationError,
-                format!("Unable to deserialize to_address"),
-            )
-        })?;
-        Ok(extended_addr)
-    }
+
     fn check_address(&mut self, new_address: &str, name: &str, enckey: &SecKey) -> Result<bool> {
         let extended_addr = ExtendedAddr::from_str(new_address).chain(|| {
             (
@@ -150,14 +134,14 @@ where
             return Ok(false);
         }
 
-        let mut index = self
+        let index = self
             .hd_key_service
             .get_latest_transfer_index(new_address, name, enckey)?;
         let mut found = false;
         let count = 20;
         for i in index..(index + count) {
-            let (publickey, privatekey) = self.hd_key_service.peek_key_pair(name, enckey, i)?;
-            let (h256, multisigaddr) = self.root_hash_service.peek_new_root_hash(
+            let (publickey, _privatekey) = self.hd_key_service.peek_key_pair(name, enckey, i)?;
+            let (h256, _multisigaddr) = self.root_hash_service.peek_new_root_hash(
                 vec![publickey.clone()],
                 publickey.clone(),
                 1,
@@ -175,7 +159,7 @@ where
                 break;
             }
 
-            //    let address = self.get_transfer_address(name, enckey, index)?;
+          
         }
 
         if !found {
@@ -193,8 +177,9 @@ where
             count
         );
         let count = count;
-        for i in 0..count {
-            self.new_transfer_address(name, enckey);
+        for _i in 0..count {
+            self.new_transfer_address(name, enckey)
+                .expect("get new transfer address");
         }
 
         Ok(true)

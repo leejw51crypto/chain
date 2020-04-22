@@ -8,10 +8,9 @@ use client_common::{
 
 use crate::types::AddressType;
 use crate::{HDSeed, Mnemonic};
-use chain_core::tx::data::address::ExtendedAddr;
+
 use std::convert::From;
 const KEYSPACE: &str = "core_hd_key";
-use std::str::FromStr;
 
 /// HD key
 #[derive(Debug, Clone, PartialEq, Encode, Decode)]

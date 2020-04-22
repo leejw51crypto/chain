@@ -20,7 +20,6 @@ use crate::service::{KeyService, SyncState, Wallet, WalletState, WalletStateMeme
 use crate::wallet::{DefaultWalletClient, WalletClient};
 use crate::TransactionObfuscation;
 use chain_core::tx::TransactionId;
-use client_core::types::WalletKind;
 use std::collections::HashMap;
 
 /// Transaction decryptor interface for wallet synchronizer

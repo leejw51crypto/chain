@@ -600,6 +600,11 @@ impl Client for GeneratorClient {
             })
             .collect())
     }
+
+    fn close_connection(&self) -> Result<()> {
+        println!("111111111111111111111111111  a");
+        Ok(())
+    }
 }
 
 fn gen_network_params(

@@ -4,27 +4,34 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use super::async_rpc_client::AsyncRpcClient;
+use super::{
+    async_rpc_client::{WebSocketReader, WebSocketWriter},
+    types::{ConnectionState, JsonRpcResponse},
+};
+use crate::{
+    tendermint::{lite::TrustedState, types::*, Client},
+    Error, ErrorKind, Result, ResultExt,
+};
+use chain_core::state::ChainState;
+use futures_util::sink::SinkExt;
 use itertools::izip;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tendermint::{lite, validator};
 use tokio::runtime::Runtime;
-
-use chain_core::state::ChainState;
-
-use super::async_rpc_client::AsyncRpcClient;
-use crate::{
-    tendermint::{lite::TrustedState, types::*, Client},
-    Error, ErrorKind, Result, ResultExt,
-};
-
+use tokio::sync::Mutex;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::frame::CloseFrame;
+use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Wraps asynchronous RPC client and executes it in tokio runtime
 #[derive(Clone)]
 pub struct SyncRpcClient {
     runtime: Arc<Runtime>,
-    async_rpc_client: AsyncRpcClient,
+    /// WEBSOCKET
+    pub async_rpc_client: AsyncRpcClient,
 }
 
 impl SyncRpcClient {
@@ -52,12 +59,33 @@ impl SyncRpcClient {
         })
     }
 
+    /// graceful close
+    pub fn close_connection(&self) {
+        println!("close connection**********************");
+        let mut s = self.async_rpc_client.websocket_writer.clone();
+
+        self.runtime.spawn(async move {
+            println!("runtime================================================================================");
+
+            let closemsg = CloseFrame {
+                code: CloseCode::Normal,
+                reason: std::borrow::Cow::Borrowed("OK"),
+            };
+            let item = Message::Close(Some(closemsg));
+
+            s.lock().await.send(item).await;
+            println!("sent close");
+        });
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+
     /// Makes an RPC call and deserializes response
     pub fn call<T>(&self, method: &'static str, params: Vec<Value>) -> Result<T>
     where
         T: Send + 'static,
         for<'de> T: Deserialize<'de>,
     {
+        println!("call................");
         let (sender, receiver) = sync_channel(1);
         let async_rpc_client = self.async_rpc_client.clone();
 
@@ -88,6 +116,7 @@ impl SyncRpcClient {
         T: Send + 'static,
         for<'de> T: Deserialize<'de>,
     {
+        println!("call   batch................");
         let (sender, receiver) = sync_channel(1);
         let async_rpc_client = self.async_rpc_client.clone();
 
@@ -309,4 +338,38 @@ impl Client for SyncRpcClient {
             })
             .collect()
     }
+
+    fn close_connection(&self) -> Result<()> {
+        println!("111111111111111111111111111 c");
+        self.close_connection();
+        Ok(())
+    }
+}
+
+/// close connection 3
+pub fn close_connection3(writer: Arc<Mutex<WebSocketWriter>>) {
+    // close
+
+    let mut s = writer.clone();
+
+    let mut runtime = Runtime::new()
+        .chain(|| {
+            (
+                ErrorKind::InitializationError,
+                "Unable to start tokio runtime",
+            )
+        })
+        .unwrap();
+
+    runtime.spawn(async move {
+        let closemsg = CloseFrame {
+            code: CloseCode::Normal,
+            reason: std::borrow::Cow::Borrowed("OK"),
+        };
+        let item = Message::Close(Some(closemsg));
+
+        s.lock().await.send(item).await;
+        println!("sent close");
+    });
+    std::thread::sleep(std::time::Duration::from_secs(2));
 }

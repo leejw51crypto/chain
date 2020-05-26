@@ -61,4 +61,9 @@ impl Client for UnauthorizedClient {
     fn query_state_batch<T: Iterator<Item = u64>>(&self, _heights: T) -> Result<Vec<ChainState>> {
         Err(ErrorKind::PermissionDenied.into())
     }
+
+    fn close_connection(&self) -> Result<()> {
+        println!("111111111111111111111111111 b");
+        Ok(())
+    }
 }

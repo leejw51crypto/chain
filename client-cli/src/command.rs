@@ -42,6 +42,7 @@ use crate::{ask_seckey, storage_path, tendermint_url};
 use chain_core::tx::fee::LinearFee;
 use client_core::hd_wallet::HardwareKind;
 use client_core::service::HwKeyService;
+
 #[cfg(feature = "mock-hardware-wallet")]
 use client_core::service::MockHardwareService;
 use once_cell::sync::Lazy;
@@ -385,6 +386,7 @@ impl Command {
                 block_height_ensure,
             } => {
                 let tendermint_client = WebsocketRpcClient::new(&tendermint_url())?;
+                let writer = tendermint_client.async_rpc_client.websocket_writer.clone();
                 let tx_obfuscation = get_tx_query(tendermint_client.clone())?;
                 let enckey = ask_seckey(None)?;
                 let storage = SledStorage::new(storage_path())?;
@@ -399,7 +401,14 @@ impl Command {
                         block_height_ensure: *block_height_ensure,
                     },
                 );
-                Self::resync(config, name.clone(), enckey, *force, storage)
+
+                //   tendermint_client.close_connection();
+                // Ok(())
+                println!("sync------------------------------------------@@@@@@@@@");
+                Self::resync(config, name.clone(), enckey, *force, storage);
+                client_common::tendermint::rpc_client::sync_rpc_client::close_connection3(writer);
+
+                Ok(())
             }
             Command::MultiSig { multisig_command } => {
                 let storage = SledStorage::new(storage_path())?;

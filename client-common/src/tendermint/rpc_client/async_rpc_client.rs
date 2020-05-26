@@ -25,11 +25,13 @@ use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 pub type WebSocketWriter = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 pub type WebSocketReader = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
-
+pub type AutoStream<TcpStream> = MaybeTlsStream<TcpStream>;
 use super::{
     types::{ConnectionState, JsonRpcRequest, JsonRpcResponse},
     websocket_rpc_loop,
 };
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::frame::CloseFrame;
 
 const WAIT_FOR_CONNECTION_SLEEP_INTERVAL: Duration = Duration::from_millis(200);
 const WAIT_FOR_CONNECTION_COUNT: usize = 50;
@@ -40,7 +42,8 @@ const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
 #[derive(Clone)]
 pub struct AsyncRpcClient {
     connection_state: Arc<Mutex<ConnectionState>>,
-    websocket_writer: Arc<Mutex<WebSocketWriter>>,
+    /// WEB SOCKET
+    pub websocket_writer: Arc<Mutex<WebSocketWriter>>,
     channel_map: Arc<Mutex<HashMap<String, Sender<JsonRpcResponse>>>>,
     unique_id: Arc<AtomicUsize>,
 }
@@ -55,7 +58,9 @@ impl AsyncRpcClient {
     pub async fn new(url: &str) -> Result<Self> {
         let channel_map: Arc<Mutex<HashMap<String, Sender<JsonRpcResponse>>>> = Default::default();
 
-        let (websocket_writer, websocket_reader) = websocket_rpc_loop::new_connection(url).await?;
+        let (mut websocket_writer, websocket_reader) =
+            websocket_rpc_loop::new_connection(url).await?;
+
         let websocket_writer = Arc::new(Mutex::new(websocket_writer));
 
         let loop_handle = websocket_rpc_loop::spawn(
@@ -77,6 +82,29 @@ impl AsyncRpcClient {
             channel_map,
             unique_id: Arc::new(AtomicUsize::new(0)),
         })
+    }
+
+    /// close
+    pub async fn close_connection(&self) -> Result<()> {
+        let closemsg = CloseFrame {
+            code: CloseCode::Normal,
+            reason: std::borrow::Cow::Borrowed("OK"),
+        };
+        let item = Message::Close(Some(closemsg));
+        println!(
+            "begin socket@@@@@@@@@@@@@@@@@@@@@@@22          close--------------------------------"
+        );
+        self.websocket_writer.lock().await.send(item).await?;
+
+        println!(
+            "done socket@@@@@@@@@@@@@@@@@@@@@@@22          close--------------------------------"
+        );
+        Ok(())
+    }
+
+    /// close2
+    pub async fn close_connection2(&self, writer: Arc<Mutex<WebSocketWriter>>) -> Result<()> {
+        Ok(())
     }
 
     /// Sends a RPC request

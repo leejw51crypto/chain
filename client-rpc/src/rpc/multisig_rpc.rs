@@ -517,5 +517,10 @@ mod test {
         ) -> CommonResult<Vec<ChainState>> {
             unreachable!()
         }
+
+        fn close_connection(&self) -> Result<()> {
+            println!("111111111111111111111111111 e");
+            Ok(())
+        }
     }
 }

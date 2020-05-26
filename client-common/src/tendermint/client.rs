@@ -50,4 +50,7 @@ pub trait Client: Send + Sync + Clone {
 
     /// Match batch state `abci_query` call to tendermint
     fn query_state_batch<T: Iterator<Item = u64>>(&self, heights: T) -> Result<Vec<ChainState>>;
+
+    /// close connection
+    fn close_connection(&self) -> Result<()>;
 }

@@ -1,7 +1,8 @@
 //! Tendermint client operations
 mod client;
 #[cfg(feature = "websocket-rpc")]
-mod rpc_client;
+/// rpc client
+pub mod rpc_client;
 mod unauthorized_client;
 
 pub mod lite;

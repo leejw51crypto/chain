@@ -175,7 +175,12 @@ where
 
     /// Load wallet state in memory, sync it to most recent latest, then drop the memory cache.
     pub fn sync<F: FnMut(ProgressReport) -> bool>(&mut self, callback: F) -> Result<()> {
-        WalletSyncerImpl::new(self, callback)?.sync()
+        println!("sync!!!!");
+        let ret = WalletSyncerImpl::new(self, callback)?.sync();
+        println!("sync done!!!!!!!!!!! ##############################");
+        self.client.close_connection();
+        println!("sync done!!!!!!!!!!! ##############################  @@@@@@@@@@@@@@@@@@@@@@");
+        ret
     }
 }
 

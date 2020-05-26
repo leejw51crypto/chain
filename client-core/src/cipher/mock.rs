@@ -166,6 +166,11 @@ mod tests {
         ) -> Result<Vec<ChainState>> {
             unreachable!()
         }
+
+        fn close_connection(&self) -> Result<()> {
+            println!("111111111111111111111111111 d");
+            Ok(())
+        }
     }
 
     #[test]

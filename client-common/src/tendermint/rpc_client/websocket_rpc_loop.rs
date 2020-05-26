@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::{
+    async_rpc_client::{WebSocketReader, WebSocketWriter},
+    types::{ConnectionState, JsonRpcResponse},
+};
 use anyhow::{Context, Result};
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use tokio::{
@@ -8,12 +12,8 @@ use tokio::{
     task::JoinHandle,
     time::{delay_for, Duration},
 };
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use super::{
-    async_rpc_client::{WebSocketReader, WebSocketWriter},
-    types::{ConnectionState, JsonRpcResponse},
-};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 const MONITOR_RETRY_INTERVAL: Duration = Duration::from_secs(2);
 

@@ -29,7 +29,6 @@ else
     cargo build $CARGO_ARGS --features mock-enclave --manifest-path client-cli/Cargo.toml
     cargo build $CARGO_ARGS --features mock-enclave --manifest-path dev-utils/Cargo.toml
     cargo build $CARGO_ARGS --features mock-enclave --manifest-path chain-abci/Cargo.toml
-    cargo build $CARGO_ARGS -p ra-sp-server
 fi
 
 echo "Build dynamic cro-clib"

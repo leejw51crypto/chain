@@ -9,7 +9,7 @@ use ring::{
 use rustls::internal::msgs::codec::{Codec, Reader};
 
 /// p-256 public key
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct PublicKey(Vec<u8>);
 
 impl PublicKey {

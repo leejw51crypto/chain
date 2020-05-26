@@ -399,10 +399,7 @@ where
         ) {
             Ok(Some(value))
         } else {
-            Err(Error::new(
-                ErrorKind::InvalidInput,
-                "Address is not found in current wallet",
-            ))
+            Err(Error::new(ErrorKind::InvalidInput, "finding staking"))
         }
     }
 

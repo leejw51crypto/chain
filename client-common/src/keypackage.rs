@@ -18,12 +18,17 @@ pub fn gen_keypackage(sgxs_path: &str) -> Result<Vec<u8>> {
         .output()
         .map_err(|err| Error::new(ErrorKind::RunEnclaveError, err.to_string()))?;
     if !output.status.success() {
+        let check_ra_sp_server="run ra-sp-server beforehand  e.g.) ./ra-sp-server --quote-type Unlinkable --ias-key $IAS_API_KEY --spid $SPID";
+        let check_mls =
+            "check mls path is correct  e.g.) mls.sgxs, mls.sig  <- two files are necessary";
         return Err(Error::new(
             ErrorKind::RunEnclaveError,
             format!(
-                "enclave runner return error code: {:?}, stderr: {}",
+                "enclave runner return error code: {:?}, stderr: {}\n{}\n{}",
                 output.status.code(),
-                String::from_utf8_lossy(&output.stderr)
+                String::from_utf8_lossy(&output.stderr),
+                check_ra_sp_server,
+                check_mls,
             ),
         ));
     }

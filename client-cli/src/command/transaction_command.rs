@@ -18,9 +18,7 @@ use chain_core::tx::data::attribute::TxAttributes;
 use chain_core::tx::data::input::TxoPointer;
 use chain_core::tx::data::output::TxOut;
 use chain_core::tx::TxAux;
-use client_common::{
-    verify_keypackage, Error, ErrorKind, PublicKey, Result, ResultExt, SecKey, Transaction,
-};
+use client_common::{Error, ErrorKind, PublicKey, Result, ResultExt, SecKey, Transaction};
 use client_core::transaction_builder::SignedTransferTransaction;
 use client_core::types::{BalanceChange, TransactionPending};
 use client_core::WalletClient;
@@ -1040,11 +1038,8 @@ fn ask_node_metadata() -> Result<CouncilNode> {
         ask("please enter base64 encoded keypackage:");
         match base64::decode(&text().chain(|| (ErrorKind::IoError, "Unable to read keypackage"))?) {
             Ok(kp) => {
-                if let Err(err) = verify_keypackage(&kp) {
-                    println!("invalid keypackage: {}", err);
-                } else {
-                    break kp;
-                }
+                /* TODO : use dev-utils to verify*/
+                break kp;
             }
             Err(err) => {
                 println!("invalid base64: {}", err);

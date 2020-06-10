@@ -22,9 +22,7 @@ use client_common::tendermint::types::{Genesis, Time};
 use client_common::{ErrorKind, Result, ResultExt};
 
 use crate::commands::genesis_dev_config::GenesisDevConfig;
-use client_common::gen_keypackage;
 use client_core::wallet::syncer::compute_genesis_hash;
-use quest::success;
 #[derive(Debug, StructOpt)]
 pub enum GenesisCommand {
     #[structopt(name = "generate", about = "Generate new genesis.json")]
@@ -79,16 +77,6 @@ pub enum GenesisCommand {
         )]
         tendermint_genesis_path: Option<PathBuf>,
     },
-    #[structopt(name = "gen-keypackage", about = "Generate key-package")]
-    GenKeypackage {
-        #[structopt(
-            name = "Path to mls enclave",
-            short = "p",
-            long = "path",
-            help = "Path to mls enclave  (e.g. mls.sgxs)"
-        )]
-        path: String,
-    },
 }
 
 impl GenesisCommand {
@@ -111,12 +99,6 @@ impl GenesisCommand {
             GenesisCommand::Hash {
                 tendermint_genesis_path,
             } => get_genesis_hash(tendermint_genesis_path),
-            GenesisCommand::GenKeypackage { path } => {
-                println!("generate key-package by {}", path);
-                let blob = gen_keypackage(&path)?;
-                success(&base64::encode(&blob));
-                Ok(())
-            }
         }
     }
 }

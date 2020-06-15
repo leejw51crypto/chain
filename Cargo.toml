@@ -29,6 +29,7 @@ members = [
     "chain-tx-enclave/mock-utils",
     "chain-tx-enclave-next/mls",
     "cro-clib",
+    "cro-wasmlib",
 ]
 
 default-members = [

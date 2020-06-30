@@ -6,7 +6,8 @@ edition = "2018"
 
 [lib]
 name = "cro_clib"
-crate-type = ["staticlib"]
+#crate-type = ["staticlib"]
+crate-type = ["cdylib"]
 
 [features]
 mock-enclave = ["client-rpc-core/mock-enclave"]

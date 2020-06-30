@@ -63,7 +63,7 @@ void context_sync()
     char* passphrase=getenv("CRO_PASSPHRASE");
     char* enckey=getenv("CRO_ENCKEY");
     char* mnemonics= getenv("CRO_MNEMONICS");
-    const char* req_template = "{\"jsonrpc\": \"2.0\", \"method\": \"sync\", \"params\": [{\"name\":\"%s\", \"passphrase\":\"%s\",\"enckey\":\"%s\"}], \"id\": 1}";
+    const char* req_template = "{\"jsonrpc\": \"2.0\", \"method\": \"sync\", \"params\": [{\"name\":\"%s\", \"passphrase\":\"%s\",\"enckey\":\"%s\"},{\"blocking\":true, \"reset\":false, \"do_loop\":false}], \"id\": 1}";
     char req[BUFSIZE];
     sprintf(req, req_template, name, passphrase, enckey);
 
@@ -74,7 +74,7 @@ void context_sync()
     sprintf(tmp ,wallet_restore_req, name, passphrase, mnemonics);    
     printf("sync with context\n");
     CroJsonRpcPtr rpc= NULL;
-    cro_create_jsonrpc(&rpc, ".storage", "ws://localhost:26657/websocket", 0xab, &progress);
+    cro_create_jsonrpc(&rpc, ".storage", "ws://localhost:26657/websocket", 0xab, &progress); // set NULL if there is no progress callback
     cro_run_jsonrpc(rpc, wallet_req, buf, sizeof(buf), user);        
     printf("response: %s\n", buf);    
     cro_run_jsonrpc(rpc, tmp, buf, sizeof(buf), user);    

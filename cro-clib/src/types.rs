@@ -8,6 +8,9 @@ use client_rpc_core::{rpc::sync_rpc::CBindingCore, RpcHandler};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::os::raw::c_int;
+/// current, start, end, userdata
+/// return: 1: continue, 0: stop
+pub type ProgressCallback = extern "C" fn(u64, u64, u64, *const std::ffi::c_void) -> i32;
 
 pub type CroHDWalletPtr = *mut CroHDWallet;
 pub type CroAddressPtr = *mut CroAddress;
@@ -98,10 +101,6 @@ impl Default for CroFee {
         CroFee { fee }
     }
 }
-
-/// current, start, end, userdata
-/// return: 1: continue, 0: stop
-pub type ProgressCallback = extern "C" fn(u64, u64, u64, *const std::ffi::c_void) -> i32;
 
 #[derive(Clone)]
 pub struct CroJsonRpc {

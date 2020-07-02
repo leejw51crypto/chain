@@ -9,7 +9,7 @@
 #include "../chain.h"
 
 //ret 1: continue, 0: stop
-int32_t progress(uint64_t current, uint64_t start, uint64_t end, const void*  user_data)
+int32_t do_progress(uint64_t current, uint64_t start, uint64_t end, const void*  user_data)
 {
     double gap= 0;
     double rate=0;
@@ -21,6 +21,8 @@ int32_t progress(uint64_t current, uint64_t start, uint64_t end, const void*  us
     printf("%8.2lf  progress current=%lu  start= %lu ~ end=%lu   user= %s\n",rate, current,start, end, user);
     return 1;
 }
+
+struct ProgressWrapper progress={&do_progress};
 
 void show_wallets()
 {

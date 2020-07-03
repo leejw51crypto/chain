@@ -15,7 +15,7 @@ pub type ProgressCallback = extern "C" fn(u64, u64, u64, *const std::ffi::c_void
 #[derive(Clone)]
 #[repr(C)]
 pub struct ProgressWrapper {
-    pub do_progress_callback: ProgressCallback,
+    pub core_progress_callback: ProgressCallback,
 }
 
 pub type CroHDWalletPtr = *mut CroHDWallet;

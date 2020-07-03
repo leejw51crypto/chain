@@ -282,7 +282,7 @@ unsafe fn create_rpc(
         let progress_callback_wrapper = progress_callback_user
             .as_mut()
             .expect("get progress-callback");
-        let progress_callback = progress_callback_wrapper.do_progress_callback;
+        let progress_callback = progress_callback_wrapper.core_progress_callback;
         cbindingcallback = Some(CBindingCore {
             data: Arc::new(Mutex::new(CBindingData {
                 progress_callback,

@@ -38,7 +38,7 @@ typedef CroJsonRpc *CroJsonRpcPtr;
 typedef int32_t (*ProgressCallback)(uint64_t, uint64_t, uint64_t, const void*);
 
 typedef struct ProgressWrapper {
-  ProgressCallback do_progress_callback;
+  ProgressCallback core_progress_callback;
 } ProgressWrapper;
 
 typedef ProgressWrapper *CroProgressPtr;

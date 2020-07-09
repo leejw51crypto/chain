@@ -35,6 +35,7 @@ pub trait AddressRecovery: Clone + Send + Sync {
         new_address: &ExtendedAddr,
         name: &str,
         enckey: &SecKey,
+        wallet: &mut Wallet,
     ) -> Result<bool>;
 }
 
@@ -314,22 +315,19 @@ impl<
         let outputs = transaction.outputs().to_vec();
 
         for (_i, output) in outputs.iter().enumerate() {
-            let newaddress = &output.address;
+            let newaddress: &ExtendedAddr = &output.address;
             let tmp_refetch = self.env.recover_address.recover_addresses(
                 newaddress,
                 &self.env.name,
                 &self.env.enckey,
+                &mut self.wallet,
             )?;
+
             if tmp_refetch {
                 refetch = true;
             }
         }
 
-        if refetch {
-            let wallet = service::load_wallet(&self.env.storage, &self.env.name, &self.env.enckey)
-                .expect("get wallet");
-            self.wallet = wallet.expect("get wallet");
-        }
         Ok(refetch)
     }
 

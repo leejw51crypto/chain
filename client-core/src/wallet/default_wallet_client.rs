@@ -1066,6 +1066,15 @@ where
     /// import a plain base64 encoded plain transaction
     fn import_plain_tx(&self, name: &str, enckey: &SecKey, tx_str: &str) -> Result<Coin> {
         let tx_info = TransactionInfo::decode(tx_str)?;
+
+        let found_tx = self.export_plain_tx(name, enckey, &hex::encode(tx_info.tx.id()));
+        if found_tx.is_ok() {
+            return Err(Error::new(
+                ErrorKind::ValidationError,
+                "This transaction is already imported/in your wallet",
+            ));
+        }
+
         // check if the output is spent or not
         let v = self
             .tendermint_client

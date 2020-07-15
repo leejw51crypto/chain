@@ -75,7 +75,7 @@ where
 
 impl<S, C, T> DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {
@@ -121,7 +121,7 @@ where
 
 impl<S> DefaultWalletClient<S, UnauthorizedClient, UnauthorizedWalletTransactionBuilder>
 where
-    S: Storage,
+    S: Storage + 'static,
 {
     /// Creates a new read-only instance of `DefaultWalletClient`
     pub fn new_read_only(storage: S) -> Self {
@@ -138,7 +138,7 @@ where
 
 impl<S, C, T> AddressRecovery for DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {
@@ -203,7 +203,7 @@ where
 
 impl<S, C, T> WalletClient for DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {
@@ -1280,7 +1280,7 @@ where
 #[cfg(feature = "experimental")]
 impl<S, C, T> MultiSigWalletClient for DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {

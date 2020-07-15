@@ -129,22 +129,23 @@ pub struct WalletInfo {
     pub multisig_address_pair: BTreeMap<String, MultiSigAddress>,
 }
 
-use std::sync::{Arc,Mutex};
+use std::sync::{Arc, Mutex};
 
 /// proxy for the storage
-pub trait WalletStorage :Send + Sync
-{
+pub trait WalletStorage: Send + Sync {}
 
+pub struct WalletStorageImpl<T: Storage> {
+    storage: T,
 }
-
-pub struct WalletStorageImpl
+impl<T> WalletStorageImpl<T>
+where
+    T: Storage + 'static,
 {
-
+    fn new(storage: T) -> Self {
+        WalletStorageImpl { storage }
+    }
 }
-impl WalletStorage for WalletStorageImpl 
-{
-
-}
+impl<T> WalletStorage for WalletStorageImpl<T> where T: Storage + 'static {}
 /// Wallet meta data
 #[derive(Clone)]
 pub struct Wallet {
@@ -402,7 +403,7 @@ pub struct WalletService<T: Storage> {
 
 impl<T> WalletService<T>
 where
-    T: Storage,
+    T: Storage + 'static,
 {
     /// Creates a new instance of wallet service
     pub fn new(storage: T) -> Self {
@@ -590,7 +591,10 @@ where
             ));
         }
 
-        self.set_wallet(name, enckey, Wallet::new(view_key, wallet_kind))?;
+        let newstorage = self.storage.clone();
+        let mut newone = Wallet::new(view_key, wallet_kind);
+        newone.wallet_storage = Some(Arc::new(Mutex::new(WalletStorageImpl::new(newstorage))));
+        self.set_wallet(name, enckey, newone)?;
 
         Ok(())
     }

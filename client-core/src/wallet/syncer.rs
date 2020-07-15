@@ -671,7 +671,7 @@ impl FilteredBlock {
         // first get the incomming staking transactions
         let mut staking_transactions = filter_incomming_staking_transactions(
             &block_result,
-            wallet.staking_addresses().iter(),
+            wallet.get_staking_addresses().iter(),
             block,
         )?;
 

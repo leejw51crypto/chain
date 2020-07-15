@@ -195,7 +195,7 @@ impl Wallet {
     }
 
     /// Returns all staking addresses stored in a wallet
-    pub fn staking_addresses(&self) -> IndexSet<StakedStateAddress> {
+    pub fn get_staking_addresses(&self) -> IndexSet<StakedStateAddress> {
         self.staking_keys
             .iter()
             .map(|public_key| StakedStateAddress::BasicRedeem(RedeemAddress::from(public_key)))
@@ -203,12 +203,18 @@ impl Wallet {
     }
 
     /// Returns all tree addresses stored in a wallet
-    pub fn transfer_addresses(&self) -> IndexSet<ExtendedAddr> {
+    pub fn get_transfer_addresses(&self) -> IndexSet<ExtendedAddr> {
         self.root_hashes
             .iter()
             .cloned()
             .map(ExtendedAddr::OrTree)
             .collect()
+    }
+
+    /// this address belongs to this wallet?
+    pub fn transfer_addresses_contains(&self, addr: &ExtendedAddr) -> bool {
+        let addresses = self.get_transfer_addresses();
+        addresses.contains(addr)
     }
 }
 

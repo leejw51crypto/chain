@@ -1512,7 +1512,7 @@ fn import_transaction(
     )
     .chain(|| (ErrorKind::InvalidInput, "create transaction change failed"))?;
     let mut value = Coin::zero();
-    let transfer_addresses = wallet.transfer_addresses();
+    let transfer_addresses = wallet.get_transfer_addresses();
     for (i, (output, spent)) in transaction_change
         .outputs
         .iter()

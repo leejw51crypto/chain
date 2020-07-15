@@ -212,6 +212,12 @@ impl Wallet {
     }
 
     /// this address belongs to this wallet?
+    pub fn staking_addresses_contains(&self, addr: &StakedStateAddress) -> bool {
+        let addresses = self.get_staking_addresses();
+        addresses.contains(addr)
+    }
+
+    /// this address belongs to this wallet?
     pub fn transfer_addresses_contains(&self, addr: &ExtendedAddr) -> bool {
         let addresses = self.get_transfer_addresses();
         addresses.contains(addr)

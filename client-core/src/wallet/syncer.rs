@@ -671,7 +671,12 @@ impl FilteredBlock {
         // first get the incomming staking transactions
         let mut staking_transactions = filter_incomming_staking_transactions(
             &block_result,
-            wallet.get_staking_addresses().iter(),
+            //&wallet,
+            |staked_state_address: StakedStateAddress| {
+                // whether that address belongs to the wallet
+                // wallet.staking_addresses_contains(staked_state_address)
+                true
+            },
             block,
         )?;
 
@@ -738,13 +743,12 @@ fn filter_staking_transactions(
 /// the staking address in the transaction is self_wallet staking address
 fn filter_incomming_staking_transactions<'a>(
     block_results: &BlockResultsResponse,
-    staking_addresses: impl Iterator<Item = &'a StakedStateAddress>,
+    //  staking_addresses: impl Iterator<Item = &'a StakedStateAddress>,
+    wallet: fn(StakedStateAddress) -> bool,
     block: &Block,
 ) -> Result<Vec<Transaction>> {
-    for staking_address in staking_addresses {
-        if block_results.contains_account(&staking_address)? {
-            return block.staking_transactions();
-        }
+    if block_results.contains_account(wallet)? {
+        return block.staking_transactions();
     }
 
     Ok(Default::default())

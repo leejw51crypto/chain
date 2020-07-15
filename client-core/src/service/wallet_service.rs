@@ -129,11 +129,27 @@ pub struct WalletInfo {
     pub multisig_address_pair: BTreeMap<String, MultiSigAddress>,
 }
 
+use std::sync::{Arc,Mutex};
+
+/// proxy for the storage
+pub trait WalletStorage :Send + Sync
+{
+
+}
+
+pub struct WalletStorageImpl
+{
+
+}
+impl WalletStorage for WalletStorageImpl 
+{
+
+}
 /// Wallet meta data
 #[derive(Clone)]
 pub struct Wallet {
     /// storage
-    pub wallet_storage: Option<SledStorage>,
+    pub wallet_storage: Option<Arc<Mutex<dyn WalletStorage>>>,
 
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,

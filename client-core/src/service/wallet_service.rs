@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::str;
 
+use client_common::storage::SledStorage;
 /// Key space of wallet
 const KEYSPACE: &str = "core_wallet";
 
@@ -102,7 +103,7 @@ where
 }
 
 /// Wallet information to export and import
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct WalletInfo {
     /// name of the the wallet
     pub name: String,
@@ -128,14 +129,11 @@ pub struct WalletInfo {
     pub multisig_address_pair: BTreeMap<String, MultiSigAddress>,
 }
 
-#[derive(Debug, Clone)]
-pub struct WalletStorage {}
-
 /// Wallet meta data
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Wallet {
     /// storage
-    pub wallet_storage: Option<WalletStorage>,
+    pub wallet_storage: Option<SledStorage>,
 
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,

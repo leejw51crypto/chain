@@ -128,9 +128,15 @@ pub struct WalletInfo {
     pub multisig_address_pair: BTreeMap<String, MultiSigAddress>,
 }
 
+#[derive(Debug, Clone)]
+pub struct WalletStorage {}
+
 /// Wallet meta data
 #[derive(Debug, Clone)]
 pub struct Wallet {
+    /// storage
+    pub wallet_storage: Option<WalletStorage>,
+
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,
     /// public keys of staking addresses
@@ -175,6 +181,7 @@ impl Decode for Wallet {
         let wallet_kind = WalletKind::decode(input)?;
 
         Ok(Wallet {
+            wallet_storage: None,
             view_key,
             staking_keys,
             root_hashes,
@@ -187,6 +194,7 @@ impl Wallet {
     /// Creates a new instance of `Wallet`
     pub fn new(view_key: PublicKey, wallet_kind: WalletKind) -> Self {
         Self {
+            wallet_storage: None,
             view_key,
             staking_keys: Default::default(),
             root_hashes: Default::default(),

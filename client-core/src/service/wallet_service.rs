@@ -151,6 +151,10 @@ impl<T> WalletStorage for WalletStorageImpl<T> where T: Storage + 'static {}
 pub struct Wallet {
     /// storage
     pub wallet_storage: Option<Arc<Mutex<dyn WalletStorage>>>,
+    /// name of the wallet
+    pub name: String,
+    /// enckey for the wallet
+    pub enckey: SecKey,
 
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,
@@ -197,6 +201,8 @@ impl Decode for Wallet {
 
         Ok(Wallet {
             wallet_storage: None,
+            name: "".into(),
+            enckey: SecKey::from_str("").expect("get seckey for wallet"),
             view_key,
             staking_keys,
             root_hashes,
@@ -205,11 +211,14 @@ impl Decode for Wallet {
     }
 }
 
+use std::str::FromStr;
 impl Wallet {
     /// Creates a new instance of `Wallet`
-    pub fn new(view_key: PublicKey, wallet_kind: WalletKind) -> Self {
+    pub fn new(view_key: PublicKey, wallet_kind: WalletKind, name: &str, enckey: SecKey) -> Self {
         Self {
             wallet_storage: None,
+            name: name.into(),
+            enckey,
             view_key,
             staking_keys: Default::default(),
             root_hashes: Default::default(),
@@ -592,7 +601,7 @@ where
         }
 
         let newstorage = self.storage.clone();
-        let mut newone = Wallet::new(view_key, wallet_kind);
+        let mut newone = Wallet::new(view_key, wallet_kind, name, enckey.clone());
         newone.wallet_storage = Some(Arc::new(Mutex::new(WalletStorageImpl::new(newstorage))));
         self.set_wallet(name, enckey, newone)?;
 

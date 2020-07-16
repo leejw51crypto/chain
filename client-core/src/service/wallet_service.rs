@@ -357,14 +357,24 @@ impl Wallet {
 
     /// this address belongs to this wallet?
     pub fn staking_addresses_contains(&self, addr: &StakedStateAddress) -> bool {
-        let addresses = self.get_staking_addresses();
-        addresses.contains(addr)
+        self.wallet_storage
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .staking_addresses_contains(&self.name, &self.enckey, addr)
+            .unwrap()
     }
 
     /// this address belongs to this wallet?
     pub fn transfer_addresses_contains(&self, addr: &ExtendedAddr) -> bool {
-        let addresses = self.get_transfer_addresses();
-        addresses.contains(addr)
+        self.wallet_storage
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .transfer_addresses_contains(&self.name, &self.enckey, addr)
+            .unwrap()
     }
 }
 

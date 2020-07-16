@@ -133,6 +133,18 @@ use std::sync::{Arc, Mutex};
 
 /// proxy for the storage
 pub trait WalletStorage: Send + Sync {
+    fn staking_addresses_contains(
+        &self,
+        name: &str,
+        enckey: &SecKey,
+        addr: &StakedStateAddress,
+    ) -> Result<bool>;
+    fn transfer_addresses_contains(
+        &self,
+        name: &str,
+        enckey: &SecKey,
+        addr: &ExtendedAddr,
+    ) -> Result<bool>;
     fn get_public_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>>;
     fn get_roothashes(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<H256>>;
 }
@@ -152,6 +164,52 @@ impl<T> WalletStorage for WalletStorageImpl<T>
 where
     T: Storage + 'static,
 {
+    fn staking_addresses_contains(
+        &self,
+        name: &str,
+        enckey: &SecKey,
+        redeem_address: &StakedStateAddress,
+    ) -> Result<bool> {
+        let stakingkey_keyspace = get_stakingkeyset_keyspace(name);
+
+        if let Ok(value) = read_pubkey(
+            &self.storage,
+            &stakingkey_keyspace,
+            &redeem_address.to_string(),
+        ) {
+            // Ok(value)
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+    fn transfer_addresses_contains(
+        &self,
+        name: &str,
+        enckey: &SecKey,
+        address: &ExtendedAddr,
+    ) -> Result<bool> {
+        match address {
+            ExtendedAddr::OrTree(ref root_hash) => {
+                // roothashset
+                let roothash_keyspace = get_roothashset_keyspace(name);
+
+                let value = self
+                    .storage
+                    .get(roothash_keyspace, hex::encode(&root_hash))?;
+
+                if let Some(raw_value) = value {
+                    let mut roothash_found: H256 = H256::default();
+                    roothash_found.copy_from_slice(&raw_value);
+
+                    // return Ok(roothash_found);
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
     fn get_public_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
         // pubkey
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);

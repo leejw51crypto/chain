@@ -159,10 +159,10 @@ pub struct Wallet {
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,
     /// public keys of staking addresses
-    pub staking_keys: IndexSet<PublicKey>,
+    pub staking_keys2: IndexSet<PublicKey>,
     /// root hashes of multi-sig transfer addresses
     // this is transfer address
-    pub root_hashes: IndexSet<H256>,
+    pub root_hashes2: IndexSet<H256>,
     /// wallet type
     pub wallet_kind: WalletKind,
 }
@@ -170,7 +170,8 @@ pub struct Wallet {
 impl Encode for Wallet {
     fn encode_to<W: Output>(&self, dest: &mut W) {
         self.view_key.encode_to(dest);
-        let staking_len = self.staking_keys.len();
+        
+        /*let staking_len = self.staking_keys.len();
         (staking_len as u16).encode_to(dest);
         for pub_key in self.staking_keys.iter() {
             pub_key.encode_to(dest)
@@ -179,7 +180,7 @@ impl Encode for Wallet {
         (roothashes_len as u16).encode_to(dest);
         for root_hash in self.root_hashes.iter() {
             root_hash.encode_to(dest)
-        }
+        }*/
         self.wallet_kind.encode_to(dest);
     }
 }
@@ -187,8 +188,10 @@ impl Encode for Wallet {
 impl Decode for Wallet {
     fn decode<I: Input>(input: &mut I) -> std::result::Result<Self, parity_scale_codec::Error> {
         let view_key = PublicKey::decode(input)?;
-        let mut staking_keys = IndexSet::new();
+        /*
+         let mut staking_keys = IndexSet::new();
         let mut root_hashes = IndexSet::new();
+       
         let staking_len = u16::decode(input)?;
         for _ in 0..staking_len {
             staking_keys.insert(PublicKey::decode(input)?);
@@ -197,6 +200,7 @@ impl Decode for Wallet {
         for _ in 0..root_hashes_len {
             root_hashes.insert(H256::decode(input)?);
         }
+        */
         let wallet_kind = WalletKind::decode(input)?;
 
         Ok(Wallet {
@@ -204,8 +208,8 @@ impl Decode for Wallet {
             name: "".into(),
             enckey: SecKey::from_str("").expect("get seckey for wallet"),
             view_key,
-            staking_keys,
-            root_hashes,
+            staking_keys2: Default::default(),
+            root_hashes2: Default::default(),
             wallet_kind,
         })
     }
@@ -220,27 +224,38 @@ impl Wallet {
             name: name.into(),
             enckey,
             view_key,
-            staking_keys: Default::default(),
-            root_hashes: Default::default(),
+            staking_keys2: Default::default(),
+            root_hashes2: Default::default(),
             wallet_kind,
         }
     }
 
     /// Returns all staking addresses stored in a wallet
     pub fn get_staking_addresses(&self) -> IndexSet<StakedStateAddress> {
-        self.staking_keys
+        self.staking_keys2
             .iter()
             .map(|public_key| StakedStateAddress::BasicRedeem(RedeemAddress::from(public_key)))
             .collect()
     }
 
+
+     /// Returns all public-kyes in a wallet
+     pub fn get_staking_addresses_publickey(&self) -> IndexSet<PublicKey> {
+        self.staking_keys2.clone()
+    }
+
     /// Returns all tree addresses stored in a wallet
     pub fn get_transfer_addresses(&self) -> IndexSet<ExtendedAddr> {
-        self.root_hashes
+        self.root_hashes2
             .iter()
             .cloned()
             .map(ExtendedAddr::OrTree)
             .collect()
+    }
+
+      /// Returns all tree addresses stored in a wallet
+      pub fn get_transfer_addresses_roothash(&self) -> IndexSet<H256> {
+        self.root_hashes2.clone()
     }
 
     /// this address belongs to this wallet?
@@ -380,7 +395,7 @@ pub fn load_wallet<S: SecureStorage>(
             read_number(storage, &info_keyspace, "stakingkeyindex", Some(0))?;
         for i in 0..stakingkey_count {
             let stakingkey = read_pubkey(storage, &staking_keyspace, &format!("{}", i))?;
-            new_wallet.staking_keys.insert(stakingkey);
+          //  new_wallet.staking_keys.insert(stakingkey);
         }
 
         // roothash
@@ -391,7 +406,7 @@ pub fn load_wallet<S: SecureStorage>(
             if let Some(raw_value) = value {
                 let mut roothash_found: H256 = H256::default();
                 roothash_found.copy_from_slice(&raw_value);
-                new_wallet.root_hashes.insert(roothash_found);
+               // new_wallet.root_hashes.insert(roothash_found);
             }
         }
 
@@ -469,13 +484,15 @@ where
         )?;
         write_number(&self.storage, &info_keyspace, "publicindex", 0)?;
         write_number(&self.storage, &info_keyspace, "stakingkeyindex", 0)?;
-        for public_key in wallet.staking_keys.iter() {
+        let publickeys= wallet.get_staking_addresses_publickey();
+        for public_key in publickeys.iter() {
             self.add_staking_key(name, enckey, public_key)?;
         }
 
         // root hash
         write_number(&self.storage, &info_keyspace, "roothashindex", 0)?;
-        for root_hash in wallet.root_hashes.iter() {
+        let roothashes= wallet.get_transfer_addresses_roothash();
+        for root_hash in roothashes.iter() {
             self.add_root_hash(name, enckey, *root_hash)?;
         }
 

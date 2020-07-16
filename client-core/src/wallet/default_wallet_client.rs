@@ -185,7 +185,7 @@ where
             return Ok(false);
         }
 
-/*        let count = count;
+        /*        let count = count;
         for _i in 0..count {
             let newaddress: ExtendedAddr = self
                 .new_transfer_address(name, enckey)
@@ -362,7 +362,7 @@ where
 
         // get multisig address
         let mut multisig_address_pair = BTreeMap::new();
-        let roothashes= wallet.get_transfer_addresses_roothash();
+        let roothashes = wallet.get_transfer_addresses_roothash();
         for root_hash in roothashes.iter() {
             let multisig_address = self
                 .root_hash_service
@@ -450,7 +450,7 @@ where
                 .set_multi_sig_address_from_root_hash(name, &enckey, &root_hash, multisig_addr)?;
         }
 
-        let public_keys= wallet_info.wallet.get_staking_addresses_publickey();
+        let public_keys = wallet_info.wallet.get_staking_addresses_publickey();
         for public_key in public_keys.iter() {
             self.wallet_service
                 .add_staking_key(name, &enckey, public_key)?;

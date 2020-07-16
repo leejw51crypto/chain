@@ -133,8 +133,8 @@ use std::sync::{Arc, Mutex};
 
 /// proxy for the storage
 pub trait WalletStorage: Send + Sync {
-    fn get_public_keys(&self,name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>>;
-    fn get_roothashes(&self,name: &str, enckey: &SecKey) -> Result<IndexSet<H256>>;
+    fn get_public_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>>;
+    fn get_roothashes(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<H256>>;
 }
 
 pub struct WalletStorageImpl<T: Storage> {
@@ -152,21 +152,36 @@ impl<T> WalletStorage for WalletStorageImpl<T>
 where
     T: Storage + 'static,
 {
-    fn get_public_keys(&self,name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
+    fn get_public_keys(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<PublicKey>> {
         // pubkey
         let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
         let staking_keyspace = get_stakingkey_keyspace(name);
         let stakingkey_count: u64 =
             read_number(&self.storage, &info_keyspace, "stakingkeyindex", Some(0))?;
-        let mut ret: IndexSet<PublicKey>= Default::default();
+        let mut ret: IndexSet<PublicKey> = Default::default();
         for i in 0..stakingkey_count {
             let public_key = read_pubkey(&self.storage, &staking_keyspace, &format!("{}", i))?;
             ret.insert(public_key);
         }
         Ok(ret)
     }
-    fn get_roothashes(&self,name: &str, enckey: &SecKey) -> Result<IndexSet<H256>> {
-        Ok(Default::default())
+    fn get_roothashes(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<H256>> {
+        // roothash
+        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
+        let roothash_keyspace = get_roothash_keyspace(name);
+        let roothash_count: u64 =
+            read_number(&self.storage, &info_keyspace, "roothashindex", Some(0))?;
+        let mut ret: IndexSet<H256> = Default::default();
+
+        for i in 0..roothash_count {
+            let value = self.storage.get(&roothash_keyspace, format!("{}", i))?;
+            if let Some(raw_value) = value {
+                let mut roothash_found: H256 = H256::default();
+                roothash_found.copy_from_slice(&raw_value);
+                ret.insert(roothash_found);
+            }
+        }
+        Ok(ret)
     }
 }
 /// Wallet meta data

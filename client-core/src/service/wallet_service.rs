@@ -196,11 +196,6 @@ pub struct Wallet {
 
     /// view key to decrypt enclave transactions
     pub view_key: PublicKey,
-    /// public keys of staking addresses
-    pub staking_keys2: IndexSet<PublicKey>,
-    /// root hashes of multi-sig transfer addresses
-    // this is transfer address
-    pub root_hashes2: IndexSet<H256>,
     /// wallet type
     pub wallet_kind: WalletKind,
 }
@@ -208,17 +203,6 @@ pub struct Wallet {
 impl Encode for Wallet {
     fn encode_to<W: Output>(&self, dest: &mut W) {
         self.view_key.encode_to(dest);
-
-        /*let staking_len = self.staking_keys.len();
-        (staking_len as u16).encode_to(dest);
-        for pub_key in self.staking_keys.iter() {
-            pub_key.encode_to(dest)
-        }
-        let roothashes_len = self.root_hashes.len();
-        (roothashes_len as u16).encode_to(dest);
-        for root_hash in self.root_hashes.iter() {
-            root_hash.encode_to(dest)
-        }*/
         self.wallet_kind.encode_to(dest);
     }
 }
@@ -226,19 +210,6 @@ impl Encode for Wallet {
 impl Decode for Wallet {
     fn decode<I: Input>(input: &mut I) -> std::result::Result<Self, parity_scale_codec::Error> {
         let view_key = PublicKey::decode(input)?;
-        /*
-         let mut staking_keys = IndexSet::new();
-        let mut root_hashes = IndexSet::new();
-
-        let staking_len = u16::decode(input)?;
-        for _ in 0..staking_len {
-            staking_keys.insert(PublicKey::decode(input)?);
-        }
-        let root_hashes_len = u16::decode(input)?;
-        for _ in 0..root_hashes_len {
-            root_hashes.insert(H256::decode(input)?);
-        }
-        */
         let wallet_kind = WalletKind::decode(input)?;
 
         Ok(Wallet {
@@ -246,8 +217,6 @@ impl Decode for Wallet {
             name: "".into(),
             enckey: SecKey::from_str("").expect("get seckey for wallet"),
             view_key,
-            staking_keys2: Default::default(),
-            root_hashes2: Default::default(),
             wallet_kind,
         })
     }
@@ -262,8 +231,6 @@ impl Wallet {
             name: name.into(),
             enckey,
             view_key,
-            staking_keys2: Default::default(),
-            root_hashes2: Default::default(),
             wallet_kind,
         }
     }

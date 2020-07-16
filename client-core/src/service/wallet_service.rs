@@ -270,6 +270,10 @@ impl Wallet {
 
     /// Returns all staking addresses stored in a wallet
     pub fn get_staking_addresses(&self) -> IndexSet<StakedStateAddress> {
+    
+        let pubkeys= self.wallet_storage.as_ref().unwrap().lock().unwrap().get_public_keys(
+            &self.name, &self.enckey).unwrap();
+
         /* let info_keyspace = get_info_keyspace(name);
         new_wallet.view_key = read_pubkey_enc(storage, &info_keyspace, "viewkey", enckey)?;
         // pubkey
@@ -285,7 +289,7 @@ impl Wallet {
         }
         staking_addresses*/
 
-        self.staking_keys2
+        pubkeys
             .iter()
             .map(|public_key| StakedStateAddress::BasicRedeem(RedeemAddress::from(public_key)))
             .collect()

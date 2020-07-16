@@ -270,24 +270,14 @@ impl Wallet {
 
     /// Returns all staking addresses stored in a wallet
     pub fn get_staking_addresses(&self) -> IndexSet<StakedStateAddress> {
-    
-        let pubkeys= self.wallet_storage.as_ref().unwrap().lock().unwrap().get_public_keys(
-            &self.name, &self.enckey).unwrap();
-
-        /* let info_keyspace = get_info_keyspace(name);
-        new_wallet.view_key = read_pubkey_enc(storage, &info_keyspace, "viewkey", enckey)?;
-        // pubkey
-        let info_keyspace = format!("{}_{}_info", KEYSPACE, name);
-        let staking_keyspace = get_stakingkey_keyspace(name);
-        let stakingkey_count: u64 =
-            read_number(storage, &info_keyspace, "stakingkeyindex", Some(0))?;
-        let mut staking_addresses: IndexSet<StakedStateAddress>= Default::default();
-        for i in 0..stakingkey_count {
-            let public_key = read_pubkey(storage, &staking_keyspace, &format!("{}", i))?;
-            let address=StakedStateAddress::BasicRedeem(RedeemAddress::from(public_key));
-            staking_addresses.insert(stakingkey);
-        }
-        staking_addresses*/
+        let pubkeys = self
+            .wallet_storage
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .get_public_keys(&self.name, &self.enckey)
+            .unwrap();
 
         pubkeys
             .iter()
@@ -297,12 +287,30 @@ impl Wallet {
 
     /// Returns all public-kyes in a wallet
     pub fn get_staking_addresses_publickey(&self) -> IndexSet<PublicKey> {
-        self.staking_keys2.clone()
+        let pubkeys = self
+            .wallet_storage
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .get_public_keys(&self.name, &self.enckey)
+            .unwrap();
+
+        pubkeys
     }
 
     /// Returns all tree addresses stored in a wallet
     pub fn get_transfer_addresses(&self) -> IndexSet<ExtendedAddr> {
-        self.root_hashes2
+        let roothashes = self
+            .wallet_storage
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .get_roothashes(&self.name, &self.enckey)
+            .unwrap();
+
+        roothashes
             .iter()
             .cloned()
             .map(ExtendedAddr::OrTree)
@@ -311,7 +319,15 @@ impl Wallet {
 
     /// Returns all tree addresses stored in a wallet
     pub fn get_transfer_addresses_roothash(&self) -> IndexSet<H256> {
-        self.root_hashes2.clone()
+        let roothashes = self
+            .wallet_storage
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .get_roothashes(&self.name, &self.enckey)
+            .unwrap();
+        roothashes
     }
 
     /// this address belongs to this wallet?

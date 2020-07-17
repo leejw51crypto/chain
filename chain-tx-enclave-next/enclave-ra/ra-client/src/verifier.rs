@@ -189,6 +189,7 @@ impl EnclaveCertVerifier {
             return Err(EnclaveCertVerifierError::OldAttestationReport);
         }
 
+        /*
         if !self
             .valid_enclave_quote_statuses
             .contains(&attestation_report_body.isv_enclave_quote_status.parse()?)
@@ -196,7 +197,7 @@ impl EnclaveCertVerifier {
             return Err(EnclaveCertVerifierError::InvalidEnclaveQuoteStatus(
                 attestation_report_body.isv_enclave_quote_status,
             ));
-        }
+        }*/
 
         let quote = attestation_report_body.get_quote()?;
 

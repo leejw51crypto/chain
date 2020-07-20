@@ -581,6 +581,11 @@ where
             wallet.wallet_kind as u64,
         )?;
 
+         // stakingkey
+        write_number(&self.storage, &info_keyspace, "publicindex", 0)?;
+        write_number(&self.storage, &info_keyspace, "stakingkeyindex", 0)?;
+        // root hash
+        write_number(&self.storage, &info_keyspace, "roothashindex", 0)?;
         Ok(())
     }
 
@@ -1113,12 +1118,6 @@ mod test {
         let public_key_1 = PublicKey::from(&PrivateKey::new().unwrap());
         let public_key_2 = PublicKey::from(&PrivateKey::new().unwrap());
         let public_key_3 = PublicKey::from(&PrivateKey::new().unwrap());
-        let mut staking_keys = IndexSet::new();
-        staking_keys.insert(public_key_1.clone());
-        staking_keys.insert(public_key_2.clone());
-        let mut root_hashes = IndexSet::new();
-        root_hashes.insert([0; 32]);
-        root_hashes.insert([1; 32]);
         let private_key = PrivateKey::new().unwrap();
         let wallet = Wallet {
             wallet_storage:None,
@@ -1126,11 +1125,9 @@ mod test {
             enckey:None,
             view_key: PublicKey::from(&private_key),
             wallet_kind: WalletKind::Basic,
-        };
+        };  
         let wallet_raw = wallet.encode();
         let wallet_2 = Wallet::decode(&mut wallet_raw.as_slice()).unwrap();
-        assert_eq!(wallet_2.get_staking_addresses().len(), 2);
-        assert_eq!(wallet_2.get_transfer_addresses_roothash().len(), 2);
         assert_eq!(wallet_2.wallet_kind, WalletKind::Basic);
 
         let mut key_pairs = BTreeMap::new();

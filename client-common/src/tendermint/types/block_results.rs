@@ -254,7 +254,15 @@ mod tests {
             let target_account = StakedStateAddress::from(
                 RedeemAddress::from_str("0x0e7c045110b8dbf29765047380898919c5cb56f4").unwrap(),
             );
-            let result = block_results.contains_account(&target_account);
+
+            let check_staking_address=Box::new(move |staked_state_address: StakedStateAddress| {
+                staked_state_address == StakedStateAddress::from(
+                    RedeemAddress::from_str("0x0e7c045110b8dbf29765047380898919c5cb56f4").unwrap(),
+                )
+    
+            });
+
+            let result = block_results.contains_account(check_staking_address);
             assert!(result.is_err());
             assert_eq!(ErrorKind::DeserializationError, result.unwrap_err().kind());
         }
@@ -266,7 +274,14 @@ mod tests {
             let target_account = StakedStateAddress::from(
                 RedeemAddress::from_str("0x0e7c045110b8dbf29765047380898919c5cb56f4").unwrap(),
             );
-            let result = block_results.contains_account(&target_account);
+
+            let check_staking_address=Box::new(move |staked_state_address: StakedStateAddress| {
+                staked_state_address == StakedStateAddress::from(
+                    RedeemAddress::from_str("0x0e7c045110b8dbf29765047380898919c5cb56f4").unwrap(),
+                )
+    
+            });
+            let result = block_results.contains_account( check_staking_address);
             assert!(result.is_err());
             assert_eq!(ErrorKind::DeserializationError, result.unwrap_err().kind());
         }
@@ -279,7 +294,16 @@ mod tests {
             let target_account = StakedStateAddress::from(
                 RedeemAddress::from_str("0x0e7c045110b8dbf29765047380898919c5cb56f4").unwrap(),
             );
-            let result = block_results.contains_account(&target_account);
+
+
+            let check_staking_address=Box::new(move |staked_state_address: StakedStateAddress| {
+                staked_state_address == StakedStateAddress::from(
+                    RedeemAddress::from_str("0x0e7c045110b8dbf29765047380898919c5cb56f4").unwrap(),
+                )
+    
+            });
+
+            let result = block_results.contains_account(check_staking_address);
             assert!(result.is_ok());
             assert_eq!(false, result.unwrap());
         }
@@ -292,7 +316,14 @@ mod tests {
             let target_account = StakedStateAddress::from(
                 RedeemAddress::from_str("0x33502ed39d0c4e2044fb37fdcd5161493f5900c3").unwrap(),
             );
-            let result = block_results.contains_account(&target_account);
+
+            let check_staking_address=Box::new(move |staked_state_address: StakedStateAddress| {
+                staked_state_address == StakedStateAddress::from(
+                    RedeemAddress::from_str("0x33502ed39d0c4e2044fb37fdcd5161493f5900c3").unwrap(),
+                )
+    
+            });
+            let result = block_results.contains_account(check_staking_address);
             assert!(result.is_ok());
             assert_eq!(true, result.unwrap());
         }

@@ -288,11 +288,11 @@ impl Decode for Wallet {
 use std::str::FromStr;
 impl Wallet {
     /// Creates a new instance of `Wallet`
-    pub fn new(view_key: PublicKey, wallet_kind: WalletKind, name: &str, enckey: SecKey) -> Self {
+    pub fn new(view_key: PublicKey, wallet_kind: WalletKind, name: &str, enckey: Option<SecKey>) -> Self {
         Self {
             wallet_storage: None,
             name: name.into(),
-            enckey: Some(enckey),
+            enckey,
             view_key,
             wallet_kind,
         }
@@ -703,7 +703,7 @@ where
         }
 
         let newstorage = self.storage.clone();
-        let mut newone = Wallet::new(view_key, wallet_kind, name, enckey.clone());
+        let mut newone = Wallet::new(view_key, wallet_kind, name, Some(enckey.clone()));
         newone.wallet_storage = Some(Arc::new(Mutex::new(WalletStorageImpl::new(newstorage))));
         self.set_wallet(name, enckey, newone)?;
 
@@ -1121,15 +1121,16 @@ mod test {
         root_hashes.insert([1; 32]);
         let private_key = PrivateKey::new().unwrap();
         let wallet = Wallet {
+            wallet_storage:None,
+            name:"".into(),
+            enckey:None,
             view_key: PublicKey::from(&private_key),
-            staking_keys,
-            root_hashes,
             wallet_kind: WalletKind::Basic,
         };
         let wallet_raw = wallet.encode();
         let wallet_2 = Wallet::decode(&mut wallet_raw.as_slice()).unwrap();
-        assert_eq!(wallet_2.staking_keys.len(), 2);
-        assert_eq!(wallet_2.root_hashes.len(), 2);
+        assert_eq!(wallet_2.get_staking_addresses().len(), 2);
+        assert_eq!(wallet_2.get_transfer_addresses_roothash().len(), 2);
         assert_eq!(wallet_2.wallet_kind, WalletKind::Basic);
 
         let mut key_pairs = BTreeMap::new();

@@ -367,6 +367,12 @@ where
         }
         println!("export wallet======================== roothashes {}", roothashes.len());
 
+        let staking_keys2= wallet.get_staking_addresses_publickey();
+        let mut staking_keys: Vec<PublicKey>= vec![];
+        for key in staking_keys2.iter() {
+            staking_keys.push(key.clone());
+        }
+
         // get hdkey
         let hdkey = self.hd_key_service.get_hdkey(name, enckey)?;
 
@@ -379,6 +385,7 @@ where
             key_chainpath,
             hdkey,
             multisig_address_pair,
+            staking_keys,
         };
         Ok(wallet_info)
     }
@@ -452,7 +459,11 @@ where
             self.wallet_service
                 .add_staking_key(name, &enckey, public_key)?;
         }
-
+        
+        for staking_key in wallet_info.staking_keys.iter() {
+            self.wallet_service
+                .add_staking_key(name, &enckey, staking_key)?;
+        }
         Ok(enckey)
     }
 

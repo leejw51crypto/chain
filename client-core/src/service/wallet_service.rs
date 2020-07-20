@@ -127,6 +127,10 @@ pub struct WalletInfo {
     /// hex encoded root_hash -> parity_scale_codec encoded multisig_address pairs
     #[serde(deserialize_with = "deserde_from_str", serialize_with = "serde_to_str")]
     pub multisig_address_pair: BTreeMap<String, MultiSigAddress>,
+
+    /// staking keys
+    #[serde(deserialize_with = "deserde_from_str", serialize_with = "serde_to_str")]
+    pub staking_keys: Vec<PublicKey>,
 }
 
 use std::sync::{Arc, Mutex};
@@ -1150,6 +1154,7 @@ mod test {
             key_chainpath,
             hdkey: Some(HdKey::default()),
             multisig_address_pair,
+            staking_keys:vec![],
         };
         let s = serde_json::to_string(&info);
         assert!(s.is_ok());

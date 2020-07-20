@@ -76,7 +76,7 @@ pub trait SyncRpc: Send + Sync {
 
 pub struct SyncRpcImpl<S, C, O, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     O: TransactionObfuscation,
     T: AddressRecovery,
@@ -120,7 +120,7 @@ fn process_sync<S, C, O, T>(
     recover_address: T,
 ) -> Result<()>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     O: TransactionObfuscation,
     T: AddressRecovery,

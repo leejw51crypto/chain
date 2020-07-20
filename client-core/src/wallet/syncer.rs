@@ -88,7 +88,8 @@ pub struct SyncerOptions {
 
 /// Common configs for wallet syncer with `TransactionObfuscation`
 #[derive(Clone)]
-pub struct ObfuscationSyncerConfig<S: SecureStorage, C: Client, O: TransactionObfuscation> {
+pub struct ObfuscationSyncerConfig<S: SecureStorage + 'static, C: Client, O: TransactionObfuscation>
+{
     // services
     pub storage: S,
     pub client: C,
@@ -143,7 +144,7 @@ pub struct WalletSyncer<S: SecureStorage, C: Client, D: TxDecryptor, T: AddressR
 
 impl<S, C, D, T> WalletSyncer<S, C, D, T>
 where
-    S: SecureStorage,
+    S: SecureStorage + 'static,
     C: Client,
     D: TxDecryptor,
     T: AddressRecovery,
@@ -190,7 +191,7 @@ fn load_view_key<S: SecureStorage>(storage: &S, name: &str, enckey: &SecKey) -> 
 
 impl<S, C, O, T> WalletSyncer<S, C, TxObfuscationDecryptor<O>, T>
 where
-    S: SecureStorage,
+    S: SecureStorage + 'static,
     C: Client,
     O: TransactionObfuscation,
     T: AddressRecovery,
@@ -241,7 +242,7 @@ struct WalletSyncerImpl<
 
 impl<
         'a,
-        S: SecureStorage,
+        S: SecureStorage + 'static,
         C: Client,
         D: TxDecryptor,
         F: FnMut(ProgressReport) -> bool,
@@ -668,10 +669,19 @@ impl FilteredBlock {
 
         let block_filter = block_result.block_filter()?;
 
+        //println!("wallet tmp= {:?}", wallet.name);
+        //println!("wallet tmp= {:?}", wallet.enckey);
+        let wallettmp = wallet.clone();
+
         // first get the incomming staking transactions
         let mut staking_transactions = filter_incomming_staking_transactions(
             &block_result,
-            wallet.staking_addresses().iter(),
+            //&wallet,
+            Box::new(move |staked_state_address: StakedStateAddress| {
+                // whether that address belongs to the wallet
+                wallettmp.staking_addresses_contains(&staked_state_address)
+                //true
+            }),
             block,
         )?;
 
@@ -738,13 +748,12 @@ fn filter_staking_transactions(
 /// the staking address in the transaction is self_wallet staking address
 fn filter_incomming_staking_transactions<'a>(
     block_results: &BlockResultsResponse,
-    staking_addresses: impl Iterator<Item = &'a StakedStateAddress>,
+    //  staking_addresses: impl Iterator<Item = &'a StakedStateAddress>,
+    wallet: Box<dyn Fn(StakedStateAddress) -> bool>,
     block: &Block,
 ) -> Result<Vec<Transaction>> {
-    for staking_address in staking_addresses {
-        if block_results.contains_account(&staking_address)? {
-            return block.staking_transactions();
-        }
+    if block_results.contains_account(wallet)? {
+        return block.staking_transactions();
     }
 
     Ok(Default::default())

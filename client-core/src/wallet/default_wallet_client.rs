@@ -75,7 +75,7 @@ where
 
 impl<S, C, T> DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {
@@ -121,7 +121,7 @@ where
 
 impl<S> DefaultWalletClient<S, UnauthorizedClient, UnauthorizedWalletTransactionBuilder>
 where
-    S: Storage,
+    S: Storage + 'static,
 {
     /// Creates a new read-only instance of `DefaultWalletClient`
     pub fn new_read_only(storage: S) -> Self {
@@ -138,7 +138,7 @@ where
 
 impl<S, C, T> AddressRecovery for DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {
@@ -190,11 +190,6 @@ where
             let newaddress: ExtendedAddr = self
                 .new_transfer_address(name, enckey)
                 .expect("get new transfer address");
-            match newaddress {
-                ExtendedAddr::OrTree(ref root_hash) => {
-                    wallet.root_hashes.insert(*root_hash);
-                }
-            }
         }
 
         Ok(true)
@@ -203,7 +198,7 @@ where
 
 impl<S, C, T> WalletClient for DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {
@@ -362,7 +357,8 @@ where
 
         // get multisig address
         let mut multisig_address_pair = BTreeMap::new();
-        for root_hash in wallet.root_hashes.iter() {
+        let roothashes = wallet.get_transfer_addresses_roothash();
+        for root_hash in roothashes.iter() {
             let multisig_address = self
                 .root_hash_service
                 .get_multi_sig_address_from_root_hash(name, root_hash, enckey)?;
@@ -449,7 +445,8 @@ where
                 .set_multi_sig_address_from_root_hash(name, &enckey, &root_hash, multisig_addr)?;
         }
 
-        for public_key in wallet_info.wallet.staking_keys.iter() {
+        let public_keys = wallet_info.wallet.get_staking_addresses_publickey();
+        for public_key in public_keys.iter() {
             self.wallet_service
                 .add_staking_key(name, &enckey, public_key)?;
         }
@@ -1280,7 +1277,7 @@ where
 #[cfg(feature = "experimental")]
 impl<S, C, T> MultiSigWalletClient for DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {
@@ -1512,7 +1509,7 @@ fn import_transaction(
     )
     .chain(|| (ErrorKind::InvalidInput, "create transaction change failed"))?;
     let mut value = Coin::zero();
-    let transfer_addresses = wallet.transfer_addresses();
+    let transfer_addresses = wallet.get_transfer_addresses();
     for (i, (output, spent)) in transaction_change
         .outputs
         .iter()

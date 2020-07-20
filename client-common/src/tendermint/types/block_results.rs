@@ -20,7 +20,10 @@ pub trait BlockResults {
 
     /// Checks if a StakedStateAddress is included in devlier_tx account event.
     /// Returns true when the address presents
-    fn contains_account(&self, target_account: &StakedStateAddress) -> Result<bool>;
+    fn contains_account(
+        &self,
+        contain_account_callback: Box<dyn Fn(StakedStateAddress) -> bool>,
+    ) -> Result<bool>;
 
     /// Checks if the block contains a staking stransaction
     /// Returns true when contains a staking transaction
@@ -69,7 +72,10 @@ impl BlockResults for BlockResultsResponse {
         false
     }
 
-    fn contains_account(&self, target_account: &StakedStateAddress) -> Result<bool> {
+    fn contains_account(
+        &self,
+        contain_account_callback: Box<dyn Fn(StakedStateAddress) -> bool>,
+    ) -> Result<bool> {
         match &self.txs_results {
             None => Ok(false),
             Some(deliver_tx) => {
@@ -81,7 +87,7 @@ impl BlockResults for BlockResultsResponse {
                         match find_staking_address_from_event_attributes(&event.attributes)? {
                             None => continue,
                             Some(address) => {
-                                if address == *target_account {
+                                if contain_account_callback(address) {
                                     return Ok(true);
                                 }
                             }

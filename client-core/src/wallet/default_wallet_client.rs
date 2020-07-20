@@ -338,6 +338,7 @@ where
         let mut key_pairs = BTreeMap::new();
         let mut key_chainpath = BTreeMap::new();
         let public_keys = self.public_keys(name, enckey)?;
+        println!("export wallet======================== pubkeys {}", public_keys.len());
         // get public-private key pair and public-chainpath pair
         for public_key in public_keys.into_iter() {
             if let Some(private_key) =
@@ -364,6 +365,7 @@ where
                 .get_multi_sig_address_from_root_hash(name, root_hash, enckey)?;
             multisig_address_pair.insert(hex::encode(&root_hash), multisig_address);
         }
+        println!("export wallet======================== roothashes {}", roothashes.len());
 
         // get hdkey
         let hdkey = self.hd_key_service.get_hdkey(name, enckey)?;

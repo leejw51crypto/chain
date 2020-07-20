@@ -832,17 +832,31 @@ pub mod tests {
             .list_staking_addresses(wallet_request.clone())
             .unwrap()[0]
             .clone();
+        println!("staking {}", serde_json::to_string_pretty(&wallet_rpc
+            .list_staking_addresses(wallet_request.clone()).unwrap()).unwrap());
+        println!("transfer {}", serde_json::to_string_pretty(&wallet_rpc
+            .list_transfer_addresses(wallet_request.clone()).unwrap()).unwrap());
+        
+      
         let old_transfer_address = wallet_rpc
             .list_transfer_addresses(wallet_request.clone())
             .unwrap()[0]
             .clone();
         let old_enckey = wallet_rpc.get_enc_key(create_request.clone()).unwrap();
         let wallet_info = wallet_rpc.export(wallet_request.clone()).unwrap();
+        println!("wallet info {}", serde_json::to_string_pretty(&wallet_info).unwrap());
         // delete the old wallet
         wallet_rpc.delete(create_request.clone()).unwrap();
         let new_enckey = wallet_rpc
             .import(create_request.clone(), wallet_info)
             .unwrap();
+
+            println!("***********************************");
+            println!("staking {}", serde_json::to_string_pretty(&wallet_rpc
+                .list_staking_addresses(wallet_request.clone()).unwrap()).unwrap());
+            println!("transfer {}", serde_json::to_string_pretty(&wallet_rpc
+                .list_transfer_addresses(wallet_request.clone()).unwrap()).unwrap());
+           
         let new_staking_address = wallet_rpc
             .list_staking_addresses(wallet_request.clone())
             .unwrap()[0]

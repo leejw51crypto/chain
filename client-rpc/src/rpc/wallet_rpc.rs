@@ -455,8 +455,10 @@ where
     }
 
     fn import(&self, request: CreateWalletRequest, wallet_info: WalletInfo) -> Result<SecKey> {
+        let mut info = wallet_info;
+
         self.client
-            .import_wallet(&request.name, &request.passphrase, wallet_info)
+            .import_wallet(&request.name, &request.passphrase, &mut info)
             .map_err(to_rpc_error)
     }
 }
@@ -832,17 +834,20 @@ pub mod tests {
             .list_staking_addresses(wallet_request.clone())
             .unwrap()[0]
             .clone();
+
         let old_transfer_address = wallet_rpc
             .list_transfer_addresses(wallet_request.clone())
             .unwrap()[0]
             .clone();
         let old_enckey = wallet_rpc.get_enc_key(create_request.clone()).unwrap();
         let wallet_info = wallet_rpc.export(wallet_request.clone()).unwrap();
+
         // delete the old wallet
         wallet_rpc.delete(create_request.clone()).unwrap();
         let new_enckey = wallet_rpc
             .import(create_request.clone(), wallet_info)
             .unwrap();
+
         let new_staking_address = wallet_rpc
             .list_staking_addresses(wallet_request.clone())
             .unwrap()[0]

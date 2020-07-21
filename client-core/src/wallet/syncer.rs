@@ -1090,7 +1090,7 @@ mod tests {
         let dummy_viewkey = PublicKey::from(
             &PrivateKey::new().expect("Derive public key from private key should work"),
         );
-        let mut dummy_wallet = Wallet::new(dummy_viewkey, WalletKind::HD, "",None);
+        let mut dummy_wallet = Wallet::new(dummy_viewkey, WalletKind::HD, "", None);
 
         // already created
         assert_eq!(

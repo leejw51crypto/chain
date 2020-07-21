@@ -47,14 +47,14 @@ use secstr::SecUtf8;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::convert::TryInto;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use zxcvbn::{feedback::Feedback, zxcvbn as estimate_password_strength};
-
 /// Default implementation of `WalletClient` based on `Storage` and `Index`
 #[derive(Debug, Default, Clone)]
 pub struct DefaultWalletClient<S, C, T>
 where
-    S: Storage,
+    S: Storage + 'static,
     C: Client,
     T: WalletTransactionBuilder,
 {
@@ -71,6 +71,7 @@ where
     tendermint_client: C,
     transaction_builder: T,
     block_height_ensure: Option<u64>,
+    storage: S,
 }
 
 impl<S, C, T> DefaultWalletClient<S, C, T>
@@ -96,10 +97,11 @@ where
             sync_state_service: SyncStateService::new(storage.clone()),
             #[cfg(feature = "experimental")]
             multi_sig_session_service: MultiSigSessionService::new(storage.clone()),
-            root_hash_service: RootHashService::new(storage),
+            root_hash_service: RootHashService::new(storage.clone()),
             tendermint_client,
             transaction_builder,
             block_height_ensure,
+            storage: storage.clone(),
         }
     }
 
@@ -338,7 +340,10 @@ where
         let mut key_pairs = BTreeMap::new();
         let mut key_chainpath = BTreeMap::new();
         let public_keys = self.public_keys(name, enckey)?;
-        println!("export wallet======================== pubkeys {}", public_keys.len());
+        println!(
+            "export wallet======================== pubkeys {}",
+            public_keys.len()
+        );
         // get public-private key pair and public-chainpath pair
         for public_key in public_keys.into_iter() {
             if let Some(private_key) =
@@ -365,10 +370,13 @@ where
                 .get_multi_sig_address_from_root_hash(name, root_hash, enckey)?;
             multisig_address_pair.insert(hex::encode(&root_hash), multisig_address);
         }
-        println!("export wallet======================== roothashes {}", roothashes.len());
+        println!(
+            "export wallet======================== roothashes {}",
+            roothashes.len()
+        );
 
-        let staking_keys2= wallet.get_staking_addresses_publickey();
-        let mut staking_keys: Vec<PublicKey>= vec![];
+        let staking_keys2 = wallet.get_staking_addresses_publickey();
+        let mut staking_keys: Vec<PublicKey> = vec![];
         for key in staking_keys2.iter() {
             staking_keys.push(key.clone());
         }
@@ -394,7 +402,7 @@ where
         &self,
         name: &str,
         passphrase: &SecUtf8,
-        wallet_info: WalletInfo,
+        wallet_info: &mut WalletInfo,
     ) -> Result<SecKey> {
         let all_wallet = self.wallet_service.names()?;
         if all_wallet.contains(&name.to_string()) {
@@ -417,6 +425,13 @@ where
             &enckey,
         )?;
 
+        let newstorage = self.storage.clone();
+        // connect storage
+        wallet_info.wallet.wallet_storage =
+            Some(Arc::new(Mutex::new(WalletStorageImpl::new(newstorage))));
+        wallet_info.wallet.name = wallet_info.name.clone();
+        wallet_info.wallet.enckey = Some(enckey.clone());
+
         self.wallet_service
             .set_wallet(name, &enckey, wallet_info.wallet.clone())?;
 
@@ -435,7 +450,7 @@ where
                 .add_public_key(name, &enckey, public_key)?;
         }
 
-        if let Some(hdkey) = wallet_info.hdkey {
+        if let Some(hdkey) = wallet_info.hdkey.clone() {
             self.hd_key_service.add_hdkey(name, &enckey, hdkey)?;
         }
 
@@ -459,7 +474,7 @@ where
             self.wallet_service
                 .add_staking_key(name, &enckey, public_key)?;
         }
-        
+
         for staking_key in wallet_info.staking_keys.iter() {
             self.wallet_service
                 .add_staking_key(name, &enckey, staking_key)?;

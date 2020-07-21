@@ -153,6 +153,7 @@ pub trait WalletStorage: Send + Sync {
     fn get_roothashes(&self, name: &str, enckey: &SecKey) -> Result<IndexSet<H256>>;
 }
 
+/// create temp wallet storage for direct db access
 pub struct WalletStorageImpl<T: Storage> {
     storage: T,
 }
@@ -160,7 +161,8 @@ impl<T> WalletStorageImpl<T>
 where
     T: Storage + 'static,
 {
-    fn new(storage: T) -> Self {
+    /// create temp wallet storage
+    pub fn new(storage: T) -> Self {
         WalletStorageImpl { storage }
     }
 }
@@ -292,7 +294,12 @@ impl Decode for Wallet {
 use std::str::FromStr;
 impl Wallet {
     /// Creates a new instance of `Wallet`
-    pub fn new(view_key: PublicKey, wallet_kind: WalletKind, name: &str, enckey: Option<SecKey>) -> Self {
+    pub fn new(
+        view_key: PublicKey,
+        wallet_kind: WalletKind,
+        name: &str,
+        enckey: Option<SecKey>,
+    ) -> Self {
         Self {
             wallet_storage: None,
             name: name.into(),
@@ -321,6 +328,7 @@ impl Wallet {
 
     /// Returns all public-kyes in a wallet
     pub fn get_staking_addresses_publickey(&self) -> IndexSet<PublicKey> {
+        println!("name {:?} enckey {:?}", self.name, self.enckey);
         let pubkeys = self
             .wallet_storage
             .as_ref()
@@ -585,7 +593,7 @@ where
             wallet.wallet_kind as u64,
         )?;
 
-         // stakingkey
+        // stakingkey
         write_number(&self.storage, &info_keyspace, "publicindex", 0)?;
         write_number(&self.storage, &info_keyspace, "stakingkeyindex", 0)?;
         // root hash
@@ -1124,12 +1132,12 @@ mod test {
         let public_key_3 = PublicKey::from(&PrivateKey::new().unwrap());
         let private_key = PrivateKey::new().unwrap();
         let wallet = Wallet {
-            wallet_storage:None,
-            name:"".into(),
-            enckey:None,
+            wallet_storage: None,
+            name: "".into(),
+            enckey: None,
             view_key: PublicKey::from(&private_key),
             wallet_kind: WalletKind::Basic,
-        };  
+        };
         let wallet_raw = wallet.encode();
         let wallet_2 = Wallet::decode(&mut wallet_raw.as_slice()).unwrap();
         assert_eq!(wallet_2.wallet_kind, WalletKind::Basic);
@@ -1154,7 +1162,7 @@ mod test {
             key_chainpath,
             hdkey: Some(HdKey::default()),
             multisig_address_pair,
-            staking_keys:vec![],
+            staking_keys: vec![],
         };
         let s = serde_json::to_string(&info);
         assert!(s.is_ok());

@@ -268,15 +268,15 @@ impl WalletCommand {
         let wallet_info_str = std::fs::read_to_string(file)
             .chain(|| (ErrorKind::IoError, "Unable to read from file"))?;
 
-        let wallet_info_list: Vec<WalletInfo> = serde_json::from_str(&wallet_info_str)
+        let mut wallet_info_list: Vec<WalletInfo> = serde_json::from_str(&wallet_info_str)
             .chain(|| (ErrorKind::InvalidInput, "Invalid wallet info list"))?;
-        for wallet_info in wallet_info_list {
+        for mut wallet_info in wallet_info_list {
             let name = wallet_info.name.clone();
             let passphrase = match &wallet_info.passphrase {
                 Some(p) => p.clone(),
                 None => ask_passphrase(Some(&format!("Input passphrase for wallet {}:", name)))?,
             };
-            let enckey = wallet_client.import_wallet(&name, &passphrase, wallet_info);
+            let enckey = wallet_client.import_wallet(&name, &passphrase, &mut wallet_info);
             match enckey {
                 Ok(enckey) => success(&format!(
                     "Authentication token of wallet {}: {}",

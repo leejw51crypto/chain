@@ -31,7 +31,7 @@ steps:
   privileged: true
   volumes:
   - name: sgx
-    path: /dev/sgx
+    path: /dev/isgx
   environment:
     SPID:
       from_secret: SPID
@@ -52,7 +52,7 @@ steps:
   privileged: true
   volumes:
   - name: sgx
-    path: /dev/sgx
+    path: /dev/isgx
   environment:
     SPID:
       from_secret: SPID
@@ -73,7 +73,7 @@ steps:
   privileged: true
   volumes:
   - name: sgx
-    path: /dev/sgx
+    path: /dev/isgx
   environment:
     SGX_TEST: 1
     RUST_LOG: debug
@@ -99,7 +99,7 @@ steps:
 volumes:
   - name: sgx
     host:
-      path: /dev/sgx
+      path: /dev/isgx
 
 trigger:
   branch:

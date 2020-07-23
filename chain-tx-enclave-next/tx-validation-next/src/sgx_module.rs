@@ -42,7 +42,7 @@ fn handling_loop<I: Read + Write>(
                 break;
             }
         }
-        log::debug!("waiting for chain-abci request");
+        //log::debug!("waiting for chain-abci request");
         match chain_abci.read(&mut request_buf) {
             Ok(n) if n > 0 => match IntraEnclaveRequest::decode(&mut &request_buf.as_slice()[0..n])
             {

@@ -422,8 +422,13 @@ impl<
             self.handle_recover_addresses(&blocks)?;
         }
 
+        let handle_blocks_time = std::time::Instant::now();
         let memento = handle_blocks(&self.wallet, &mut self.wallet_state, &blocks, &enclave_txs)
             .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
+        println!(
+            "handle_blocks time {} micro-seconds",
+            handle_blocks_time.elapsed().as_micros()
+        );
 
         let block = blocks.last();
         self.sync_state.last_block_height = block.block_height;

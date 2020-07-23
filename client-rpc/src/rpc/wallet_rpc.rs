@@ -268,11 +268,28 @@ where
         Ok(extended_address.to_string())
     }
 
-    fn create_transfer_address_batch(&self, request: WalletRequest, count: u32) -> Result<u32> {
+    /*  fn create_transfer_address_batch(&self, request: WalletRequest, count: u32) -> Result<u32> {
         for _i in 0..count {
             self.client
                 .new_transfer_address(&request.name, &request.enckey)
                 .map_err(to_rpc_error)?;
+        }
+        Ok(count)
+    }*/
+
+    fn create_transfer_address_batch(&self, request: WalletRequest, count: u32) -> Result<u32> {
+        let now1 = std::time::Instant::now();
+        for i in 0..count {
+            let now = std::time::Instant::now();
+            self.client
+                .new_transfer_address(&request.name, &request.enckey)
+                .map_err(to_rpc_error)?;
+            println!(
+                "created {} {} micro {} seconds",
+                i,
+                now.elapsed().as_micros(),
+                now1.elapsed().as_secs()
+            );
         }
         Ok(count)
     }

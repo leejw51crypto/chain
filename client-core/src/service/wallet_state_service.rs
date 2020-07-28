@@ -411,6 +411,12 @@ enum MementoOperation {
 }
 
 impl WalletStateMemento {
+    /// get memento length
+    #[inline]
+    pub fn get_length(&self) -> usize {
+        self.0.len()
+    }
+
     /// Adds transaction change to memento
     #[inline]
     pub fn add_transaction_change(&mut self, transaction_change: TransactionChange) {

@@ -536,7 +536,10 @@ fn generate_page(all_items_count: u64, offset: u64, limit: u64, reversed: bool) 
     let ret: Vec<u64>;
     if reversed {
         let start = all_items_count.saturating_sub(offset);
-        let end = start.saturating_sub(limit);
+        let mut end = 0;
+        if limit > 0 {
+            end = start.saturating_sub(limit);
+        }
         let mut tmp: Vec<u64> = (end..start).collect();
         tmp.reverse();
         ret = tmp;

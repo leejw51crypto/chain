@@ -366,7 +366,7 @@ where
                 &request.name,
                 &request.enckey,
                 offset.unwrap_or(0),
-                std::cmp::min(limit.unwrap_or(1000), 10000),
+                std::cmp::max(1, std::cmp::min(limit.unwrap_or(1000), 10000)),
                 reversed.unwrap_or(false),
             )
             .map(|addresses| addresses.iter().map(ToString::to_string).collect())
@@ -385,7 +385,7 @@ where
                 &request.name,
                 &request.enckey,
                 offset.unwrap_or(0),
-                std::cmp::min(limit.unwrap_or(1000), 10000),
+                std::cmp::max(1, std::cmp::min(limit.unwrap_or(1000), 10000)),
                 reversed.unwrap_or(false),
             )
             .map(|addresses| addresses.iter().map(ToString::to_string).collect())

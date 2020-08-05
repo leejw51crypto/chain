@@ -11,6 +11,7 @@ ENVIRONMENT VARIABLES:
     CRYPTO_GENESIS_FINGERPRINT             Set the genesis fingerprint(Optional)
     "#
 )]
+
 pub struct Options {
     #[structopt(
         name = "host",
@@ -62,6 +63,16 @@ pub struct Options {
         help = "Disable light client, which is not secure when connecting to outside nodes"
     )]
     pub disable_light_client: bool,
+
+    #[structopt(
+        name = "light client peer",
+        short = "l",
+        long = "light-client-peers",
+        default_value = "0000000000000000000000000000000000000000@127.0.0.1:26657",
+        help = "Light client peers"
+    )]
+    pub light_client_peers: String,
+
     #[structopt(
         name = "disable-address-recovery",
         long,

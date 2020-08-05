@@ -69,6 +69,7 @@ impl RpcHandler {
             storage_dir.as_ref(),
             websocket_url,
             tendermint_client.genesis()?.trusting_period(),
+            sync_options.light_client_peers.clone(),
         )?;
         let syncer_config = AppSyncerConfig::new(
             storage.clone(),

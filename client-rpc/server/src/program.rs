@@ -68,7 +68,7 @@ pub struct Options {
         name = "light client peer",
         short = "l",
         long = "light-client-peers",
-        default_value = "0000000000000000000000000000000000000000@127.0.0.1:26657",
+        default_value = "",
         help = "Light client peers"
     )]
     pub light_client_peers: String,

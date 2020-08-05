@@ -1373,18 +1373,62 @@ fn parse_node(nodelist_info: &str) -> Result<Vec<(String, String, u32)>> {
     Ok(all_nodes)
 }
 
+/// FIXME change to str::strip_prefix after toolchain upgraded.
+fn strip_prefix<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
+    if s.len() >= prefix.len() && &s[0..prefix.len()] == prefix {
+        Some(&s[prefix.len()..])
+    } else {
+        None
+    }
+}
+
+/// FIXME change to str::strip_suffix after toolchain upgraded.
+fn strip_suffix<'a>(s: &'a str, suffix: &str) -> Option<&'a str> {
+    if s.len() >= suffix.len() && &s[s.len() - suffix.len()..s.len()] == suffix {
+        Some(&s[0..s.len() - suffix.len()])
+    } else {
+        None
+    }
+}
+
 /// [new light client design](https://github.com/informalsystems/tendermint-rs/blob/master/docs/architecture/adr-006-light-client-refactor.md)
 pub fn spawn_light_client_supervisor(
     db_path: &Path,
-    _addr: &str,
+    // ws://localhost:26657/websocket
+    websocket_addr: &str,
     trusting_period: Duration,
-    light_client_peers: String,
+    light_client_peers_user: String,
 ) -> Result<LightClientWrapper<impl Handle + 'static>> {
+    let mut light_client_peers = light_client_peers_user.clone();
+    let default_primary = format!(
+        "0000000000000000000000000000000000000000@{}",
+        strip_prefix(websocket_addr, "ws://")
+            .and_then(|addr| strip_suffix(addr, "/websocket"))
+            .err_kind(ErrorKind::InvalidInput, || "invalid tendermint rpc address")?
+    );
+    let default_witness = format!(
+        "1000000000000000000000000000000000000000@{}",
+        strip_prefix(websocket_addr, "ws://")
+            .and_then(|addr| strip_suffix(addr, "/websocket"))
+            .err_kind(ErrorKind::InvalidInput, || "invalid tendermint rpc address")?
+    );
+
+    if "" == light_client_peers {
+        log::info!("use default primary peer {}", default_primary);
+        light_client_peers = format!("{},{}", default_primary, default_witness);
+    }
+
     // tuples (nodeid, ip, port)
     let mut peers: Vec<(String, String, u32)> = vec![];
     if let Ok(value) = parse_node(&light_client_peers) {
         peers = value;
     }
+    log::info!(
+        "light client peers {}",
+        serde_json::to_string_pretty(&peers)
+            .chain(|| (ErrorKind::InvalidInput, "Invalid input"))?
+    );
+
     // address format "tcp://host:port"
     let mut peerlist_builder = PeerListBuilder::<Instance>::default();
     // key: nodeid,  data: Address <- ip, port
@@ -1400,6 +1444,7 @@ pub fn spawn_light_client_supervisor(
         let node_address =
             tendermint::net::Address::from_str(&format!("tcp://{}:{}", nodeip, nodeport))
                 .map_err(|_| Error::new(ErrorKind::InvalidInput, "Unable to parse node_address"))?;
+        log::debug!("node instance {:?} {:?}", node_peerid, node_address);
         let node_instance = make_light_client_instance(
             node_peerid,
             node_address.clone(),

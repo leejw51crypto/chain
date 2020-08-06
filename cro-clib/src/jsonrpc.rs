@@ -220,6 +220,7 @@ unsafe fn create_rpc(
         enable_address_recovery: true,
         batch_size: 50,
         block_height_ensure: 50,
+        light_client_peers: "".into(),
     };
     let handler = RpcHandler::new(
         &storage_dir,

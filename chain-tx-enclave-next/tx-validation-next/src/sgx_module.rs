@@ -114,9 +114,11 @@ pub fn entry() -> std::io::Result<()> {
     let stream_to_txquery = TcpStream::connect("stream_to_txquery")?;
 
     std::thread::spawn(move || {
-        let stream = stream_to_txquery;
+        let mut stream = stream_to_txquery;
         for id in 0..100 {
-        log::info!("SGX {} tx-validation process.................... {:?}", id,stream);
+            let m = format!("SGX {} tx-validation process.................... {:?}", id,stream);
+            stream.write_all(m.as_bytes());
+            log::info!("{}",m);
         }
     });
 

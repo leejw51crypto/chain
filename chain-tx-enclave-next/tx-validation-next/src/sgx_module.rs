@@ -125,7 +125,7 @@ pub fn entry() -> std::io::Result<()> {
             log::info!("thread spawn SGX tx_validation read");
             let ENCRYPTION_REQUEST_SIZE: usize = 1024 * 10; // 60 KB
             let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
-            if let Ok(length) = stream.lock().unwrap().read(&mut bytes) {
+            if let Ok(length) = stream.read(&mut bytes) {
                 let buf = &bytes[0..length];
                 let w = std::str::from_utf8(&buf).expect("get string from tx_validation");
                 log::info!("from tx-query {}   buf {}", length, w);

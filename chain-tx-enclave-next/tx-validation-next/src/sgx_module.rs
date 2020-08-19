@@ -110,6 +110,7 @@ pub fn entry() -> std::io::Result<()> {
     log::info!("Connecting to chain-abci");
     // not really TCP -- stream provided by the runner, it's UnixStream
     let chain_abci = TcpStream::connect("chain-abci")?;
+    log::info!("Connecting to stream_to_txquery");
     let stream_to_txquery = TcpStream::connect("stream_to_txquery")?;
 
     std::thread::spawn(move || {

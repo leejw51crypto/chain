@@ -74,6 +74,7 @@ impl UsercallExtension for TxValidationApp {
                     }
                 }
                 "stream_to_txquery" => {
+                    println!("this.stream_to_txquery {:?}", this.stream_to_txquery);
                     if let Some(stream_to_txquery) = this.stream_to_txquery.as_ref() {
                         let stream =
                             tokio::net::UnixStream::from_std(stream_to_txquery.try_clone()?)?;
@@ -126,7 +127,8 @@ impl EnclaveProxy for TxValidationApp {
 /// it expects "tx-validation-next.sgxs" (+ signature)
 /// to be in the same directory as chain-abci
 pub fn launch_tx_validation(stream_to_txquery: UnixStream) -> TxValidationApp {
-    let app = TxValidationApp::default();
+    let mut app = TxValidationApp::default();
+    app.stream_to_txquery = Some(stream_to_txquery);
     let app2 = app.clone();
     let mut device = Device::new()
         .expect("SGX device was not found")

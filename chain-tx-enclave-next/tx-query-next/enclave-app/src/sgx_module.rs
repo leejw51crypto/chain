@@ -30,6 +30,9 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
 
     log::info!("Connecting to chain-abci data");
     let chain_data_stream = Arc::new(Mutex::new(TcpStream::connect("chain-abci-data")?));
+    let stream_to_txvalidation =
+        Arc::new(Mutex::new(TcpStream::connect("stream_to_txvalidation")?));
+
     // FIXME: connect to tx-validation (mutually attested TLS)
     let num_threads = 4;
 
@@ -59,6 +62,7 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
     for stream in listener.incoming() {
         let context = context.clone();
         let chain_data_stream = chain_data_stream.clone();
+        let stream_to_txvalidation = stream_to_txvalidation.clone();
 
         thread_pool_sender
             .send(move || {
@@ -76,7 +80,7 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
                 let tls_session = ServerSession::new(&tls_server_config);
                 let stream = StreamOwned::new(tls_session, stream.unwrap());
 
-                handle_connection(stream, chain_data_stream);
+                handle_connection(stream, chain_data_stream, stream_to_txvalidation);
             })
             .expect("Unable to send tasks to thread pool");
     }
@@ -85,14 +89,21 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
     Ok(())
 }
 
-fn handle_connection<T: Read + Write>(mut stream: T, chain_data_stream: Arc<Mutex<TcpStream>>) {
+fn handle_connection<T: Read + Write>(
+    mut stream: T,
+    chain_data_stream: Arc<Mutex<TcpStream>>,
+    stream_to_txvalidation: Arc<Mutex<TcpStream>>,
+) {
     let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
 
+    // read user's request
     match stream.read(&mut bytes) {
         Ok(len) => {
             match TxQueryInitRequest::decode(&mut &bytes.as_slice()[0..len]) {
                 Ok(TxQueryInitRequest::Encrypt(request)) => {
                     let response = handle_encryption_request(request, len, chain_data_stream);
+                    // encrypt directly
+                    // let response = handle_encryption_request(request, len, stream_to_txvalidation);
 
                     let response = match response {
                         Ok(response) => response,

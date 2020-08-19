@@ -26,15 +26,18 @@ use std::os::unix::net::UnixStream;
 /// `runner_stream` is shared in chain-abci app
 #[derive(Debug)]
 pub struct TxValidationApp {
+    // (sgx) enclave_stream <-> runnder_stream (app)
     enclave_stream: Option<UnixStream>,
     runner_stream: Arc<Mutex<UnixStream>>,
+    stream_to_txquery: Option<UnixStream>,
 }
 
 impl Clone for TxValidationApp {
     fn clone(&self) -> Self {
         Self {
-            enclave_stream: None,
-            runner_stream: self.runner_stream.clone(),
+            enclave_stream: None,                      // for sgx
+            runner_stream: self.runner_stream.clone(), // for app
+            stream_to_txquery: None,                   // for sgx
         }
     }
 }
@@ -45,6 +48,7 @@ impl Default for TxValidationApp {
         Self {
             enclave_stream: Some(receiver),
             runner_stream: Arc::new(Mutex::new(sender)),
+            stream_to_txquery: None,
         }
     }
 }
@@ -64,6 +68,15 @@ impl UsercallExtension for TxValidationApp {
                 "chain-abci" => {
                     if let Some(enclave_stream) = this.enclave_stream.as_ref() {
                         let stream = tokio::net::UnixStream::from_std(enclave_stream.try_clone()?)?;
+                        Ok(Some(Box::new(stream)))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                "stream_to_txquery" => {
+                    if let Some(stream_to_txquery) = this.stream_to_txquery.as_ref() {
+                        let stream =
+                            tokio::net::UnixStream::from_std(stream_to_txquery.try_clone()?)?;
                         Ok(Some(Box::new(stream)))
                     } else {
                         Ok(None)
@@ -112,7 +125,7 @@ impl EnclaveProxy for TxValidationApp {
 /// Launches tx-validation enclave --
 /// it expects "tx-validation-next.sgxs" (+ signature)
 /// to be in the same directory as chain-abci
-pub fn launch_tx_validation() -> TxValidationApp {
+pub fn launch_tx_validation(stream_to_txquery: UnixStream) -> TxValidationApp {
     let app = TxValidationApp::default();
     let app2 = app.clone();
     let mut device = Device::new()
@@ -147,6 +160,8 @@ pub struct TempTxQueryOptions {
     pub sp_address: String,
     /// tx-query server address. E.g. `127.0.0.1:3443`
     pub address: String,
+    /// unix stream for tx-validation
+    pub stream_to_txvalidation: UnixStream,
 }
 
 impl UsercallExtension for TempTxQueryOptions {
@@ -161,6 +176,7 @@ impl UsercallExtension for TempTxQueryOptions {
             addr: &str,
         ) -> io::Result<Option<Box<dyn AsyncStream>>> {
             match addr {
+                // between sgx and runnder
                 "chain-abci-data" => {
                     let stream =
                         tokio::net::UnixStream::from_std(this.chain_abci_data.try_clone()?)?;
@@ -168,6 +184,11 @@ impl UsercallExtension for TempTxQueryOptions {
                 }
                 "ra-sp-server" => {
                     let stream = TcpStream::connect(&this.sp_address).await?;
+                    Ok(Some(Box::new(stream)))
+                }
+                "stream_to_txvalidation" => {
+                    let stream =
+                        tokio::net::UnixStream::from_std(this.stream_to_txvalidation.try_clone()?)?;
                     Ok(Some(Box::new(stream)))
                 }
                 _ => Ok(None),

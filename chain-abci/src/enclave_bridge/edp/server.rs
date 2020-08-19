@@ -75,6 +75,7 @@ impl<T: EnclaveProxy> TxValidationServer<T> {
         self.start_signal.send(()).unwrap();
         let mut request = vec![0u8; ENCRYPTION_REQUEST_SIZE];
         loop {
+            // this is request from tx-query -> abci
             if let Ok(r_len) = self.socket_to_enclave.read(&mut request) {
                 log::debug!("received a message");
                 let mcmd = EnclaveRequest::decode(&mut request[..r_len].as_ref());
@@ -121,6 +122,7 @@ impl<T: EnclaveProxy> TxValidationServer<T> {
                                         info,
                                         account,
                                     };
+                                    // this is doen in tx-validation
                                     let response = self.enclave.process_request(
                                         IntraEnclaveRequest::Encrypt(Box::new(request)),
                                     );

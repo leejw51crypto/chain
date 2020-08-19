@@ -108,9 +108,23 @@ pub fn entry() -> std::io::Result<()> {
 
     log::info!("Network ID: {:x}", NETWORK_HEX_ID);
     log::info!("Connecting to chain-abci");
-    // not really TCP -- stream provided by the runner
+    // not really TCP -- stream provided by the runner, it's UnixStream
     let chain_abci = TcpStream::connect("chain-abci")?;
+    let stream_to_txquery = TcpStream::connect("stream_to_txquery")?;
+
+    std::thread::spawn(move || {
+        let stream = stream_to_txquery;
+        let mut id: u64 = 0;
+        loop {
+            let t = std::time::Duration::from_secs(1);
+            std::thread::sleep(t);
+            log::info!("tx-validation process.................... {}", id);
+            id = id + 1;
+        }
+    });
+
     handling_loop(chain_abci, None);
+
     Ok(())
 }
 

@@ -33,11 +33,19 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
     let stream_to_txvalidation =
         Arc::new(Mutex::new(TcpStream::connect("stream_to_txvalidation")?));
 
-    let my_stream_to_txvalidation =stream_to_txvalidation.clone();
+    let my_stream_to_txvalidation = stream_to_txvalidation.clone();
     // test tx_valdation
     log::info!("SGX tx_query  {:?}", my_stream_to_txvalidation);
     std::thread::spawn(move || {
         let stream = my_stream_to_txvalidation.clone();
+        for id in 0..10 {
+            let m = format!(
+                "send SGX {} tx-validation process.................... {:?}",
+                id, stream
+            );
+            stream.lock().unwrap.write_all(m.as_bytes());
+        }
+        /*
         loop {
             log::info!("thread spawn SGX tx_query read");
             let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
@@ -46,7 +54,7 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
                 let w=std::str::from_utf8(&buf).expect("get string from tx_validation");
                 log::info!("from tx-validation {}   buf {}", length,  w);
             }
-        }
+        }*/
     });
 
     // FIXME: connect to tx-validation (mutually attested TLS)

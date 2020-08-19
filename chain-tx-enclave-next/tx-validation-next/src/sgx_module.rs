@@ -115,10 +115,20 @@ pub fn entry() -> std::io::Result<()> {
 
     std::thread::spawn(move || {
         let mut stream = stream_to_txquery;
+        /*
         for id in 0..100 {
             let m = format!("send SGX {} tx-validation process.................... {:?}", id,stream);
             stream.write_all(m.as_bytes());
             log::info!("{}",m);
+        }*/
+        loop {
+            log::info!("thread spawn SGX tx_validation read");
+            let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
+            if let Ok(length) = stream.lock().unwrap().read(&mut bytes) {
+                let buf = &bytes[0..length];
+                let w = std::str::from_utf8(&buf).expect("get string from tx_validation");
+                log::info!("from tx-query {}   buf {}", length, w);
+            }
         }
     });
 

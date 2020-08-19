@@ -115,12 +115,8 @@ pub fn entry() -> std::io::Result<()> {
 
     std::thread::spawn(move || {
         let stream = stream_to_txquery;
-        let mut id: u64 = 0;
-        loop {
-            let t = std::time::Duration::from_secs(1);
-            std::thread::sleep(t);
-            log::info!("tx-validation process.................... {}", id);
-            id = id + 1;
+        for id in 0..100 {
+        log::info!("SGX {} tx-validation process.................... {:?}", id,stream);
         }
     });
 

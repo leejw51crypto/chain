@@ -116,7 +116,7 @@ pub fn entry() -> std::io::Result<()> {
     std::thread::spawn(move || {
         let mut stream = stream_to_txquery;
         for id in 0..100 {
-            let m = format!("SGX {} tx-validation process.................... {:?}", id,stream);
+            let m = format!("send SGX {} tx-validation process.................... {:?}", id,stream);
             stream.write_all(m.as_bytes());
             log::info!("{}",m);
         }

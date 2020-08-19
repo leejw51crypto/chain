@@ -123,6 +123,7 @@ pub fn entry() -> std::io::Result<()> {
         }*/
         loop {
             log::info!("thread spawn SGX tx_validation read");
+            let ENCRYPTION_REQUEST_SIZE: usize = 1024 * 10; // 60 KB
             let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
             if let Ok(length) = stream.lock().unwrap().read(&mut bytes) {
                 let buf = &bytes[0..length];

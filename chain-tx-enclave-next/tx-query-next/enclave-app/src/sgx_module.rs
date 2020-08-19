@@ -43,7 +43,7 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
                 "send SGX {} tx-validation process.................... {:?}",
                 id, stream
             );
-            stream.lock().unwrap.write_all(m.as_bytes());
+            stream.lock().unwrap().write_all(m.as_bytes());
         }
         /*
         loop {

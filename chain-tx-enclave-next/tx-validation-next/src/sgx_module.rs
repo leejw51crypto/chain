@@ -130,7 +130,7 @@ pub fn entry() -> std::io::Result<()> {
             if let Ok(length) = stream.read(&mut bytes) {
                 let buf = &bytes[0..length];
                 let w = std::str::from_utf8(&buf).expect("get string from tx_validation");
-                log::info!("from tx-query {}   buf {}", length, w);
+                log::info!("@@@@@@@@@@@@   from tx-query {}   buf {}", length, w);
             } else {
                 log::info!("tx-validation no data\n");
             }

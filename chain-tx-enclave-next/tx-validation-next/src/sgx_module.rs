@@ -123,7 +123,7 @@ pub fn entry() -> std::io::Result<()> {
         }*/
         loop {
             log::info!(
-                "tx-validation read ######################################################\n"
+                "tx-validation read ~~~~~~~~~~~~~~~~~~~~~~~~~"
             );
             let ENCRYPTION_REQUEST_SIZE: usize = 1024 * 10; // 60 KB
             let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];

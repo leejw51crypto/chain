@@ -35,15 +35,20 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
 
     let my_stream_to_txvalidation = stream_to_txvalidation.clone();
     // test tx_valdation
-    log::info!("SGX tx_query  {:?}", my_stream_to_txvalidation);
+    log::info!("SGX tx_query!!!!!!!!!!!!!!  {:?}", my_stream_to_txvalidation);
     std::thread::spawn(move || {
         let stream = my_stream_to_txvalidation.clone();
-        for id in 0..10 {
+        for id in 0..5 {
+            log::info!("query--------------------------- {}",id);
             let m = format!(
                 "send SGX {} tx-validation process.................... {:?}",
                 id, stream
             );
-            stream.lock().unwrap().write_all(m.as_bytes());
+            log::info!("encoding............................................");
+            let enclave_request = enclave_protocol::EnclaveRequest::GetTxInfo(m.into()).encode();
+            log::info!("txquery  length={} start sending  stream {:?}", enclave_request.len(), stream);
+            stream.lock().unwrap().write_all(&enclave_request);
+            log::info!("txquery sent!");
         }
         /*
         loop {

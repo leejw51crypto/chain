@@ -115,12 +115,6 @@ pub fn entry() -> std::io::Result<()> {
 
     std::thread::spawn(move || {
         let mut stream = stream_to_txquery;
-        /*
-        for id in 0..100 {
-            let m = format!("send SGX {} tx-validation process.................... {:?}", id,stream);
-            stream.write_all(m.as_bytes());
-            log::info!("{}",m);
-        }*/
         loop {
             log::info!(
                 "tx-validation read ######################################################\n"
@@ -128,9 +122,25 @@ pub fn entry() -> std::io::Result<()> {
             let ENCRYPTION_REQUEST_SIZE: usize = 1024 * 10; // 60 KB
             let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
             if let Ok(length) = stream.read(&mut bytes) {
-                let buf = &bytes[0..length];
-                let w = std::str::from_utf8(&buf).expect("get string from tx_validation");
-                log::info!("from tx-query {}   buf {}", length, w);
+                let mut buf = &bytes[0..length];
+                log::info!("read {} bytes", buf.len());
+                let result=enclave_protocol::EnclaveRequest::decode(&mut buf);
+                log::info!("result= {:?}", result);
+                match result.unwrap() {
+                    enclave_protocol::EnclaveRequest::GetSealedTxData { txids } => {
+                        log::info!("GetSealedTxData");
+                    }
+                    enclave_protocol::EnclaveRequest::EncryptTx(_) => {
+                        log::info!("EncryptTx");
+                    }
+                    enclave_protocol::EnclaveRequest::GetTxInfo(v) => {
+                        log::info!("GetTxIfo= {}", v);
+                    }
+                    enclave_protocol::EnclaveRequest::EncryptTxDirect(v) => {
+                        log::info!("EncryptTxDirect= {}", v);
+                    }
+                }
+
             } else {
                 log::info!("tx-validation no data\n");
             }

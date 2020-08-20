@@ -159,7 +159,7 @@ pub struct VerifyTxRequest {
 }
 
 /// TQE's encryption request
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode,Debug)]
 pub struct QueryEncryptRequest {
     /// transaction ID
     pub txid: TxId,
@@ -174,7 +174,7 @@ pub struct QueryEncryptRequest {
 }
 
 /// requests sent from tx-query to chain-abci tx validation enclave app wrapper
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Debug)]
 pub enum EnclaveRequest {
     /// request to get tx data sealed to "mrsigner" (requested by TQE -- they should be on the same machine)
     GetSealedTxData { txids: Vec<TxId> },
@@ -182,7 +182,7 @@ pub enum EnclaveRequest {
     EncryptTx(Box<QueryEncryptRequest>),
 
     /// txquery-> chain-abci
-    GetTxInfo(String), 
+    GetTxInfo(String),
     /// txquery-> tx-validation
     EncryptTxDirect(String),
 }
@@ -191,7 +191,7 @@ pub type VerifyOk = (Fee, Option<StakedState>, Option<Box<SealedLog>>);
 
 /// responses sent from chain-abci tx validation enclave app wrapper to tx-query
 /// TODO: better error responses?
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Debug)]
 pub enum EnclaveResponse {
     /// returns Some(sealed data payloads) or None (if any TXID was not found / invalid)
     GetSealedTxData(Option<Vec<SealedLog>>),

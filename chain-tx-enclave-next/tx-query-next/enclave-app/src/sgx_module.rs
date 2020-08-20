@@ -40,8 +40,8 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
         let stream = my_stream_to_txvalidation.clone();
         for id in 0..10 {
             let m = format!(
-                "send SGX {} tx-validation process.................... {:?}",
-                id, stream
+                "txquery send SGX {}  ======================>>>>>>> ",
+                id
             );
             stream.lock().unwrap().write_all(m.as_bytes());
         }

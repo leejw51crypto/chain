@@ -7,6 +7,7 @@ use std::{
 
 use parity_scale_codec::{Decode, Encode};
 
+use chain_core::tx::TxObfuscated;
 use chain_core::tx::{data::input::TxoSize, TransactionId, TxEnclaveAux};
 use enclave_protocol::{
     EnclaveRequest, EnclaveResponse, EncryptionRequest, EncryptionResponse, QueryEncryptRequest,
@@ -28,6 +29,60 @@ pub fn read_binary_buffer(this_stream: &mut TcpStream) -> Result<Vec<u8>, String
         .map_err(|err| format!("Error while reading response from chain-abci: {}", err))?;
     Ok(result_buf)
 }
+
+fn package_encryption_response(
+    encryption_request: Box<EncryptionRequest>,
+    enclave_response: Result<TxObfuscated, chain_tx_validation::Error>,
+) -> EncryptionResponse {
+    match enclave_response {
+        Ok(payload) => {
+            let tx = match *encryption_request {
+                EncryptionRequest::TransferTx(tx, _) => {
+                    let inputs = tx.inputs;
+                    let no_of_outputs = tx.outputs.len() as TxoSize;
+                    TxEnclaveAux::TransferTx {
+                        inputs,
+                        no_of_outputs,
+                        payload,
+                    }
+                }
+                EncryptionRequest::DepositStake(tx, _) => {
+                    TxEnclaveAux::DepositStakeTx { tx, payload }
+                }
+                EncryptionRequest::WithdrawStake(tx, witness) => {
+                    let no_of_outputs = tx.outputs.len() as TxoSize;
+                    TxEnclaveAux::WithdrawUnbondedStakeTx {
+                        no_of_outputs,
+                        witness,
+                        payload,
+                    }
+                }
+            };
+
+            EncryptionResponse { resp: Ok(tx) }
+        }
+        Err(e) => EncryptionResponse { resp: Err(e) },
+    }
+}
+
+fn read_enclave_response(
+    encryption_request: Box<EncryptionRequest>,
+    result_buf: &[u8],
+) -> Result<EncryptionResponse, String> {
+    match EnclaveResponse::decode(&mut result_buf.as_ref()) {
+        Ok(EnclaveResponse::EncryptTx(enclave_response)) => {
+            let encryption_response =
+                package_encryption_response(encryption_request, enclave_response);
+            Ok(encryption_response)
+        }
+        Ok(_) => Err("Unexpected response from chain-abci".to_owned()),
+        Err(err) => Err(format!(
+            "Error while decoding response from chain-abci: {}",
+            err
+        )),
+    }
+}
+
 #[allow(clippy::boxed_local)]
 pub fn handle_encryption_request(
     encryption_request: Box<EncryptionRequest>,
@@ -41,75 +96,17 @@ pub fn handle_encryption_request(
         Some(request) => {
             // Prepare enclave request
             let enclave_request = EnclaveRequest::EncryptTx(Box::new(request)).encode();
-
             let mut chain_data_stream = chain_data_stream.lock().unwrap();
-
-            // Send request to chain-abci
+            // request
             chain_data_stream
                 .write_all(&enclave_request)
                 .map_err(|err| format!("Error while writing request to chain-abci: {}", err))?;
 
-            // Read reponse length from chain-abci (little endian u32 bytes)
-            let mut response_len = [0u8; 4];
-            chain_data_stream.read(&mut response_len).map_err(|err| {
-                format!(
-                    "Error while reading reponse length from chain-abci: {}",
-                    err
-                )
-            })?;
+            // receive reponse
+            let mut result_buf = read_binary_buffer(&mut chain_data_stream)?;
 
-            let response_len: usize = u32::from_le_bytes(response_len)
-                .try_into()
-                .map_err(|_| "Response length exceeds `usize` bounds".to_owned())?;
-            if response_len == 0 {
-                return Err("Unexpected response from chain-abci".to_owned());
-            }
-            // Read result from chain-abci
-            let mut result_buf = vec![0u8; response_len];
-            chain_data_stream
-                .read(&mut result_buf)
-                .map_err(|err| format!("Error while reading response from chain-abci: {}", err))?;
-
-            match EnclaveResponse::decode(&mut result_buf.as_ref()) {
-                Ok(EnclaveResponse::EncryptTx(enclave_response)) => {
-                    let encryption_response = match enclave_response {
-                        Ok(payload) => {
-                            let tx = match *encryption_request {
-                                EncryptionRequest::TransferTx(tx, _) => {
-                                    let inputs = tx.inputs;
-                                    let no_of_outputs = tx.outputs.len() as TxoSize;
-                                    TxEnclaveAux::TransferTx {
-                                        inputs,
-                                        no_of_outputs,
-                                        payload,
-                                    }
-                                }
-                                EncryptionRequest::DepositStake(tx, _) => {
-                                    TxEnclaveAux::DepositStakeTx { tx, payload }
-                                }
-                                EncryptionRequest::WithdrawStake(tx, witness) => {
-                                    let no_of_outputs = tx.outputs.len() as TxoSize;
-                                    TxEnclaveAux::WithdrawUnbondedStakeTx {
-                                        no_of_outputs,
-                                        witness,
-                                        payload,
-                                    }
-                                }
-                            };
-
-                            EncryptionResponse { resp: Ok(tx) }
-                        }
-                        Err(e) => EncryptionResponse { resp: Err(e) },
-                    };
-
-                    Ok(encryption_response)
-                }
-                Ok(_) => Err("Unexpected response from chain-abci".to_owned()),
-                Err(err) => Err(format!(
-                    "Error while decoding response from chain-abci: {}",
-                    err
-                )),
-            }
+            // parse response
+            read_enclave_response(encryption_request, &result_buf)
         }
     }
 }

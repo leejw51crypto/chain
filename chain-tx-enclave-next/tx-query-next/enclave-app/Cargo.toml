@@ -22,3 +22,6 @@ chain-core = { path = "../../../chain-core", default-features = false, features 
 enclave-protocol = { path = "../../../enclave-protocol", features = ["edp"] }
 enclave-utils = { path = "../../../chain-tx-enclave-next/enclave-utils", features = ["sgxstd"] }
 ra-enclave = { path = "../../../chain-tx-enclave-next/enclave-ra/ra-enclave" }
+chain-tx-validation   = {  path = "../../../chain-tx-validation" }
+
+

@@ -180,6 +180,11 @@ pub enum EnclaveRequest {
     GetSealedTxData { txids: Vec<TxId> },
     /// request to encrypt tx by the current key (requested by TQE -- they should be on the same machine)
     EncryptTx(Box<QueryEncryptRequest>),
+
+    /// txquery-> chain-abci
+    GetTxInfo(String), 
+    /// txquery-> tx-validation
+    EncryptTxDirect(String),
 }
 
 pub type VerifyOk = (Fee, Option<StakedState>, Option<Box<SealedLog>>);

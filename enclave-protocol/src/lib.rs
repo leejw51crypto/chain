@@ -197,6 +197,8 @@ pub enum EnclaveResponse {
     GetSealedTxData(Option<Vec<SealedLog>>),
     /// returns Ok(encrypted tx payload) if Tx was valid
     EncryptTx(Result<TxObfuscated, chain_tx_validation::Error>),
+    /// return General Data
+    General(String),
     /// response if the enclave failed to parse the request
     UnknownRequest,
 }

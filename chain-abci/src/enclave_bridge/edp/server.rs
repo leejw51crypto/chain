@@ -145,6 +145,8 @@ impl<T: EnclaveProxy> TxValidationServer<T> {
                     EnclaveResponse::GetSealedTxData(self.lookup_txids(txids.iter().copied()))
                 }
                 Ok(EnclaveRequest::EncryptTx(req)) => self.encrypt_data(req),
+                Ok(EnclaveRequest::GetTxInfo(req)) => {EnclaveResponse::General("OK GetTxInfo".into())},
+                Ok(EnclaveRequest::EncryptTxDirect(red)) => {EnclaveResponse::General("OK EncryptTxDirect".into())},
                 Err(e) => {
                     log::error!("unknown request / failed to decode: {}", e);
                     EnclaveResponse::UnknownRequest

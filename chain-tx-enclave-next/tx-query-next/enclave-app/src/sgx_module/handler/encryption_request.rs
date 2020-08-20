@@ -13,6 +13,21 @@ use enclave_protocol::{
 };
 use enclave_utils::SealedData;
 
+// read length, read binary
+pub fn read_binary_buffer(this_stream: &mut TcpStream) -> Result<Vec<u8>, String> {
+    let mut response_len = [0u8; 4];
+    let response_len: usize = u32::from_le_bytes(response_len)
+        .try_into()
+        .map_err(|_| "Response length exceeds `usize` bounds".to_owned())?;
+    if response_len == 0 {
+        return Err("Unexpected response from chain-abci".to_owned());
+    }
+    let mut result_buf = vec![0u8; response_len];
+    this_stream
+        .read(&mut result_buf)
+        .map_err(|err| format!("Error while reading response from chain-abci: {}", err))?;
+    Ok(result_buf)
+}
 #[allow(clippy::boxed_local)]
 pub fn handle_encryption_request(
     encryption_request: Box<EncryptionRequest>,

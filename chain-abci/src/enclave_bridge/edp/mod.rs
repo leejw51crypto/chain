@@ -134,7 +134,7 @@ pub fn launch_tx_validation(stream_to_txquery: UnixStream) -> TxValidationApp {
         .expect("SGX device was not found")
         .einittoken_provider(AesmClient::new())
         .build();
-    let enclave_path = "tx-validation-next.sgxs";
+    let enclave_path = "./tx-validation-next.sgxs";
     let mut enclave_builder = EnclaveBuilder::new(enclave_path.as_ref());
     enclave_builder
         .coresident_signature()
@@ -242,7 +242,7 @@ pub fn temp_start_up_ra_tx_query<T: EnclaveProxy + 'static>(
             .expect("SGX device was not found")
             .einittoken_provider(AesmClient::new())
             .build();
-        let mut enclave_builder = EnclaveBuilder::new("tx-query2-enclave-app.sgxs".as_ref());
+        let mut enclave_builder = EnclaveBuilder::new("./tx-query2-enclave-app.sgxs".as_ref());
         enclave_builder
             .coresident_signature()
             .expect("Enclave signature file not found");

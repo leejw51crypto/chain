@@ -56,7 +56,7 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
     let stream_to_txvalidation =
     Arc::new(Mutex::new(TcpStream::connect("stream_to_txvalidation").unwrap()));
 
-    //test_direct(stream_to_txvalidation.clone());
+    test_direct(stream_to_txvalidation.clone());
            
 
 

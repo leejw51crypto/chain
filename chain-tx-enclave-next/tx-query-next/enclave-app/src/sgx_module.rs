@@ -27,7 +27,7 @@ use chrono::Duration;
 fn test_direct(stream_to_txvalidation: Arc<Mutex<TcpStream>>)
 {
     std::thread::spawn(move || {
-        let mut bytes = vec![0u8; 1024];
+        let mut bytes = vec![0u8; 256];
 
         for id in 0..10 {
             let m= format!("i'm txquery {}", id);

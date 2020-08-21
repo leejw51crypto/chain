@@ -115,7 +115,7 @@ pub fn entry() -> std::io::Result<()> {
     std::thread::spawn(move || {
         let mut this_stream = stream_to_txquery;
         loop {
-            let ENCRYPTION_REQUEST_SIZE: usize = 1024 * 10; // 60 KB
+            let ENCRYPTION_REQUEST_SIZE: usize = 256 ; // 60 KB
             let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
             if let Ok(length) = this_stream.read(&mut bytes) {
                 let mut buf = &bytes[0..length];

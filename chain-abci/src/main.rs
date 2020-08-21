@@ -297,7 +297,7 @@ fn main() {
             );
 
             let (stream_to_txvalidation, stream_to_txquery): (UnixStream, UnixStream) =
-            UnixStream::pair().expect("sockets for tx-query, tx-validation");
+                UnixStream::pair().expect("sockets for tx-query, tx-validation");
 
             let tx_validator = get_enclave_proxy(stream_to_txquery);
             if sanity_check_enabled() {
@@ -307,8 +307,12 @@ fn main() {
             let host = config.host.parse().expect("invalid host");
             let addr = SocketAddr::new(host, config.port);
             let storage = Storage::new(&StorageConfig::new(&opt.data, StorageType::Node));
-            start_up_ra_tx_query(&config, tx_validator.clone(), storage.get_read_only(),
-            stream_to_txvalidation);
+            start_up_ra_tx_query(
+                &config,
+                tx_validator.clone(),
+                storage.get_read_only(),
+                stream_to_txvalidation,
+            );
             info!("starting up");
             abci::run(
                 addr,

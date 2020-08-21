@@ -59,6 +59,9 @@ impl EnclaveProxy for MockClient {
 
     fn process_request(&mut self, request: IntraEnclaveRequest) -> IntraEnclaveResponse {
         match &request {
+            IntraEnclaveRequest::General(message) => {
+                Ok(IntraEnclaveResponseOk::General(format!("rely {}", message)))
+            }
             IntraEnclaveRequest::InitChainCheck(network_id) => self
                 .check_chain(*network_id)
                 .map(|_| IntraEnclaveResponseOk::InitChainCheck)

@@ -46,6 +46,9 @@ fn handling_loop<I: Read + Write>(
         match chain_abci.read(&mut request_buf) {
             Ok(n) if n > 0 => match IntraEnclaveRequest::decode(&mut &request_buf.as_slice()[0..n])
             {
+                Ok(IntraEnclaveRequest::General(value)) => {
+                    log::debug!("chain_abci general {}", value);
+                }
                 Ok(IntraEnclaveRequest::InitChainCheck(network_id)) => {
                     let response: IntraEnclaveResponse = if network_id == NETWORK_HEX_ID {
                         Ok(IntraEnclaveResponseOk::InitChainCheck)
@@ -115,16 +118,15 @@ pub fn entry() -> std::io::Result<()> {
     std::thread::spawn(move || {
         let mut this_stream = stream_to_txquery;
         loop {
-            let ENCRYPTION_REQUEST_SIZE: usize = 256 ; // 60 KB
+            let ENCRYPTION_REQUEST_SIZE: usize = 256; // 60 KB
             let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
             if let Ok(length) = this_stream.read(&mut bytes) {
                 let mut buf = &bytes[0..length];
                 //log::info!("read {} bytes", buf.len());
-                let m=std::str::from_utf8(buf).unwrap();
+                let m = std::str::from_utf8(buf).unwrap();
                 //log::info!("from tx-query {}", m);
-                let m2= format!("i'm tx-validation {}", m);
+                let m2 = format!("i'm tx-validation {}", m);
                 this_stream.write_all(&m2.as_bytes());
-
             }
         }
     });

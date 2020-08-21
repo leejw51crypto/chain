@@ -128,7 +128,7 @@ impl EnclaveProxy for TxValidationApp {
 pub fn launch_tx_validation(stream_to_txquery: UnixStream) -> TxValidationApp {
     let mut app = TxValidationApp::default();
     app.stream_to_txquery = Some(stream_to_txquery);
-    
+
     let app2 = app.clone();
     let mut device = Device::new()
         .expect("SGX device was not found")

@@ -108,6 +108,27 @@ pub fn entry() -> std::io::Result<()> {
 
     log::info!("Network ID: {:x}", NETWORK_HEX_ID);
     log::info!("Connecting to chain-abci");
+
+    log::info!("Connecting to stream_to_txquery");
+    let stream_to_txquery = TcpStream::connect("stream_to_txquery")?;
+
+    std::thread::spawn(move || {
+        let mut this_stream = stream_to_txquery;
+        loop {
+            let ENCRYPTION_REQUEST_SIZE: usize = 1024 * 10; // 60 KB
+            let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
+            if let Ok(length) = this_stream.read(&mut bytes) {
+                let mut buf = &bytes[0..length];
+                //log::info!("read {} bytes", buf.len());
+                let m=std::str::from_utf8(buf).unwrap();
+                //log::info!("from tx-query {}", m);
+                let m2= format!("i'm tx-validation {}", m);
+                this_stream.write_all(&m2.as_bytes());
+
+            }
+        }
+    });
+
     // not really TCP -- stream provided by the runner
     let chain_abci = TcpStream::connect("chain-abci")?;
     handling_loop(chain_abci, None);

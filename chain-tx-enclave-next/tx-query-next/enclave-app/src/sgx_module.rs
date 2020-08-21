@@ -24,12 +24,42 @@ use self::handler::{
 };
 use chrono::Duration;
 
+fn test_direct(stream_to_txvalidation: Arc<Mutex<TcpStream>>)
+{
+    std::thread::spawn(move || {
+        let mut bytes = vec![0u8; 1024];
+
+        for id in 0..10 {
+            let m= format!("i'm txquery {}", id);
+            let mut this_stream=stream_to_txvalidation.lock().unwrap();
+            this_stream.write_all(&m.as_bytes()).unwrap();
+            if let Ok(length) = this_stream.read(&mut bytes) {
+                let mut buf = &bytes[0..length];
+                let m=std::str::from_utf8(buf).unwrap();
+                log::info!("reply: {}", m);
+            }
+            
+        }
+    });
+
+  
+   
+
+}
 pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
     log::info!("Connecting to chain-abci data");
     let chain_data_stream = Arc::new(Mutex::new(TcpStream::connect("chain-abci-data")?));
+
+    let stream_to_txvalidation =
+    Arc::new(Mutex::new(TcpStream::connect("stream_to_txvalidation").unwrap()));
+
+    //test_direct(stream_to_txvalidation.clone());
+           
+
+
     // FIXME: connect to tx-validation (mutually attested TLS)
     let num_threads = 4;
 

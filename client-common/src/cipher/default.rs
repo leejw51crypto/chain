@@ -21,7 +21,7 @@ use ra_client::{EnclaveCertVerifier, EnclaveCertVerifierConfig, EnclaveInfo};
 
 fn get_tls_config() -> Arc<rustls::ClientConfig> {
     let mr_signer: [u8; 32] = get_mrsigner!();
-    let mr_enclave: Option<[u8; 32]> = Some(get_tqe_mrenclave!());
+    let mr_enclave: Option<[u8; 32]> = Some(include_bytes!("../../../tqe.mrenclave").clone());
     let tqe_info = EnclaveInfo {
         mr_enclave,
         mr_signer,

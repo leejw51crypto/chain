@@ -12,8 +12,10 @@ use parity_scale_codec::{Decode, Encode};
 use rustls::{NoClientAuth, ServerConfig, ServerSession, StreamOwned};
 use thread_pool::ThreadPool;
 
+use enclave_protocol::codec::{StreamRead, StreamWrite};
 use enclave_protocol::{
-    DecryptionRequest, TxQueryInitRequest, TxQueryInitResponse, ENCRYPTION_REQUEST_SIZE,
+    DecryptionRequest, IntraEnclaveRequest, IntraEnclaveResponseOk, TxQueryInitRequest,
+    TxQueryInitResponse, ENCRYPTION_REQUEST_SIZE,
 };
 use ra_enclave::DEFAULT_EXPIRATION_SECS;
 use ra_enclave::{EnclaveRaConfig, EnclaveRaContext};
@@ -24,12 +26,37 @@ use self::handler::{
 };
 use chrono::Duration;
 
+fn callToTxquery(
+    stream_to_txvalidation: Arc<Mutex<TcpStream>>,
+    request: IntraEnclaveRequest,
+) -> std::io::Result<IntraEnclaveResponseOk> {
+    let mut this_stream = &*stream_to_txvalidation.lock().unwrap();
+    request.write_to(this_stream);
+    let response = IntraEnclaveResponseOk::read_from(this_stream);
+    response
+}
+
+fn check_txvalidation_stream(stream_to_txvalidation: Arc<Mutex<TcpStream>>, message: &str) {
+    let message_to_txquery = IntraEnclaveRequest::General(message.to_string());
+    let response = callToTxquery(stream_to_txvalidation.clone(), message_to_txquery);
+    if let Ok(IntraEnclaveResponseOk::General(s)) = response {
+        log::info!("received {}", s)
+    }
+}
 pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
     log::info!("Connecting to chain-abci data");
     let chain_data_stream = Arc::new(Mutex::new(TcpStream::connect("chain-abci-data")?));
+
+    let stream_to_txvalidation = Arc::new(Mutex::new(
+        TcpStream::connect("stream_to_txvalidation").unwrap(),
+    ));
+
+    check_txvalidation_stream(stream_to_txvalidation.clone(), "txquery initialize");
+    check_txvalidation_stream(stream_to_txvalidation.clone(), "txquery check");
+
     // FIXME: connect to tx-validation (mutually attested TLS)
     let num_threads = 4;
 

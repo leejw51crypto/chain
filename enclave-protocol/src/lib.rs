@@ -151,6 +151,7 @@ pub enum IntraEnclaveResponseOk {
     /// encryption response
     Encrypt(TxObfuscated),
     General(String),
+    UnknownRequest,
 }
 
 /// variable length response returned from the tx-validation enclave

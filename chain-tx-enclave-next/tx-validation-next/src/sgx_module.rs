@@ -105,49 +105,42 @@ fn handling_loop<I: Read + Write>(
     }
 }
 
-pub fn entry() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "debug");
-    env_logger::init();
-
-    log::info!("Network ID: {:x}", NETWORK_HEX_ID);
-    log::info!("Connecting to chain-abci");
-
-    log::info!("Connecting to stream_to_txquery");
-    let stream_to_txquery = TcpStream::connect("stream_to_txquery")?;
-
+// stream_to_txquery: actually it's UnixStream
+pub fn handling_txquery(stream_to_txquery: TcpStream) {
     std::thread::spawn(move || {
         let mut this_stream = stream_to_txquery;
         loop {
-            //let ENCRYPTION_REQUEST_SIZE: usize = 256; // 60 KB
-            //let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
             let result = IntraEnclaveRequest::read_from(&this_stream);
             if result.is_err() {
                 continue;
             }
-            let result2 = result.expect("get result");
-            match result2 {
-                IntraEnclaveRequest::General(v) => {
-                    let m2 = format!("i'm tx-validation {}", v);
-                    let m3 = IntraEnclaveResponseOk::General(m2);
-                    m3.write_to(&this_stream);
+            let request_form_txquery = result.expect("handling_txquery get unix-stream");
+            match request_form_txquery {
+                IntraEnclaveRequest::General(value) => {
+                    let reply =
+                        IntraEnclaveResponseOk::General(format!("from tx-validation {}", value));
+                    reply.write_to(&this_stream);
                 }
                 _ => {
-                    log::info!("unsupported protocol");
+                    log::debug!("handling_txquery unsupported protocol");
+                    let reply = IntraEnclaveResponseOk::UnknownRequest;
+                    reply.write_to(&this_stream);
                 }
             }
         }
-
-        /*if let Ok(length) = this_stream.read(&mut bytes) {
-            let mut buf = &bytes[0..length];
-            //log::info!("read {} bytes", buf.len());
-            let m = std::str::from_utf8(buf).unwrap();
-            //log::info!("from tx-query {}", m);
-            let m2 = format!("i'm tx-validation {}", m);
-            this_stream.write_all(&m2.as_bytes());
-        }*/
     });
+}
+pub fn entry() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
+    log::info!("Network ID: {:x}", NETWORK_HEX_ID);
+
+    log::info!("Connecting to txquery enclave");
+    let stream_to_txquery = TcpStream::connect("stream_to_txquery")?;
+    handling_txquery(stream_to_txquery);
 
     // not really TCP -- stream provided by the runner
+    log::info!("Connecting to chain-abci");
     let chain_abci = TcpStream::connect("chain-abci")?;
     handling_loop(chain_abci, None);
     Ok(())

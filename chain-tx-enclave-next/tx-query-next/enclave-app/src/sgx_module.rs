@@ -26,34 +26,27 @@ use self::handler::{
 };
 use chrono::Duration;
 
+fn callToTxquery(
+    stream_to_txvalidation: Arc<Mutex<TcpStream>>,
+    m2: IntraEnclaveRequest,
+) -> std::io::Result<IntraEnclaveResponseOk> {
+    let mut this_stream = &*stream_to_txvalidation.lock().unwrap();
+    m2.write_to(this_stream);
+    let response = IntraEnclaveResponseOk::read_from(this_stream);
+    response
+}
+
 fn test_direct(stream_to_txvalidation: Arc<Mutex<TcpStream>>) {
     std::thread::spawn(move || {
         let mut bytes = vec![0u8; 256];
 
         for id in 0..10 {
-            let m = format!("i'm txquery {}", id);
-            let mut this_stream = &*stream_to_txvalidation.lock().unwrap();
-            let m2 = IntraEnclaveRequest::General(m);
-            m2.write_to(this_stream);
-            let response = IntraEnclaveResponseOk::read_from(this_stream);
-            if let Ok(v) = response {
-                match v {
-                    IntraEnclaveResponseOk::General(s) => {
-                        log::info!("received {}", s);
-                    }
-                    _ => {
-                        log::info!("unsupported protocol");
-                    }
-                }
+            let message_to_txquery = IntraEnclaveRequest::General(format!("txquery {}", id));
+            let response = callToTxquery(stream_to_txvalidation.clone(), message_to_txquery);
+            if let Ok(IntraEnclaveResponseOk::General(s)) = response {
+                log::info!("received {}", s)
             }
-            //this_stream.write_all(&m.as_bytes()).unwrap();
         }
-        /* if let Ok(length) = this_stream.read(&mut bytes) {
-            let mut buf = &bytes[0..length];
-           // let m = std::str::from_utf8(buf).unwrap();
-            let  m= IntraEnclaveResponseOk::read_from(
-            log::info!("reply: {}", m);
-        }*/
     });
 }
 pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {

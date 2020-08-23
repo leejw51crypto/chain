@@ -28,26 +28,20 @@ use chrono::Duration;
 
 fn callToTxquery(
     stream_to_txvalidation: Arc<Mutex<TcpStream>>,
-    m2: IntraEnclaveRequest,
+    request: IntraEnclaveRequest,
 ) -> std::io::Result<IntraEnclaveResponseOk> {
     let mut this_stream = &*stream_to_txvalidation.lock().unwrap();
-    m2.write_to(this_stream);
+    request.write_to(this_stream);
     let response = IntraEnclaveResponseOk::read_from(this_stream);
     response
 }
 
-fn test_direct(stream_to_txvalidation: Arc<Mutex<TcpStream>>) {
-    std::thread::spawn(move || {
-        let mut bytes = vec![0u8; 256];
-
-        for id in 0..10 {
-            let message_to_txquery = IntraEnclaveRequest::General(format!("txquery {}", id));
-            let response = callToTxquery(stream_to_txvalidation.clone(), message_to_txquery);
-            if let Ok(IntraEnclaveResponseOk::General(s)) = response {
-                log::info!("received {}", s)
-            }
-        }
-    });
+fn check_txvalidation_stream(stream_to_txvalidation: Arc<Mutex<TcpStream>>, message: &str) {
+    let message_to_txquery = IntraEnclaveRequest::General(message.to_string());
+    let response = callToTxquery(stream_to_txvalidation.clone(), message_to_txquery);
+    if let Ok(IntraEnclaveResponseOk::General(s)) = response {
+        log::info!("received {}", s)
+    }
 }
 pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
@@ -60,7 +54,7 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
         TcpStream::connect("stream_to_txvalidation").unwrap(),
     ));
 
-    test_direct(stream_to_txvalidation.clone());
+    check_txvalidation_stream(stream_to_txvalidation.clone(), "check txvalidation_stream");
 
     // FIXME: connect to tx-validation (mutually attested TLS)
     let num_threads = 4;

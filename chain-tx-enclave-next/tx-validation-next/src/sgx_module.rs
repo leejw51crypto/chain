@@ -9,6 +9,7 @@ use chain_core::tx::TX_AUX_SIZE;
 use chain_tx_filter::BlockFilter;
 use chain_tx_validation::Error;
 use enclave_macro::get_network_id;
+use enclave_protocol::codec::{StreamRead, StreamWrite};
 use enclave_protocol::{IntraEnclaveRequest, IntraEnclaveResponse, IntraEnclaveResponseOk};
 use parity_scale_codec::{Decode, Encode};
 use std::io::{Read, Write};
@@ -16,7 +17,6 @@ use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
-
 /// FIXME: genesis app hash etc.?
 pub const NETWORK_HEX_ID: u8 = get_network_id!();
 
@@ -46,6 +46,9 @@ fn handling_loop<I: Read + Write>(
         match chain_abci.read(&mut request_buf) {
             Ok(n) if n > 0 => match IntraEnclaveRequest::decode(&mut &request_buf.as_slice()[0..n])
             {
+                Ok(IntraEnclaveRequest::General(value)) => {
+                    log::debug!("chain_abci general {}", value);
+                }
                 Ok(IntraEnclaveRequest::InitChainCheck(network_id)) => {
                     let response: IntraEnclaveResponse = if network_id == NETWORK_HEX_ID {
                         Ok(IntraEnclaveResponseOk::InitChainCheck)
@@ -102,13 +105,42 @@ fn handling_loop<I: Read + Write>(
     }
 }
 
+// stream_to_txquery: actually it's UnixStream
+pub fn handling_txquery(stream_to_txquery: TcpStream) {
+    std::thread::spawn(move || {
+        let mut this_stream = stream_to_txquery;
+        loop {
+            let result = IntraEnclaveRequest::read_from(&this_stream);
+            if result.is_err() {
+                continue;
+            }
+            let request_form_txquery = result.expect("handling_txquery get unix-stream");
+            match request_form_txquery {
+                IntraEnclaveRequest::General(value) => {
+                    let reply =
+                        IntraEnclaveResponseOk::General(format!("from tx-validation {}", value));
+                    reply.write_to(&this_stream);
+                }
+                _ => {
+                    log::debug!("handling_txquery unsupported protocol");
+                    let reply = IntraEnclaveResponseOk::UnknownRequest;
+                    reply.write_to(&this_stream);
+                }
+            }
+        }
+    });
+}
 pub fn entry() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-
     log::info!("Network ID: {:x}", NETWORK_HEX_ID);
-    log::info!("Connecting to chain-abci");
+
+    log::info!("Connecting to txquery enclave");
+    let stream_to_txquery = TcpStream::connect("stream_to_txquery")?;
+    handling_txquery(stream_to_txquery);
+
     // not really TCP -- stream provided by the runner
+    log::info!("Connecting to chain-abci");
     let chain_abci = TcpStream::connect("chain-abci")?;
     handling_loop(chain_abci, None);
     Ok(())

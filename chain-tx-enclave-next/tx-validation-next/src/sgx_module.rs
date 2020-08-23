@@ -9,6 +9,7 @@ use chain_core::tx::TX_AUX_SIZE;
 use chain_tx_filter::BlockFilter;
 use chain_tx_validation::Error;
 use enclave_macro::get_network_id;
+use enclave_protocol::codec::{StreamRead, StreamWrite};
 use enclave_protocol::{IntraEnclaveRequest, IntraEnclaveResponse, IntraEnclaveResponseOk};
 use parity_scale_codec::{Decode, Encode};
 use std::io::{Read, Write};
@@ -16,7 +17,6 @@ use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
-
 /// FIXME: genesis app hash etc.?
 pub const NETWORK_HEX_ID: u8 = get_network_id!();
 
@@ -118,17 +118,33 @@ pub fn entry() -> std::io::Result<()> {
     std::thread::spawn(move || {
         let mut this_stream = stream_to_txquery;
         loop {
-            let ENCRYPTION_REQUEST_SIZE: usize = 256; // 60 KB
-            let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
-            if let Ok(length) = this_stream.read(&mut bytes) {
-                let mut buf = &bytes[0..length];
-                //log::info!("read {} bytes", buf.len());
-                let m = std::str::from_utf8(buf).unwrap();
-                //log::info!("from tx-query {}", m);
-                let m2 = format!("i'm tx-validation {}", m);
-                this_stream.write_all(&m2.as_bytes());
+            //let ENCRYPTION_REQUEST_SIZE: usize = 256; // 60 KB
+            //let mut bytes = vec![0u8; ENCRYPTION_REQUEST_SIZE];
+            let result = IntraEnclaveRequest::read_from(&this_stream);
+            if result.is_err() {
+                continue;
+            }
+            let result2 = result.expect("get result");
+            match result2 {
+                IntraEnclaveRequest::General(v) => {
+                    let m2 = format!("i'm tx-validation {}", v);
+                    let m3 = IntraEnclaveResponseOk::General(m2);
+                    m3.write_to(&this_stream);
+                }
+                _ => {
+                    log::info!("unsupported protocol");
+                }
             }
         }
+
+        /*if let Ok(length) = this_stream.read(&mut bytes) {
+            let mut buf = &bytes[0..length];
+            //log::info!("read {} bytes", buf.len());
+            let m = std::str::from_utf8(buf).unwrap();
+            //log::info!("from tx-query {}", m);
+            let m2 = format!("i'm tx-validation {}", m);
+            this_stream.write_all(&m2.as_bytes());
+        }*/
     });
 
     // not really TCP -- stream provided by the runner

@@ -12,8 +12,10 @@ use parity_scale_codec::{Decode, Encode};
 use rustls::{NoClientAuth, ServerConfig, ServerSession, StreamOwned};
 use thread_pool::ThreadPool;
 
+use enclave_protocol::codec::{StreamRead, StreamWrite};
 use enclave_protocol::{
-    DecryptionRequest, TxQueryInitRequest, TxQueryInitResponse, ENCRYPTION_REQUEST_SIZE,
+    DecryptionRequest, IntraEnclaveRequest, IntraEnclaveResponseOk, TxQueryInitRequest,
+    TxQueryInitResponse, ENCRYPTION_REQUEST_SIZE,
 };
 use ra_enclave::DEFAULT_EXPIRATION_SECS;
 use ra_enclave::{EnclaveRaConfig, EnclaveRaContext};
@@ -30,14 +32,28 @@ fn test_direct(stream_to_txvalidation: Arc<Mutex<TcpStream>>) {
 
         for id in 0..10 {
             let m = format!("i'm txquery {}", id);
-            let mut this_stream = stream_to_txvalidation.lock().unwrap();
-            this_stream.write_all(&m.as_bytes()).unwrap();
-            if let Ok(length) = this_stream.read(&mut bytes) {
-                let mut buf = &bytes[0..length];
-                let m = std::str::from_utf8(buf).unwrap();
-                log::info!("reply: {}", m);
+            let mut this_stream = &*stream_to_txvalidation.lock().unwrap();
+            let m2 = IntraEnclaveRequest::General(m);
+            m2.write_to(this_stream);
+            let response = IntraEnclaveResponseOk::read_from(this_stream);
+            if let Ok(v) = response {
+                match v {
+                    IntraEnclaveResponseOk::General(s) => {
+                        log::info!("received {}", s);
+                    }
+                    _ => {
+                        log::info!("unsupported protocol");
+                    }
+                }
             }
+            //this_stream.write_all(&m.as_bytes()).unwrap();
         }
+        /* if let Ok(length) = this_stream.read(&mut bytes) {
+            let mut buf = &bytes[0..length];
+           // let m = std::str::from_utf8(buf).unwrap();
+            let  m= IntraEnclaveResponseOk::read_from(
+            log::info!("reply: {}", m);
+        }*/
     });
 }
 pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {

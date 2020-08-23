@@ -54,7 +54,8 @@ pub fn entry(cert_expiration: Option<Duration>) -> std::io::Result<()> {
         TcpStream::connect("stream_to_txvalidation").unwrap(),
     ));
 
-    check_txvalidation_stream(stream_to_txvalidation.clone(), "check txvalidation_stream");
+    check_txvalidation_stream(stream_to_txvalidation.clone(), "txquery initialize");
+    check_txvalidation_stream(stream_to_txvalidation.clone(), "txquery check");
 
     // FIXME: connect to tx-validation (mutually attested TLS)
     let num_threads = 4;

@@ -19,7 +19,7 @@ pub fn get_cert(port: u32) -> Certificate {
     let verifier = EnclaveCertVerifier::new(EnclaveCertVerifierConfig::new_with_enclave_info(
         EnclaveInfo {
             mr_signer: get_mrsigner!(),
-            mr_enclave: Some(get_tqe_mrenclave!()),
+            mr_enclave: Some(include_bytes!("../../tqe.mrenclave")),
             previous_mr_enclave: None,
             cpu_svn: [0; 16],
             isv_svn: 0,

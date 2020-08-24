@@ -621,7 +621,7 @@ fn display_tx_witness<T: fmt::Display, W: fmt::Debug>(
 
 impl fmt::Display for TxAux {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
+        match &*self {
             TxAux::EnclaveTx(TxEnclaveAux::TransferTx {
                 payload: TxObfuscated { txid, .. },
                 inputs,

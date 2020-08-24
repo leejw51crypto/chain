@@ -533,24 +533,25 @@ pub fn load_wallet<S: SecureStorage + 'static>(
 }
 
 fn generate_page(all_items_count: u64, offset: u64, limit: u64, reversed: bool) -> Vec<u64> {
-    let ret: Vec<u64>;
-    if reversed {
+    let ret: Vec<u64> = if reversed {
         let start = all_items_count.saturating_sub(offset);
-        let mut end = 0;
-        if limit > 0 {
-            end = start.saturating_sub(limit);
-        }
+        let end = if limit > 0 {
+            start.saturating_sub(limit)
+        } else {
+            0
+        };
         let mut tmp: Vec<u64> = (end..start).collect();
         tmp.reverse();
-        ret = tmp;
+        tmp
     } else {
         let start = offset;
-        let mut end = all_items_count;
-        if limit > 0 {
-            end = std::cmp::min(offset + limit, all_items_count);
-        }
-        ret = (start..end).collect();
-    }
+        let end = if limit > 0 {
+            std::cmp::min(offset + limit, all_items_count)
+        } else {
+            all_items_count
+        };
+        (start..end).collect()
+    };
     ret
 }
 

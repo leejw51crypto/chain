@@ -44,7 +44,7 @@ use mls::{
 
 const TEST_CHAIN_ID: &str = "test-00";
 
-pub const DEFAULT_GENESIS_TIME: u64 = 1563148800;
+pub const DEFAULT_GENESIS_TIME: u64 = 1_563_148_800;
 
 /// Need to add more seed and validator public keys, if need more validator nodes.
 const SEEDS: [[u8; 32]; 2] = [[0xcd; 32], [0xab; 32]];

@@ -513,11 +513,11 @@ impl Command {
                 }
                 let enckey = ask_seckey(None)?;
 
-                let mut trusting_period = max_trusting_period;
-                if 0 < light_client_trusting_period_seconds_user {
-                    trusting_period =
-                        std::time::Duration::from_secs(light_client_trusting_period_seconds_user);
-                }
+                let trusting_period = if 0 < light_client_trusting_period_seconds_user {
+                    std::time::Duration::from_secs(light_client_trusting_period_seconds_user)
+                } else {
+                    max_trusting_period
+                };
                 log::info!(
                     "light-client trusting period in seconds {:?}  height {}  blockhash {}",
                     trusting_period,

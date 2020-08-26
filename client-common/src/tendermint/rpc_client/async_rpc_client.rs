@@ -45,6 +45,7 @@ pub struct AsyncRpcClient {
     pub websocket_writer: Arc<Mutex<WebSocketWriter>>,
     channel_map: Arc<Mutex<HashMap<String, Sender<JsonRpcResponse>>>>,
     unique_id: Arc<AtomicUsize>,
+    myid: i64,
 }
 
 impl AsyncRpcClient {
@@ -78,6 +79,7 @@ impl AsyncRpcClient {
             websocket_writer,
             channel_map,
             unique_id: Arc::new(AtomicUsize::new(0)),
+            myid:0,
         })
     }
 
@@ -91,7 +93,7 @@ impl AsyncRpcClient {
     // - Ensure that the `websocket_rpc_loop` is in `Connected` state.
     // - Send request websocket message.
     // - Receive response on `channel_receiver`.
-    pub async fn request(&self, method: &str, params: &[Value]) -> Result<Value> {
+    pub async fn request(&mut self, method: &str, params: &[Value]) -> Result<Value> {
         let (id, channel_receiver) = self.send_request(method, params).await?;
         self.receive_response(method, params, &id, channel_receiver)
             .await
@@ -104,7 +106,7 @@ impl AsyncRpcClient {
     /// This does not use batch JSON-RPC requests but makes multiple single JSON-RPC requests in parallel.
     ///
     /// TODO: Usage of `Vec` can be removed once we execute it in a purely async context
-    pub async fn request_batch(&self, batch_params: &[(&str, Vec<Value>)]) -> Result<Vec<Value>> {
+    pub async fn request_batch(&mut self, batch_params: &[(&str, Vec<Value>)]) -> Result<Vec<Value>> {
         if batch_params.is_empty() {
             // Do not send empty batch requests
             return Ok(Default::default());
@@ -134,7 +136,7 @@ impl AsyncRpcClient {
     }
 
     /// Makes an RPC call and deserializes the response
-    pub async fn call<T>(&self, method: &str, params: &[Value]) -> Result<T>
+    pub async fn call<T>(&mut self, method: &str, params: &[Value]) -> Result<T>
     where
         for<'de> T: Deserialize<'de>,
     {
@@ -150,7 +152,7 @@ impl AsyncRpcClient {
     /// Makes RPC call in batch and deserializes responses
     ///
     /// TODO: Usage of `Vec` can be removed once we execute it in a purely async context
-    pub async fn call_batch<T>(&self, batch_params: &[(&str, Vec<Value>)]) -> Result<Vec<T>>
+    pub async fn call_batch<T>(&mut self, batch_params: &[(&str, Vec<Value>)]) -> Result<Vec<T>>
     where
         for<'de> T: Deserialize<'de>,
     {
@@ -206,7 +208,7 @@ impl AsyncRpcClient {
 
     /// Receives response from websocket for given id.
     async fn receive_response(
-        &self,
+        &mut self,
         method: &str,
         params: &[Value],
         id: &str,
@@ -223,6 +225,19 @@ impl AsyncRpcClient {
                 bail!(err)
             }
         };
+
+        // error
+        let a=   rand::random::<i32>();
+        log::info!("random ---------  myid={} {}",self.myid,a);
+     /*   if self.myid==5 {
+            log::info!("intentional error----------------------------");
+            bail!("test error")
+        }
+        self.myid +=1;*/
+       if a % 100 == 0 {
+        log::info!("intentional error2----------------------------");
+        bail!("test error")
+        } 
 
         match response.error {
             Some(err) => bail!(

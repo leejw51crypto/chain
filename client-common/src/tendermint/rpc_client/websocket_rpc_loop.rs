@@ -179,9 +179,10 @@ async fn send_response(
 
     if let Some(sender) = sender {
         log::debug!("Sending JSON-RPC response to channel");
-        sender
-            .send(response)
-            .expect("Unable to send message on channel sender");
+        let r=sender
+            .send(response);
+            log::info!("send response {:?}", r);
+            //.expect("Unable to send message on channel sender");
     } else {
         log::warn!("Received a websocket message with no configured handler");
     }

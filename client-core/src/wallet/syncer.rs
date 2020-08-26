@@ -530,6 +530,16 @@ impl<
         Ok(())
     }
 
+    fn get_block_data(
+        &mut self,
+        range: &[u64],
+    ) -> Result<(Vec<Block>, Vec<BlockResultsResponse>, Vec<ChainState>)> {
+        let blocks = self.env.client.block_batch(range.iter())?;
+        let block_results = self.env.client.block_results_batch(range.iter())?;
+        let states = self.env.client.query_state_batch(range.iter().cloned())?;
+        Ok((blocks, block_results, states)) // return tuple
+    }
+
     fn sync_to(
         &mut self,
         target_height: u64,
@@ -565,9 +575,38 @@ impl<
             }
 
             // Fetch batch details if it cannot be fast forwarded
-            let blocks = self.env.client.block_batch(range.iter())?;
-            let block_results = self.env.client.block_results_batch(range.iter())?;
-            let states = self.env.client.query_state_batch(range.iter().cloned())?;
+         
+            let mut blocks: Vec<Block> = vec![];
+            let mut block_results: Vec<BlockResultsResponse> = vec![];
+            let mut states: Vec<ChainState> = vec![];
+            // let blocks = self.env.client.block_batch(range.iter())?;
+            // let block_results = self.env.client.block_results_batch(range.iter())?;
+            //let states = self.env.client.query_state_batch(range.iter().cloned())?;
+            loop {
+                log::info!("before.........................................");
+                let data_trio = self.get_block_data(&range);
+                if let Ok((a, b, c)) = data_trio.as_ref() {
+                   log::info!("received trio {} {} {}", a.len(), b.len(), c.len());
+                    blocks = a.to_vec();
+                    block_results = b.to_vec();
+                    states = c.to_vec();
+                    if  blocks.len() == block_results.len() && block_results.len() == states.len() {
+                        log::info!("correct....");
+                        assert!(blocks.len() == block_results.len());
+                        assert!(block_results.len() == states.len());
+                        break;
+                    }
+                    else {
+                        log::info!("fetch info in correct");
+                        log::info!("received trio {} {} {}", a.len(), b.len(), c.len());
+                    }
+                } 
+
+                    log::info!("fail................");
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                
+            }
+            // if any error occurs, do it again
 
             for (block, block_result, state) in izip!(
                 blocks.into_iter(),

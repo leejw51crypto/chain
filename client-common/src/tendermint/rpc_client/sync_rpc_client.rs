@@ -144,7 +144,7 @@ impl SyncRpcClient {
         for<'de> T: Deserialize<'de>,
     {
         let (sender, receiver) = sync_channel(1);
-        let async_rpc_client = self.get_async_client()?;
+        let mut async_rpc_client = self.get_async_client()?;
 
         self.runtime.lock().unwrap().spawn(async move {
             let response = async_rpc_client.call(method, &params).await;
@@ -174,7 +174,7 @@ impl SyncRpcClient {
         for<'de> T: Deserialize<'de>,
     {
         let (sender, receiver) = sync_channel(1);
-        let async_rpc_client = self.get_async_client()?;
+        let mut async_rpc_client = self.get_async_client()?;
 
         self.runtime.lock().unwrap().spawn(async move {
             let response = async_rpc_client.call_batch(&params).await;

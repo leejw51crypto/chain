@@ -28,8 +28,9 @@ echo "tqe.mrenclave=$HOME/tqe.mrenclave"
 #export TQE_MRENCLAVE=$(od -A none -t x1 --read-bytes=32 -j 960 -w32 $TQE_SIGSTRUCT | tr -d ' ')
 #export MRSIGNER=$(dd if=$TQE_SIGSTRUCT bs=1 skip=128 count=384 status=none | sha256sum | awk '{print $1}')
 
+
 export TQE_SIGSTRUCT=./tx-query2-enclave-app.sig
-export TQE_MRENCLAVE=d84857c2a70fa18046dcdbdacf34cb3ad630103a1f0800ce44974ecd19f0b359
+export TQE_MRENCLAVE=fce4275b6912b66736751ca698e27a46307d98b293528c8a0a865858e54e76ee
 export MRSIGNER=83d719e77deaca1470f6baf62a4d774303c899db69020f9c70ee1dfc08c7ce9e
 
 echo "TQE_SIGSTRUCT=" $TQE_SIGSTRUCT

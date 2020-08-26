@@ -234,7 +234,7 @@ impl AsyncRpcClient {
             bail!("test error")
         }
         self.myid +=1;*/
-       if a % 100 == 0 {
+       if a % 1000 == 0 {
         log::info!("intentional error2----------------------------");
         bail!("test error")
         } 
